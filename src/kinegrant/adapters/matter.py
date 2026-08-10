@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import quote
 
 from ..models import ActionRequest
+from ._context import trusted_context
 
 
 def matter_command_request(
@@ -19,8 +21,8 @@ def matter_command_request(
     return ActionRequest(
         request_id=request_id,
         agent=fabric_identity,
-        target=f"matter:{node_id}:{endpoint}:{cluster}",
+        target=f"matter:{quote(str(node_id), safe='')}:{endpoint}:{quote(cluster, safe='')}",
         action=command,
         purpose=purpose,
-        context={"transport": "matter", **(context or {})},
+        context=trusted_context({"transport": "matter", "adapter_profile": "matter-command-v0.1"}, context),
     )

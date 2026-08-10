@@ -4,9 +4,10 @@
   "title": "KineGrant ActionRequest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["type", "request_id", "agent", "target", "action", "purpose", "issued_at", "context"],
+  "required": ["type", "version", "request_id", "agent", "target", "action", "purpose", "issued_at", "context"],
   "properties": {
     "type": { "const": "kinegrant:ActionRequest" },
+    "version": { "const": "0.1" },
     "request_id": { "type": "string", "minLength": 1 },
     "agent": { "type": "string", "minLength": 1 },
     "target": { "type": "string", "minLength": 1 },

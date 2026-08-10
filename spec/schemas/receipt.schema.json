@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kinegrant.com/schemas/v0.1/receipt.schema.json",
+  "title": "KineGrant signed PhysicalActionReceipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["alg", "kid", "payload", "signature"],
+  "properties": {
+    "alg": {"const": "EdDSA"},
+    "kid": {"type": "string", "pattern": "^kinegrant:key:ed25519:[A-Za-z0-9_-]{43}$"},
+    "signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"},
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "version", "executor", "capability_id", "request_digest", "agent", "target", "action", "purpose", "result", "started_at", "finished_at", "evidence_hash", "previous_receipt_hash", "receipt_id"],
+      "properties": {
+        "type": {"const": "kinegrant:PhysicalActionReceipt"},
+        "version": {"const": "0.1"},
+        "executor": {"type": "string", "pattern": "^kinegrant:key:ed25519:[A-Za-z0-9_-]{43}$"},
+        "capability_id": {"type": "string", "pattern": "^kinegrant:cap:[0-9a-f]{64}$"},
+        "request_digest": {"$ref": "#/$defs/digest"},
+        "agent": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "action": {"type": "string", "minLength": 1},
+        "purpose": {"type": "string", "minLength": 1},
+        "result": {"enum": ["succeeded", "failed", "aborted"]},
+        "started_at": {"type": "string", "format": "date-time"},
+        "finished_at": {"type": "string", "format": "date-time"},
+        "evidence_hash": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "previous_receipt_hash": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "receipt_id": {"type": "string", "pattern": "^kinegrant:receipt:[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

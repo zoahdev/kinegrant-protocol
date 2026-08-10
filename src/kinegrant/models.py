@@ -36,6 +36,16 @@ class ActionRequest:
     issued_at: datetime = field(default_factory=utc_now)
     context: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        for name in ("request_id", "agent", "target", "action", "purpose"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name} must be a non-empty string")
+        if not isinstance(self.context, dict):
+            raise ValueError("context must be an object")
+        # Validate this at construction time rather than much later during signing.
+        isoformat(self.issued_at)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "type": "kinegrant:ActionRequest",
@@ -73,6 +83,16 @@ class PolicyRule:
             raise ValueError("effect must be allow or deny")
         if not self.actions:
             raise ValueError("a policy rule must contain at least one action")
+        for name in ("policy_id", "issuer", "target"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name} must be a non-empty string")
+        for name in ("actions", "subjects", "purposes"):
+            values = getattr(self, name)
+            if not values or any(not isinstance(item, str) or not item.strip() for item in values):
+                raise ValueError(f"{name} must contain non-empty strings")
+        if not isinstance(self.constraints, dict) or not isinstance(self.source, dict):
+            raise ValueError("constraints and source must be objects")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -95,6 +115,7 @@ class Decision:
     allowed: bool
     reason: str
     request_digest: str
+    policy_digest: str
     matched_policy_ids: tuple[str, ...] = ()
     obligations: tuple[str, ...] = ()
 
@@ -103,6 +124,7 @@ class Decision:
             "allowed": self.allowed,
             "reason": self.reason,
             "request_digest": self.request_digest,
+            "policy_digest": self.policy_digest,
             "matched_policy_ids": list(self.matched_policy_ids),
             "obligations": list(self.obligations),
         }

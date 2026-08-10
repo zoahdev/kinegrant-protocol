@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kinegrant.com/schemas/v0.1/decision.schema.json",
+  "title": "KineGrant Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["allowed", "reason", "request_digest", "policy_digest", "matched_policy_ids", "obligations"],
+  "properties": {
+    "allowed": {"type": "boolean"},
+    "reason": {"enum": ["explicit_allow", "explicit_deny", "default_deny", "stale_request", "future_request"]},
+    "request_digest": {"$ref": "#/$defs/digest"},
+    "policy_digest": {"$ref": "#/$defs/digest"},
+    "matched_policy_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "obligations": {"type": "array", "items": {"enum": ["emitActionReceipt"]}, "uniqueItems": true}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

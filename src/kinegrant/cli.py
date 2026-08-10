@@ -45,7 +45,8 @@ def run_demo() -> dict[str, object]:
         context={"risk_tier": 1, "human_present": True},
     )
 
-    engine = PolicyEngine(odrl_to_rules(policy_document))
+    rules = odrl_to_rules(policy_document)
+    engine = PolicyEngine(rules, trusted_policy_issuers={"urn:person:space-owner"})
     decision = engine.evaluate(request)
     authority = Ed25519KeyPair.generate()
     capability = CapabilityIssuer(authority).issue(request, decision, ttl_seconds=60)
@@ -54,12 +55,16 @@ def run_demo() -> dict[str, object]:
 
     executor = Ed25519KeyPair.generate()
     log = ReceiptLog(executor)
-    receipt = log.append(claims, result="succeeded", evidence_hash="sha256:demo-evidence")
+    receipt = log.append(claims, result="succeeded", evidence_hash="sha256:" + "00" * 32)
     return {
         "decision": decision.to_dict(),
         "capability": capability,
         "receipt": receipt,
-        "receipt_chain_valid": verify_receipt_chain(log.entries),
+        "receipt_chain_valid": verify_receipt_chain(
+            log.entries,
+            trusted_executors={executor.kid},
+            expected_capability_ids={claims["capability_id"]},
+        ),
     }
 
 

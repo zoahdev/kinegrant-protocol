@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from ..models import ActionRequest
+from ._context import trusted_context
 
 
 def _thing_id(description: Mapping[str, Any]) -> str:
@@ -45,5 +46,5 @@ def wot_action_request(
         target=_thing_id(description),
         action=action_name,
         purpose=purpose,
-        context={"transport": "wot", **(context or {})},
+        context=trusted_context({"transport": "wot", "adapter_profile": "wot-action-v0.1"}, context),
     )

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kinegrant.com/schemas/v0.1/capability.schema.json",
+  "title": "KineGrant signed PhysicalActionCapability",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["alg", "kid", "payload", "signature"],
+  "properties": {
+    "alg": {"const": "EdDSA"},
+    "kid": {"type": "string", "pattern": "^kinegrant:key:ed25519:[A-Za-z0-9_-]{43}$"},
+    "signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"},
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "version", "issuer", "agent", "target", "action", "purpose", "request_digest", "policy_digest", "matched_policy_ids", "obligations", "issued_at", "not_before", "expires_at", "nonce", "capability_id"],
+      "properties": {
+        "type": {"const": "kinegrant:PhysicalActionCapability"},
+        "version": {"const": "0.1"},
+        "issuer": {"type": "string", "pattern": "^kinegrant:key:ed25519:[A-Za-z0-9_-]{43}$"},
+        "agent": {"type": "string", "minLength": 1},
+        "target": {"type": "string", "minLength": 1},
+        "action": {"type": "string", "minLength": 1},
+        "purpose": {"type": "string", "minLength": 1},
+        "request_digest": {"$ref": "#/$defs/digest"},
+        "policy_digest": {"$ref": "#/$defs/digest"},
+        "matched_policy_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "obligations": {"type": "array", "items": {"enum": ["emitActionReceipt"]}, "uniqueItems": true},
+        "issued_at": {"type": "string", "format": "date-time"},
+        "not_before": {"type": "string", "format": "date-time"},
+        "expires_at": {"type": "string", "format": "date-time"},
+        "nonce": {"type": "string", "minLength": 20},
+        "capability_id": {"type": "string", "pattern": "^kinegrant:cap:[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

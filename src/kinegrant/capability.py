@@ -4,7 +4,7 @@ import secrets
 from datetime import timedelta
 from typing import Any
 
-from .canonical import content_id, digest
+from .canonical import content_id
 from .crypto import Ed25519KeyPair
 from .models import ActionRequest, Decision, isoformat, utc_now
 
@@ -24,8 +24,13 @@ class CapabilityIssuer:
             raise PermissionError("cannot issue a capability for a denied request")
         if decision.request_digest != request.digest:
             raise ValueError("decision does not belong to this request")
+        if not decision.matched_policy_ids:
+            raise ValueError("allowed decision has no matching policy")
         if not 1 <= ttl_seconds <= 300:
             raise ValueError("capability TTL must be between 1 and 300 seconds")
+        unknown_obligations = set(decision.obligations) - {"emitActionReceipt"}
+        if unknown_obligations:
+            raise PermissionError("unsupported policy obligation")
 
         issued_at = utc_now()
         body = {
@@ -37,7 +42,7 @@ class CapabilityIssuer:
             "action": request.action,
             "purpose": request.purpose,
             "request_digest": request.digest,
-            "policy_digest": digest(decision.to_dict()),
+            "policy_digest": decision.policy_digest,
             "matched_policy_ids": list(decision.matched_policy_ids),
             "obligations": list(decision.obligations),
             "issued_at": isoformat(issued_at),
