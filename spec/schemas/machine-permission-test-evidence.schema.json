@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kinegrant.com/schemas/machine-permission-test-evidence-v0.1.json",
+  "title": "KineGrant Machine Permission Test Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "generated_at", "protocol", "reference_implementation", "overall_result", "summary", "cases", "limitations"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "run_id": {"type": "string", "pattern": "^urn:kinegrant:mpt:run:[0-9a-f-]{36}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "protocol": {"const": "KGP-001 Experimental Open Draft 0.1"},
+    "reference_implementation": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "overall_result": {"enum": ["PASS", "FAIL"]},
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["total", "passed", "failed"],
+      "properties": {
+        "total": {"type": "integer", "minimum": 1},
+        "passed": {"type": "integer", "minimum": 0},
+        "failed": {"type": "integer", "minimum": 0}
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "expected", "observed", "passed", "evidence"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^MPT-[0-9]{3}$"},
+          "name": {"type": "string", "minLength": 1},
+          "expected": {"type": "string", "minLength": 1},
+          "observed": {"type": "string", "minLength": 1},
+          "passed": {"type": "boolean"},
+          "evidence": {"type": "object"}
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    }
+  }
+}

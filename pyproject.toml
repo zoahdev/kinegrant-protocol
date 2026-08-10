@@ -17,6 +17,7 @@ test = ["jsonschema[format]>=4.23"]
 
 [project.scripts]
 kinegrant-demo = "kinegrant.cli:main"
+kinegrant-mpt = "kinegrant.mpt:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

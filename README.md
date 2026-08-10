@@ -70,12 +70,22 @@ python -m venv .venv
 # macOS/Linux: source .venv/bin/activate
 python -m pip install -e '.[test]'
 kinegrant-demo
+kinegrant-mpt --output machine-permission-test.evidence.json
 python -m unittest discover -s tests -v
 ```
 
 The demo authorizes a delivery robot to open one specific door for delivery,
 issues a 60-second capability, consumes it once at the action gate, and emits a
 signed receipt. The same policy denies recording and training-data capture.
+
+## Machine Permission Test
+
+The reproducible [Machine Permission Test](challenge/README.md) emits strict JSON
+evidence with an explicit `PASS` or `FAIL`. It exercises no-grant denial,
+single-use authorization, replay, request binding, issuer and expiry checks,
+concurrent consumption, persistent replay state, and receipt trust. Validate
+the output with
+[`machine-permission-test-evidence.schema.json`](spec/schemas/machine-permission-test-evidence.schema.json).
 
 ## Repository map
 
@@ -85,6 +95,7 @@ signed receipt. The same policy denies recording and training-data capture.
 | `spec/THREAT-MODEL.md` | Assumptions, adversaries, and unsolved risks |
 | `spec/STANDARD-MAPPING.md` | Boundaries with existing standards |
 | `spec/schemas/` | Strict Draft 2020-12 schemas for all core objects |
+| `challenge/` | Reproducible Machine Permission Test instructions |
 | `src/kinegrant/` | Python reference implementation |
 | `tests/` | Executable security and interoperability checks |
 | `SECURITY.md` | Vulnerability reporting policy |
