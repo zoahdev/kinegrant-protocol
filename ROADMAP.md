@@ -20,6 +20,21 @@
 - strict schemas and 33 automated protocol/security regression tests;
 - GitHub Actions across Python 3.11–3.13.
 
+## Machine Permission Test v0.1 — reproducible challenge (complete)
+
+- nine executable permission-boundary cases with real sandbox actuator counts;
+- no-grant, valid-once, replay, request mutation, issuer, expiry, concurrency,
+  restart persistence, and receipt-trust assertions;
+- strict Draft 2020-12 evidence Schema and independent verifier;
+- source commit, runner digest, and runtime-environment provenance;
+- public reference run with 9/9 PASS and checksum-addressed release assets;
+- production Challenge page aligned with the executable runner.
+
+Exit criterion: an external implementer can download one packet, reproduce all
+nine cases, and submit Schema-valid evidence without trusting the website UI.
+
+Next execution task: [low-risk ESP32-C3 permission proof](https://github.com/zoahdev/kinegrant-protocol/issues/7).
+
 ## v0.2 — precise profiles
 
 - replace draft canonical JSON with RFC 8785 JCS or deterministic CBOR;

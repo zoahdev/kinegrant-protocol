@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Published the nine-case KineGrant Machine Permission Test v0.1.
+- Added machine-readable PASS/FAIL evidence, an independent verifier, source
+  commit and runner-digest provenance, and CI execution across Python 3.11–3.13.
+- Published the checksum-addressed `mpt-v0.1` Challenge release while keeping
+  reference implementation `v0.1.1` as the latest implementation release.
+
 ## 0.1.1 — 2026-08-10
 
 Security-hardening release of the KGP-001 v0.1 reference implementation.
