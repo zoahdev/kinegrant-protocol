@@ -1,0 +1,40 @@
+name: Security or protocol semantics
+description: Report an ambiguity, unsafe behavior, or interoperability problem.
+title: "[security/semantics]: "
+labels: ["needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Do not disclose an immediately exploitable vulnerability here; use a private GitHub Security Advisory.
+  - type: textarea
+    id: property
+    attributes:
+      label: Expected security property
+      description: What invariant should hold?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed or ambiguous behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproducer
+    attributes:
+      label: Minimal example or proposed test
+    validations:
+      required: true
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Primary impact
+      options:
+        - Authorization bypass
+        - Replay or revocation
+        - Privacy or receipt integrity
+        - Adapter interoperability
+        - Specification ambiguity
+        - Other
+    validations:
+      required: true

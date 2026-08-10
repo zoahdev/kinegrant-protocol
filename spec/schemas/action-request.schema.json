@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kinegrant.com/schemas/v0.1/action-request.schema.json",
+  "title": "KineGrant ActionRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "request_id", "agent", "target", "action", "purpose", "issued_at", "context"],
+  "properties": {
+    "type": { "const": "kinegrant:ActionRequest" },
+    "request_id": { "type": "string", "minLength": 1 },
+    "agent": { "type": "string", "minLength": 1 },
+    "target": { "type": "string", "minLength": 1 },
+    "action": { "type": "string", "minLength": 1 },
+    "purpose": { "type": "string", "minLength": 1 },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "context": { "type": "object" }
+  }
+}
