@@ -26,6 +26,8 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Demo smoke test
         run: kinegrant-demo > /tmp/kinegrant-demo.json && python -m json.tool /tmp/kinegrant-demo.json >/dev/null
+      - name: Machine Permission Test
+        run: kinegrant-mpt --output /tmp/kinegrant-mpt.json >/dev/null && python -m json.tool /tmp/kinegrant-mpt.json >/dev/null
 
   package:
     runs-on: ubuntu-latest
