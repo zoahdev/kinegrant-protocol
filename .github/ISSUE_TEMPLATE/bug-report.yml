@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a reproducible implementation or documentation defect.
+title: "[bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: For exploitable vulnerabilities, use a private security advisory instead of a public issue.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproduction
+      description: Include the smallest request, policy, capability, or code sample that reproduces the problem.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0 or a commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Specification
+        - Policy evaluation
+        - Capability issuance or verification
+        - Action gate or replay protection
+        - Receipt chain
+        - Boundary adapter
+        - Documentation or packaging
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include Python version, operating system, and relevant dependency versions.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I have removed credentials, personal data, and exploitable secrets from this report.
+          required: true

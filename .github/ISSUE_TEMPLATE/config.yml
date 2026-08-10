@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/zoahdev/kinegrant-protocol/security/advisories/new
+    about: Use a private security advisory for exploitable vulnerabilities or sensitive security details.
+  - name: Read KGP-001
+    url: https://github.com/zoahdev/kinegrant-protocol/blob/main/spec/KGP-001.md
+    about: Review the current experimental protocol draft before proposing normative changes.

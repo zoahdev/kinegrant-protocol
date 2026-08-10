@@ -1,0 +1,42 @@
+name: Feature or protocol proposal
+description: Propose a narrowly scoped interoperability or implementation improvement.
+title: "[proposal]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Which concrete interoperability, authorization, accountability, or developer problem needs solving?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Describe the smallest deterministic behavior or interface that would solve the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security and privacy impact
+      description: Explain new trust assumptions, failure modes, data exposure, and downgrade risks.
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility and alternatives
+      description: Which KGP behavior or external boundary changes, and what alternatives were considered?
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This proposal does not add remote control for hazardous machinery.
+          required: true
+        - label: This proposal does not require a blockchain in the real-time action path.
+          required: true
