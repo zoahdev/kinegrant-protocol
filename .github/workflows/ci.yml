@@ -20,5 +20,19 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e .
-      - run: python -m unittest discover -s tests -v
+      - name: Install
+        run: python -m pip install -e '.[test]'
+      - name: Unit, schema, and security regression tests
+        run: python -m unittest discover -s tests -v
+      - name: Demo smoke test
+        run: kinegrant-demo > /tmp/kinegrant-demo.json && python -m json.tool /tmp/kinegrant-demo.json >/dev/null
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build
+      - run: python -m build

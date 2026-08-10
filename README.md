@@ -9,8 +9,11 @@
 
 [Website](https://kinegrant.com) · [KGP-001](spec/KGP-001.md) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md)
 
-> Status: experimental open draft v0.1. Do not use this implementation as the
-> sole safety control for real machinery.
+> **KGP-001 Experimental Open Draft 0.1**
+>
+> **Reference implementation v0.1.1 · Apache-2.0**
+>
+> Do not use this implementation as the sole safety control for real machinery.
 
 KineGrant is a narrow authorization and accountability layer for robots and
 other physical-AI systems. Immediately before an actuator performs an action,
@@ -35,19 +38,24 @@ ActionRequest → PolicyEngine → Capability → ActionGate → Actuator
                                            Signed Receipt Log
 ```
 
-## Security properties implemented in v0.1
+## Security properties implemented in reference implementation v0.1.1
 
 - default deny and deny-overrides policy evaluation;
+- explicit trust boundary for policy issuers: untrusted sources may deny but never allow;
+- trusted-clock request freshness and policy-window evaluation;
 - Ed25519-signed capabilities with a 1–300 second lifetime;
 - binding to agent, target, action, purpose, request digest, and policy digest;
-- one-time local consumption with replay protection;
+- atomic one-time consumption with in-memory and crash-persistent SQLite replay stores;
 - explicit trusted-issuer allowlist;
 - signed, hash-chained action receipts;
-- conservative adapters that do not turn unknown restrictions into permission;
-- tests for denial, tampering, expiration, replay, receipt integrity, and adapters.
+- strict adapters that reject unknown authorization restrictions;
+- strict JSON Schemas for every core object;
+- tests for policy provenance, denial, tampering, expiration, concurrent/persistent
+  replay, receipt trust, schemas, and adapters.
 
-The included replay cache is in-memory and therefore for demonstration only.
-Production deployments need persistent replay state, revocation, hardware-backed
+The default replay cache is in-memory and therefore for demonstration only. The
+included `SQLiteReplayStore` persists consumption across process restarts, but
+production deployments still need deployment-specific atomic storage, revocation, hardware-backed
 keys, secure time, independent review, and a gate inside the trusted actuator path.
 
 ## Quick start
@@ -60,7 +68,7 @@ cd kinegrant-protocol
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 # macOS/Linux: source .venv/bin/activate
-python -m pip install -e .
+python -m pip install -e '.[test]'
 kinegrant-demo
 python -m unittest discover -s tests -v
 ```
@@ -76,6 +84,7 @@ signed receipt. The same policy denies recording and training-data capture.
 | `spec/KGP-001.md` | Normative core protocol draft |
 | `spec/THREAT-MODEL.md` | Assumptions, adversaries, and unsolved risks |
 | `spec/STANDARD-MAPPING.md` | Boundaries with existing standards |
+| `spec/schemas/` | Strict Draft 2020-12 schemas for all core objects |
 | `src/kinegrant/` | Python reference implementation |
 | `tests/` | Executable security and interoperability checks |
 | `SECURITY.md` | Vulnerability reporting policy |

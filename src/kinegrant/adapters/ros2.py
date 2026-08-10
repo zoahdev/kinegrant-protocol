@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..models import ActionRequest
+from ._context import trusted_context
 
 
 def ros_action_request(
@@ -21,5 +22,8 @@ def ros_action_request(
         target=physical_target,
         action=action_name,
         purpose=purpose,
-        context={"transport": "ros2", "namespace": namespace, **(context or {})},
+        context=trusted_context(
+            {"transport": "ros2", "adapter_profile": "ros2-action-v0.1", "namespace": namespace},
+            context,
+        ),
     )

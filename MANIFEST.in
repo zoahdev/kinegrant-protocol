@@ -1,0 +1,7 @@
+include CHANGELOG.md
+include CODE_OF_CONDUCT.md
+include CONTRIBUTING.md
+include FOUNDER_BRIEF_ZH.md
+include ROADMAP.md
+include SECURITY.md
+recursive-include spec *.md *.json

@@ -4,12 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kinegrant-protocol"
-version = "0.1.0"
+version = "0.1.1"
 description = "Reference implementation of KineGrant, an authorization and accountability layer for physical AI"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE.txt"]
 dependencies = ["cryptography>=42"]
+
+[project.optional-dependencies]
+test = ["jsonschema[format]>=4.23"]
 
 [project.scripts]
 kinegrant-demo = "kinegrant.cli:main"

@@ -47,14 +47,14 @@ class PolicyTests(unittest.TestCase):
             purposes=("delivery",),
             obligations=("emitActionReceipt",),
         )
-        decision = PolicyEngine([rule]).evaluate(self.request)
+        decision = PolicyEngine([rule], trusted_policy_issuers={"owner:1"}).evaluate(self.request)
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.obligations, ("emitActionReceipt",))
 
     def test_deny_overrides_allow(self) -> None:
         allow = PolicyRule("a", "owner", "room:1:*", "allow", ("open",))
         deny = PolicyRule("b", "safety", "room:1:door", "deny", ("open",))
-        decision = PolicyEngine([allow, deny]).evaluate(self.request)
+        decision = PolicyEngine([allow, deny], trusted_policy_issuers={"owner"}).evaluate(self.request)
         self.assertFalse(decision.allowed)
         self.assertEqual(decision.reason, "explicit_deny")
 
@@ -63,7 +63,7 @@ class CapabilityTests(unittest.TestCase):
     def setUp(self) -> None:
         self.request = ActionRequest("req-2", "robot:2", "door:2", "open", "delivery")
         rule = PolicyRule("p", "owner", "door:2", "allow", ("open",), subjects=("robot:2",))
-        self.decision = PolicyEngine([rule]).evaluate(self.request)
+        self.decision = PolicyEngine([rule], trusted_policy_issuers={"owner"}).evaluate(self.request)
         self.authority = Ed25519KeyPair.generate()
         self.capability = CapabilityIssuer(self.authority).issue(self.request, self.decision)
 
@@ -99,14 +99,13 @@ class CapabilityTests(unittest.TestCase):
     def test_receipt_chain_detects_tampering(self) -> None:
         gate = ActionGate(trusted_issuers={self.authority.kid})
         claims = gate.authorize(self.capability, self.request)
-        log = ReceiptLog(Ed25519KeyPair.generate())
+        executor = Ed25519KeyPair.generate()
+        log = ReceiptLog(executor)
         log.append(claims, result="succeeded")
-        log.append(claims, result="aborted")
-        self.assertTrue(verify_receipt_chain(log.entries))
+        self.assertTrue(verify_receipt_chain(log.entries, trusted_executors={executor.kid}))
         bad = [copy.deepcopy(item) for item in log.entries]
         bad[0]["payload"]["result"] = "failed"
-        with self.assertRaises(ValueError):
-            verify_receipt_chain(bad)
+        self.assertFalse(verify_receipt_chain(bad))
 
 
 class AdapterTests(unittest.TestCase):

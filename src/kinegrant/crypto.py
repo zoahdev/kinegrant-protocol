@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import base64
+import binascii
+import re
 from dataclasses import dataclass
 from typing import Any, Mapping
 
@@ -11,6 +13,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey,
 from .canonical import canonical_json
 
 DOMAIN = b"KINEGRANT-SIGNED-ENVELOPE-V1\x00"
+_B64URL_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def _b64url(data: bytes) -> str:
@@ -18,7 +21,19 @@ def _b64url(data: bytes) -> str:
 
 
 def _unb64url(value: str) -> bytes:
-    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+    if not value or _B64URL_RE.fullmatch(value) is None:
+        raise ValueError("invalid base64url encoding")
+    try:
+        decoded = base64.b64decode(
+            value + "=" * (-len(value) % 4),
+            altchars=b"-_",
+            validate=True,
+        )
+    except (binascii.Error, ValueError) as exc:
+        raise ValueError("invalid base64url encoding") from exc
+    if _b64url(decoded) != value:
+        raise ValueError("non-canonical base64url encoding")
+    return decoded
 
 
 def key_id(public_key: Ed25519PublicKey) -> str:
@@ -68,8 +83,11 @@ def verify_envelope(envelope: Mapping[str, Any]) -> dict[str, Any]:
 
     protected = {"alg": "EdDSA", "kid": kid, "payload": payload}
     try:
+        raw_signature = _unb64url(signature)
+        if len(raw_signature) != 64:
+            raise ValueError("invalid Ed25519 signature length")
         public_key_from_id(kid).verify(
-            _unb64url(signature),
+            raw_signature,
             DOMAIN + canonical_json(protected),
         )
     except (InvalidSignature, ValueError) as exc:

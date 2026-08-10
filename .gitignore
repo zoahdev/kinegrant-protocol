@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 *.egg-info/
 build/
+*.sqlite3
 dist/
 __pycache__/
 *.py[cod]

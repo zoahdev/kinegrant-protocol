@@ -38,3 +38,12 @@
 7. Anchor receipt-log checkpoints outside the executor.
 8. Separate authorization from functional-safety controllers.
 9. Complete independent cryptographic and robotics safety review before real machinery.
+
+## Reference implementation trust boundaries
+
+- `PolicyEngine` trusts no allow issuer unless it appears in
+  `trusted_policy_issuers`; untrusted rules may only deny.
+- `ActionGate` trusts no capability issuer unless explicitly configured.
+- `verify_receipt_chain` proves integrity only unless `trusted_executors` is passed.
+- `InMemoryReplayStore` is simulator-only. `SQLiteReplayStore` demonstrates durable,
+  atomic replay protection but is not a substitute for deployment review.
