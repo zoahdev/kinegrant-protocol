@@ -86,6 +86,8 @@ single-use authorization, replay, request binding, issuer and expiry checks,
 concurrent consumption, persistent replay state, and receipt trust. Validate
 the output with
 [`machine-permission-test-evidence.schema.json`](spec/schemas/machine-permission-test-evidence.schema.json).
+Download the checksum-addressed packet and reference evidence from the
+[`mpt-v0.1` release](https://github.com/zoahdev/kinegrant-protocol/releases/tag/mpt-v0.1).
 
 ## Repository map
 
