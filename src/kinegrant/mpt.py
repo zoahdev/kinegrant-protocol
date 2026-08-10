@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
+import platform
+import re
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
@@ -353,7 +356,9 @@ CASES: tuple[tuple[str, Callable[[], CaseResult]], ...] = (
 )
 
 
-def run_machine_permission_test() -> dict[str, Any]:
+def run_machine_permission_test(*, source_commit: str | None = None) -> dict[str, Any]:
+    if source_commit is not None and re.fullmatch(r"[0-9a-f]{40,64}", source_commit) is None:
+        raise ValueError("source_commit must be a lowercase 40-64 character hex digest")
     results: list[CaseResult] = []
     for case_id, operation in CASES:
         try:
@@ -377,6 +382,13 @@ def run_machine_permission_test() -> dict[str, Any]:
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "protocol": "KGP-001 Experimental Open Draft 0.1",
         "reference_implementation": __version__,
+        "source_commit": source_commit,
+        "runner_digest": f"sha256:{hashlib.sha256(Path(__file__).read_bytes()).hexdigest()}",
+        "environment": {
+            "python_version": platform.python_version(),
+            "python_implementation": platform.python_implementation(),
+            "platform": platform.platform(),
+        },
         "overall_result": "PASS" if failed == 0 else "FAIL",
         "summary": {"total": len(results), "passed": passed, "failed": failed},
         "cases": results,
@@ -390,8 +402,12 @@ def run_machine_permission_test() -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the KineGrant Machine Permission Test")
     parser.add_argument("--output", type=Path, help="Write the JSON evidence to this path")
+    parser.add_argument(
+        "--source-commit",
+        help="Lowercase Git commit digest for the tested implementation",
+    )
     args = parser.parse_args(argv)
-    evidence = run_machine_permission_test()
+    evidence = run_machine_permission_test(source_commit=args.source_commit)
     encoded = json.dumps(evidence, indent=2, sort_keys=True)
     if args.output:
         args.output.write_text(encoded + "\n", encoding="utf-8")

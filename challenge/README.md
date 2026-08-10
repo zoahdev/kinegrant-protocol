@@ -12,6 +12,10 @@ kinegrant-mpt --output machine-permission-test.evidence.json
 python challenge/verify_evidence.py machine-permission-test.evidence.json
 ```
 
+For publishable evidence, pass the exact tested Git commit with
+`--source-commit`. Evidence always includes a SHA-256 digest of the runner and
+the Python/runtime platform, even when no repository commit is available.
+
 Success exits with status `0` and prints `"overall_result": "PASS"`. Any failed case exits nonzero while preserving machine-readable evidence.
 
 The independent verifier checks the Draft 2020-12 Schema, all required case IDs,

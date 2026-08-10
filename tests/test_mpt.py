@@ -35,6 +35,14 @@ class MachinePermissionTestTests(unittest.TestCase):
             run_machine_permission_test()
         )
 
+    def test_evidence_records_source_runner_and_environment(self) -> None:
+        evidence = run_machine_permission_test(source_commit="a" * 40)
+        self.assertEqual(evidence["source_commit"], "a" * 40)
+        self.assertRegex(evidence["runner_digest"], r"^sha256:[0-9a-f]{64}$")
+        self.assertTrue(evidence["environment"]["python_version"])
+        with self.assertRaisesRegex(ValueError, "source_commit"):
+            run_machine_permission_test(source_commit="not-a-commit")
+
     def test_cli_emits_machine_readable_pass(self) -> None:
         output = StringIO()
         with redirect_stdout(output):
