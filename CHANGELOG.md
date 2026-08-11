@@ -8,7 +8,8 @@
 - Published the checksum-addressed `mpt-v0.1` Challenge release while keeping
   reference implementation `v0.1.1` as the latest implementation release.
 - Added a one-command external reproduction packet, strict report Schema,
-  independent digest verifier, and structured result-submission form.
+  independent digest verifier, source-commit binding, generated report checksum,
+  and structured result-submission form.
 
 ## 0.1.1 — 2026-08-10
 

@@ -27,6 +27,7 @@ from kinegrant.mpt import run_machine_permission_test
 
 EVIDENCE_NAME = "machine-permission-test.evidence.json"
 REPORT_NAME = "reproduction-report.json"
+REPORT_CHECKSUM_NAME = "reproduction-report.sha256"
 MATERIALS = (
     "challenge/reproduce.py",
     "challenge/verify_evidence.py",
@@ -64,12 +65,15 @@ def _git(args: list[str]) -> str | None:
 
 
 def _source_commit(explicit: str | None) -> str | None:
-    candidate = explicit or os.environ.get("GITHUB_SHA") or _git(["rev-parse", "HEAD"])
+    checkout_commit = _git(["rev-parse", "HEAD"])
+    candidate = explicit or os.environ.get("GITHUB_SHA") or checkout_commit
     if candidate is None:
         return None
     candidate = candidate.strip().lower()
     if re.fullmatch(r"[0-9a-f]{40,64}", candidate) is None:
         raise ValueError("source commit must be a lowercase 40-64 character hex digest")
+    if checkout_commit is not None and candidate != checkout_commit.strip().lower():
+        raise ValueError("source commit does not match the checked-out Git commit")
     return candidate
 
 
@@ -131,6 +135,10 @@ def create_reproduction(
     report_path = output_dir / REPORT_NAME
     _write_json(report_path, report)
     verify_reproduction(report_path)
+    checksum = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    (output_dir / REPORT_CHECKSUM_NAME).write_text(
+        f"{checksum}  {REPORT_NAME}\n", encoding="ascii"
+    )
     return report
 
 
@@ -161,6 +169,7 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "overall_result": report["overall_result"],
                 "report": str(args.output_dir / REPORT_NAME),
+                "report_checksum": str(args.output_dir / REPORT_CHECKSUM_NAME),
                 "evidence": str(args.output_dir / EVIDENCE_NAME),
             },
             sort_keys=True,

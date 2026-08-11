@@ -28,6 +28,8 @@ contains:
 - `machine-permission-test.evidence.json`: results for MPT-001 through MPT-009;
 - `reproduction-report.json`: source, environment, material digests, artifact
   digest, and the independently checked overall result.
+- `reproduction-report.sha256`: a ready-to-publish SHA-256 checksum for the
+  report.
 
 For a release-specific run, check out the tag before installing:
 
@@ -36,7 +38,8 @@ git checkout mpt-v0.1
 ```
 
 For a publishable run, keep the checkout clean. The report records the exact Git
-commit and whether tracked files were modified. CI supplies its tested commit
+commit and whether tracked files were modified. An explicit commit is rejected
+when it differs from the checked-out Git commit. CI supplies its tested commit
 explicitly.
 
 ## What a PASS means
@@ -58,7 +61,7 @@ non-sensitive PASS or FAIL. Include:
 - the tested commit or tag;
 - operating system and Python version;
 - the final verifier line;
-- `reproduction-report.json` and its SHA-256 digest;
+- `reproduction-report.json` and the generated `reproduction-report.sha256`;
 - the smallest relevant log excerpt if the result is FAIL.
 
 Remove usernames, home-directory paths, credentials, device identifiers, and
