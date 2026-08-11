@@ -89,6 +89,10 @@ the output with
 Download the checksum-addressed packet and reference evidence from the
 [`mpt-v0.1` release](https://github.com/zoahdev/kinegrant-protocol/releases/tag/mpt-v0.1).
 
+Independent implementers can generate a provenance-bound packet with one
+cross-platform command and verify it without trusting hosted output. See
+[REPRODUCING.md](REPRODUCING.md).
+
 ## Repository map
 
 | Path | Purpose |
@@ -98,6 +102,7 @@ Download the checksum-addressed packet and reference evidence from the
 | `spec/STANDARD-MAPPING.md` | Boundaries with existing standards |
 | `spec/schemas/` | Strict Draft 2020-12 schemas for all core objects |
 | `challenge/` | Reproducible Machine Permission Test instructions |
+| `REPRODUCING.md` | External reproduction and evidence-submission guide |
 | `src/kinegrant/` | Python reference implementation |
 | `tests/` | Executable security and interoperability checks |
 | `SECURITY.md` | Vulnerability reporting policy |

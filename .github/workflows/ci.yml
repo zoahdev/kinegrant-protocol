@@ -28,6 +28,8 @@ jobs:
         run: kinegrant-demo > /tmp/kinegrant-demo.json && python -m json.tool /tmp/kinegrant-demo.json >/dev/null
       - name: Machine Permission Test
         run: kinegrant-mpt --source-commit "$GITHUB_SHA" --output /tmp/kinegrant-mpt.json >/dev/null && python challenge/verify_evidence.py /tmp/kinegrant-mpt.json
+      - name: External reproduction packet
+        run: python challenge/reproduce.py --source-commit "$GITHUB_SHA" --output-dir /tmp/kinegrant-reproduction && python challenge/verify_reproduction.py /tmp/kinegrant-reproduction/reproduction-report.json
 
   package:
     runs-on: ubuntu-latest

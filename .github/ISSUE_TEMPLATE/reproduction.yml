@@ -1,0 +1,61 @@
+name: External reproduction result
+description: Submit an independently generated Machine Permission Test PASS or FAIL.
+title: "[reproduction]: "
+labels: ["reproduction", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for independently testing KineGrant. Do not disclose exploitable vulnerabilities here; use a private GitHub Security Advisory.
+  - type: dropdown
+    id: result
+    attributes:
+      label: Verified result
+      options:
+        - PASS
+        - FAIL
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Tested commit or tag
+      placeholder: 40-character commit SHA or mpt-v0.1
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, architecture, and Python version.
+      placeholder: Ubuntu 24.04 x86_64, CPython 3.12.5
+    validations:
+      required: true
+  - type: textarea
+    id: verifier
+    attributes:
+      label: Verifier output
+      description: Paste the final line from verify_reproduction.py and the SHA-256 digest of reproduction-report.json.
+    validations:
+      required: true
+  - type: textarea
+    id: packet
+    attributes:
+      label: Reproduction packet
+      description: Drag reproduction-report.json here, or link to a public copy. Remove personal data and local absolute paths first.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Failure details or notes
+      description: For FAIL, include the smallest non-sensitive log excerpt and whether a clean rerun produced the same result.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Publication checks
+      options:
+        - label: I generated this packet from the stated source and ran the independent verifier.
+          required: true
+        - label: I removed credentials, personal data, private device identifiers, and exploitable security details.
+          required: true
