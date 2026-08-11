@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use or evaluate KineGrant Protocol, cite this software and identify the exact release or commit tested."
+title: "KineGrant Protocol"
+type: software
+authors:
+  - family-names: "Zoah"
+version: 0.1.1
+date-released: 2026-08-10
+url: "https://kinegrant.com"
+repository-code: "https://github.com/zoahdev/kinegrant-protocol"
+license: Apache-2.0
+abstract: >-
+  KineGrant is an experimental authorization and accountability layer for
+  physical AI. KGP-001 defines action requests, policy evaluation,
+  short-lived single-use capabilities, local action-gate verification, and
+  signed receipts. The reference implementation is not a functional-safety
+  system and is not production-ready.
+keywords:
+  - physical AI
+  - machine authorization
+  - robotics security
+  - capability-based security
+  - replay protection
+  - signed receipts

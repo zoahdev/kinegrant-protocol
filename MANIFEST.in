@@ -4,6 +4,8 @@ include CONTRIBUTING.md
 include FOUNDER_BRIEF_ZH.md
 include ROADMAP.md
 include REPRODUCING.md
+include CITATION.cff
+include codemeta.json
 include SECURITY.md
 recursive-include challenge *.md *.py
 recursive-include spec *.md *.json

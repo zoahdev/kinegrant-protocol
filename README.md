@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
-[Website](https://kinegrant.com) · [KGP-001](spec/KGP-001.md) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md)
+[Website](https://kinegrant.com) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md)
 
 > **KGP-001 Experimental Open Draft 0.1**
 >
@@ -105,6 +105,8 @@ cross-platform command and verify it without trusting hosted output. See
 | `REPRODUCING.md` | External reproduction and evidence-submission guide |
 | `src/kinegrant/` | Python reference implementation |
 | `tests/` | Executable security and interoperability checks |
+| `CITATION.cff` | Citation metadata for exact releases and commits |
+| `codemeta.json` | Machine-readable software and subject metadata |
 | `SECURITY.md` | Vulnerability reporting policy |
 | `CONTRIBUTING.md` | Open contribution and RFC process |
 
