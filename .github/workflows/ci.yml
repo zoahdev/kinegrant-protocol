@@ -32,7 +32,7 @@ jobs:
         run: python challenge/reproduce.py --source-commit "$GITHUB_SHA" --output-dir "$RUNNER_TEMP/kinegrant-reproduction" && python challenge/verify_reproduction.py "$RUNNER_TEMP/kinegrant-reproduction/reproduction-report.json"
       - name: Publish independently verifiable reproduction packet
         if: matrix.python-version == '3.12'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kinegrant-reproduction-${{ github.sha }}-python-3.12
           path: ${{ runner.temp }}/kinegrant-reproduction/
