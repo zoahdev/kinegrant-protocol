@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
-[Website](https://kinegrant.com) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md)
+[Website](https://kinegrant.com) · [Technical whitepaper](docs/whitepaper/KineGrant-KGP-001-Whitepaper-v0.1.pdf) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md)
 
 > **KGP-001 Experimental Open Draft 0.1**
 >
