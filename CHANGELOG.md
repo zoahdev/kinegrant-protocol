@@ -12,6 +12,10 @@
   downloadable CI evidence artifact, and structured result-submission form.
 - Added citation and CodeMeta records for release-accurate scholarly and
   machine-readable discovery.
+- Added a non-normative ESP32-C3 paper-barrier boundary model with strict device
+  commands, live challenges, persistent replay state, signed acknowledgements,
+  machine-readable physical-evidence tooling, and 26 profile/transport/evidence tests.
+  Physical validation remains pending.
 
 ## 0.1.1 — 2026-08-10
 

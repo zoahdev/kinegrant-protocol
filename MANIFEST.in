@@ -8,4 +8,5 @@ include CITATION.cff
 include codemeta.json
 include SECURITY.md
 recursive-include challenge *.md *.py
+recursive-include proof *.md *.json *.py
 recursive-include spec *.md *.json

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kinegrant.com/proof/esp32-c3/schemas/device-command.schema.json",
+  "title": "KineGrant experimental ESP32-C3 device command",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["alg", "kid", "payload", "signature"],
+  "properties": {
+    "alg": {"const": "EdDSA"},
+    "kid": {"$ref": "#/$defs/keyId"},
+    "signature": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"},
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "profile", "executor", "device_id", "capability_id", "request_digest", "action", "parameters", "boot_counter", "challenge_nonce", "sequence", "command_id"],
+      "properties": {
+        "type": {"const": "kinegrant:ExperimentalDeviceCommand"},
+        "profile": {"const": "kgp-esp32c3-paper-barrier/0.1"},
+        "executor": {"$ref": "#/$defs/keyId"},
+        "device_id": {"type": "string", "minLength": 1},
+        "capability_id": {"type": "string", "pattern": "^kinegrant:cap:[0-9a-f]{64}$"},
+        "request_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "action": {"const": "move_paper_barrier"},
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["position"],
+          "properties": {"position": {"enum": ["open", "closed"]}}
+        },
+        "boot_counter": {"type": "integer", "minimum": 1},
+        "challenge_nonce": {"type": "string", "pattern": "^[A-Za-z0-9_-]{20,}$"},
+        "sequence": {"type": "integer", "minimum": 1},
+        "command_id": {"type": "string", "pattern": "^kinegrant:device-command:[0-9a-f]{64}$"}
+      }
+    }
+  },
+  "$defs": {
+    "keyId": {"type": "string", "pattern": "^kinegrant:key:ed25519:[A-Za-z0-9_-]{43}$"}
+  }
+}

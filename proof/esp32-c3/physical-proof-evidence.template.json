@@ -1,0 +1,141 @@
+{
+  "schema_version": "0.1",
+  "evidence_type": "kinegrant:ESP32C3PaperBarrierProofEvidence",
+  "evidence_mode": "simulation",
+  "overall_result": "NOT_RUN",
+  "run_id": "urn:kinegrant:esp32c3-proof:run:00000000-0000-0000-0000-000000000000",
+  "generated_at": "2026-08-11T00:00:00Z",
+  "started_at": null,
+  "finished_at": null,
+  "protocol": "KGP-001 Experimental Open Draft 0.1",
+  "reference_implementation": "0.1.1",
+  "source_commit": null,
+  "device": {
+    "board_model": "UNSELECTED",
+    "device_id": "device:esp32c3:paper-barrier:UNPROVISIONED",
+    "device_key": null,
+    "firmware_version": "NOT_BUILT",
+    "firmware_digest": null,
+    "pinout_record_digest": null
+  },
+  "environment": {
+    "host_platform": "NOT_RECORDED",
+    "servo_model": "NOT_PURCHASED",
+    "load": "lightweight-paper-barrier",
+    "servo_supply_voltage": null,
+    "power_plan_reviewed": false
+  },
+  "verification": {
+    "allow_receipts_verified": false,
+    "deny_receipts_verified": false,
+    "tampered_receipts_rejected": false,
+    "untrusted_executor_rejected": false,
+    "device_acks_verified": false
+  },
+  "artifacts": [],
+  "cases": [
+    {
+      "id": "HWP-001",
+      "name": "No grant produces no action",
+      "attempts": 0,
+      "passed": false,
+      "measurements": {"actuator_calls": 0, "observed_movements": 0, "denials": 0, "abnormal_resets": 0, "overheat_events": 0},
+      "artifact_digests": [],
+      "notes": "NOT RUN"
+    },
+    {
+      "id": "HWP-002",
+      "name": "Valid one-time grant moves exactly once",
+      "attempts": 0,
+      "passed": false,
+      "measurements": {"actuator_calls": 0, "observed_movements": 0, "denials": 0, "abnormal_resets": 0, "overheat_events": 0},
+      "artifact_digests": [],
+      "notes": "NOT RUN"
+    },
+    {
+      "id": "HWP-003",
+      "name": "Capability and command replay are denied",
+      "attempts": 0,
+      "passed": false,
+      "measurements": {"actuator_calls": 0, "observed_movements": 0, "denials": 0, "abnormal_resets": 0, "overheat_events": 0},
+      "artifact_digests": [],
+      "notes": "NOT RUN"
+    },
+    {
+      "id": "HWP-004",
+      "name": "Changed device action or parameter is denied",
+      "attempts": 0,
+      "passed": false,
+      "measurements": {"actuator_calls": 0, "observed_movements": 0, "denials": 0, "abnormal_resets": 0, "overheat_events": 0},
+      "artifact_digests": [],
+      "notes": "NOT RUN"
+    },
+    {
+      "id": "HWP-005",
+      "name": "Untrusted issuer is denied",
+      "attempts": 0,
+      "passed": false,
+      "measurements": {"actuator_calls": 0, "observed_movements": 0, "denials": 0, "abnormal_resets": 0, "overheat_events": 0},
+      "artifact_digests": [],
+      "notes": "NOT RUN"
+    },
+    {
+      "id": "HWP-006",
+      "name": "Challenge at or after ten seconds is denied",
+      "attempts": 0,
+      "passed": false,
+      "measurements": {"actuator_calls": 0, "observed_movements": 0, "denials": 0, "abnormal_resets": 0, "overheat_events": 0},
+      "artifact_digests": [],
+      "notes": "NOT RUN"
+    },
+    {
+      "id": "HWP-007",
+      "name": "Concurrent delivery has one winner",
+      "attempts": 0,
+      "passed": false,
+      "measurements": {"actuator_calls": 0, "observed_movements": 0, "denials": 0, "abnormal_resets": 0, "overheat_events": 0},
+      "artifact_digests": [],
+      "notes": "NOT RUN"
+    },
+    {
+      "id": "HWP-008",
+      "name": "Replay after device restart is denied",
+      "attempts": 0,
+      "passed": false,
+      "measurements": {"actuator_calls": 0, "observed_movements": 0, "denials": 0, "abnormal_resets": 0, "overheat_events": 0},
+      "artifact_digests": [],
+      "notes": "NOT RUN"
+    },
+    {
+      "id": "HWP-009",
+      "name": "Disconnect and malformed serial remain locked",
+      "attempts": 0,
+      "passed": false,
+      "measurements": {"actuator_calls": 0, "observed_movements": 0, "denials": 0, "abnormal_resets": 0, "overheat_events": 0},
+      "artifact_digests": [],
+      "notes": "NOT RUN"
+    },
+    {
+      "id": "HWP-010",
+      "name": "Receipts and device acknowledgements verify independently",
+      "attempts": 0,
+      "passed": false,
+      "measurements": {"actuator_calls": 0, "observed_movements": 0, "denials": 0, "abnormal_resets": 0, "overheat_events": 0},
+      "artifact_digests": [],
+      "notes": "NOT RUN"
+    },
+    {
+      "id": "HWP-011",
+      "name": "One hundred cycles have no reset or overheat",
+      "attempts": 0,
+      "passed": false,
+      "measurements": {"actuator_calls": 0, "observed_movements": 0, "denials": 0, "abnormal_resets": 0, "overheat_events": 0},
+      "artifact_digests": [],
+      "notes": "NOT RUN"
+    }
+  ],
+  "limitations": [
+    "This is an unexecuted template and is not physical proof.",
+    "Signed acknowledgements and receipts do not by themselves prove physical movement."
+  ]
+}

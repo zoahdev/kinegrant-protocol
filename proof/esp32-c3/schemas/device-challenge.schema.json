@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kinegrant.com/proof/esp32-c3/schemas/device-challenge.schema.json",
+  "title": "KineGrant experimental ESP32-C3 device challenge",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "profile", "device_id", "boot_counter", "challenge_nonce", "next_sequence", "max_age_ms"],
+  "properties": {
+    "type": {"const": "kinegrant:ExperimentalDeviceChallenge"},
+    "profile": {"const": "kgp-esp32c3-paper-barrier/0.1"},
+    "device_id": {"type": "string", "minLength": 1},
+    "boot_counter": {"type": "integer", "minimum": 1},
+    "challenge_nonce": {"type": "string", "pattern": "^[A-Za-z0-9_-]{20,}$"},
+    "next_sequence": {"type": "integer", "minimum": 1},
+    "max_age_ms": {"const": 10000}
+  }
+}
