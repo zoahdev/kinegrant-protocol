@@ -9,7 +9,7 @@
   reference implementation `v0.1.1` as the latest implementation release.
 - Added a one-command external reproduction packet, strict report Schema,
   independent digest verifier, source-commit binding, generated report checksum,
-  and structured result-submission form.
+  downloadable CI evidence artifact, and structured result-submission form.
 - Added citation and CodeMeta records for release-accurate scholarly and
   machine-readable discovery.
 

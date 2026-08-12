@@ -29,7 +29,15 @@ jobs:
       - name: Machine Permission Test
         run: kinegrant-mpt --source-commit "$GITHUB_SHA" --output /tmp/kinegrant-mpt.json >/dev/null && python challenge/verify_evidence.py /tmp/kinegrant-mpt.json
       - name: External reproduction packet
-        run: python challenge/reproduce.py --source-commit "$GITHUB_SHA" --output-dir /tmp/kinegrant-reproduction && python challenge/verify_reproduction.py /tmp/kinegrant-reproduction/reproduction-report.json
+        run: python challenge/reproduce.py --source-commit "$GITHUB_SHA" --output-dir "$RUNNER_TEMP/kinegrant-reproduction" && python challenge/verify_reproduction.py "$RUNNER_TEMP/kinegrant-reproduction/reproduction-report.json"
+      - name: Publish independently verifiable reproduction packet
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kinegrant-reproduction-${{ github.sha }}-python-3.12
+          path: ${{ runner.temp }}/kinegrant-reproduction/
+          if-no-files-found: error
+          retention-days: 30
 
   package:
     runs-on: ubuntu-latest

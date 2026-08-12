@@ -31,6 +31,9 @@ contains:
 - `reproduction-report.sha256`: a ready-to-publish SHA-256 checksum for the
   report.
 
+Every GitHub Actions run also publishes the Python 3.12 packet as a downloadable
+30-day workflow artifact named with the exact tested commit.
+
 For a release-specific run, check out the tag before installing:
 
 ```bash
