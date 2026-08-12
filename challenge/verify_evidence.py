@@ -18,8 +18,10 @@ SCHEMA_PATH = (
 REQUIRED_CASES = {f"MPT-{number:03d}" for number in range(1, 10)}
 
 
-def verify_evidence(evidence: Mapping[str, Any]) -> None:
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+def verify_evidence(
+    evidence: Mapping[str, Any], *, schema_path: Path = SCHEMA_PATH
+) -> None:
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     Draft202012Validator(schema, format_checker=FormatChecker()).validate(evidence)
 

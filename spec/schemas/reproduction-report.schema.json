@@ -37,20 +37,20 @@
     },
     "materials": {
       "type": "array",
-      "minItems": 5,
-      "maxItems": 5,
+      "minItems": 7,
+      "maxItems": 7,
       "items": {"$ref": "#/$defs/digestedPath"}
     },
     "artifacts": {
       "type": "array",
-      "minItems": 1,
-      "maxItems": 1,
+      "minItems": 2,
+      "maxItems": 2,
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["path", "media_type", "bytes", "sha256"],
         "properties": {
-          "path": {"const": "machine-permission-test.evidence.json"},
+          "path": {"enum": ["machine-permission-test.evidence.json", "sample-receipt-v0.1.json"]},
           "media_type": {"const": "application/json"},
           "bytes": {"type": "integer", "minimum": 1},
           "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}

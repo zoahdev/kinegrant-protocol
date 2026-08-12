@@ -6,6 +6,7 @@ import json
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -34,6 +35,8 @@ MATERIALS = (
     "challenge/verify_reproduction.py",
     "spec/schemas/machine-permission-test-evidence.schema.json",
     "spec/schemas/reproduction-report.schema.json",
+    "examples/sample-receipt-v0.1.json",
+    "spec/schemas/receipt.schema.json",
 )
 
 
@@ -93,6 +96,14 @@ def create_reproduction(
 
     evidence_path = output_dir / EVIDENCE_NAME
     _write_json(evidence_path, evidence)
+    receipt_source = ROOT / "examples" / "sample-receipt-v0.1.json"
+    receipt_path = output_dir / receipt_source.name
+    receipt_path.write_bytes(receipt_source.read_bytes())
+    materials_root = output_dir / "materials"
+    for relative in MATERIALS:
+        destination = materials_root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(ROOT / relative, destination)
 
     report = {
         "schema_version": "0.1",
@@ -118,7 +129,13 @@ def create_reproduction(
                 "media_type": "application/json",
                 "bytes": evidence_path.stat().st_size,
                 "sha256": _sha256(evidence_path),
-            }
+            },
+            {
+                "path": receipt_path.name,
+                "media_type": "application/json",
+                "bytes": receipt_path.stat().st_size,
+                "sha256": _sha256(receipt_path),
+            },
         ],
         "verification": {
             "verifier": "challenge/verify_reproduction.py",

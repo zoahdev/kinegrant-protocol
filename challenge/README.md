@@ -35,6 +35,11 @@ unique IDs, summary counts, and overall PASS/FAIL consistency. The Schema is:
 spec/schemas/machine-permission-test-evidence.schema.json
 ```
 
+The public browser verifier at <https://kinegrant.com/verify> performs these
+evidence consistency checks without uploading the file. It also verifies the
+published signed receipt sample. Executor trust requires a caller-supplied
+trusted key ID; an embedded key and valid signature are not a trust decision.
+
 ## Required cases
 
 | ID | Assertion |

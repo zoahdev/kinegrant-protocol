@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
-[Website](https://kinegrant.com) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md)
+[Website](https://kinegrant.com) · [Public verifier](https://kinegrant.com/verify) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Open in Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=agent/global-beta&quickstart=1) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md)
 
 > **KGP-001 Experimental Open Draft 0.1**
 >
@@ -88,6 +88,11 @@ the output with
 [`machine-permission-test-evidence.schema.json`](spec/schemas/machine-permission-test-evidence.schema.json).
 Download the checksum-addressed packet and reference evidence from the
 [`mpt-v0.1` release](https://github.com/zoahdev/kinegrant-protocol/releases/tag/mpt-v0.1).
+The browser-based [public verifier](https://kinegrant.com/verify) checks MPT
+evidence locally and can verify the Ed25519 signature, content-addressed ID,
+and caller-supplied executor trust anchor for the published
+[`sample-receipt-v0.1.json`](examples/sample-receipt-v0.1.json). Signature
+validity alone is not treated as executor trust or proof of physical action.
 
 Independent implementers can generate a provenance-bound packet with one
 cross-platform command and verify it without trusting hosted output. See
@@ -103,6 +108,7 @@ cross-platform command and verify it without trusting hosted output. See
 | `spec/schemas/` | Strict Draft 2020-12 schemas for all core objects |
 | `challenge/` | Reproducible Machine Permission Test instructions |
 | `REPRODUCING.md` | External reproduction and evidence-submission guide |
+| `examples/` | Public, schema-valid signed sample objects |
 | `src/kinegrant/` | Python reference implementation |
 | `tests/` | Executable security and interoperability checks |
 | `CITATION.cff` | Citation metadata for exact releases and commits |
