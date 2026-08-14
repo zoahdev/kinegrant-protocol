@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.6.0 — 2026-08-15
+
+- Milestone release: reference implementation version 1.6.0 on the stable
+  1.0 wire format, adding the Gatekeeper boundary model check
+  (`check_gatekeeper_boundary`) and the `gatekeeper_boundary_modelcheck`
+  conformance mark (L1-L4 at 21/21).
+
 ## 1.5.0 — 2026-08-15
 
 - The conformance suite now includes a `gatekeeper_boundary_modelcheck` mark
