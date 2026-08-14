@@ -75,6 +75,17 @@ signs bundles in Python and requires both implementations to accept the
 bundle, select version 2 as current, and roll back to version 1 after
 revocation; a missing toolchain is recorded as skipped, never as passed.
 
+## Fleet distribution
+
+`PolicyDistributor` verifies one signed policy bundle under the caller's
+trusted authorities and applies it to many `PolicyRegistry` instances.
+Distribution is fail-closed: nothing is touched until the bundle verifies.
+A registry already running a version at least as new is left untouched
+(idempotent no-op); downgrades are never applied automatically.
+`verify_policy_distribution_report` re-validates the per-registry
+acknowledgements against the bundle (policy, bundle id, version, and count
+integrity).
+
 ## Non-goals
 
 - No ledger, token, or consensus mechanism is required or implied.

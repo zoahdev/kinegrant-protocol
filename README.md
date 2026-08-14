@@ -154,7 +154,7 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   report `obligation_compliance_ok`, the conformance suite L1-L4 includes
   `obligation_compliance`, `gatekeeper_boundary`, and
   `revocation_distribution` marks plus a `gatekeeper_boundary_modelcheck`
-  and `policy_bundle_trust` (22/22); the conformance report also cross-checks generated capabilities
+  and `policy_bundle_trust` / `policy_fleet_distribution` (23/23); the conformance report also cross-checks generated capabilities
   and receipt chains with the independent JavaScript and Go verifiers, and
   the micro-benchmarks include obligation compliance and
   revocation-distribution throughput.
@@ -186,6 +186,12 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   `kinegrant-policy-bundle` is the deployable CLI; the independent
   JavaScript and Go verifiers cross-check Python-signed bundles and
   current-version rollback in the conformance report.
+- Fleet policy distribution: `PolicyDistributor` verifies one signed policy
+  bundle under the caller's trusted authorities and applies it to many
+  registries idempotently (never auto-downgrading), with per-registry
+  acknowledgements in a machine-readable report;
+  `verify_policy_distribution_report` re-validates a fleet report against its
+  bundle, and `kinegrant-policy-bundle --distribute` is the deployable CLI.
 - Bounded policy-decision cache: `CachedPolicyEngine` wraps a policy engine
   with an LRU cache (hit/miss statistics, automatic invalidation on policy
   change, future requests never cached) for high-rate deployments; the

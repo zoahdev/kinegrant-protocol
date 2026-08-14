@@ -11,11 +11,13 @@ from kinegrant.models import PolicyRule, utc_now
 from kinegrant.policy import PolicyEngine
 from kinegrant.policy_bundle import (
     PolicyAuthority,
+    PolicyDistributor,
     PolicyRegistry,
     build_policy_bundle,
     main,
     rules_from_bundle,
     sign_policy_bundle,
+    verify_policy_distribution_report,
     verify_policy_bundle,
 )
 
@@ -232,6 +234,170 @@ class PolicyBundleTests(unittest.TestCase):
                 ]
             )
             self.assertEqual(exit_code, 0)
+
+    def test_distributor_upgrades_fleet_and_reports_acks(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:fleet"
+        v1 = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        v2 = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        gate_a = PolicyRegistry(trusted_authorities={authority.kid})
+        gate_b = PolicyRegistry(trusted_authorities={authority.kid})
+        report = PolicyDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(
+            v1,
+            {"gate-a": gate_a, "gate-b": gate_b},
+        )
+        self.assertEqual(report["overall_result"], "PASS")
+        self.assertEqual(report["summary"]["applied_total"], 2)
+        self.assertEqual(gate_a.current(policy_id)["version"], 1)
+        upgrade = PolicyDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(
+            v2,
+            {"gate-a": gate_a, "gate-b": gate_b},
+        )
+        self.assertEqual(upgrade["summary"]["applied_total"], 2)
+        self.assertEqual(gate_a.current(policy_id)["version"], 2)
+
+    def test_distributor_does_not_downgrade(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:fleet"
+        v1 = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        v2 = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        gate = PolicyRegistry(trusted_authorities={authority.kid})
+        PolicyDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(v1, {"gate": gate})
+        report = PolicyDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(v1, {"gate": gate})
+        self.assertEqual(report["summary"]["already_present_total"], 1)
+        self.assertEqual(gate.current(policy_id)["version"], 1)
+        PolicyDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(v2, {"gate": gate})
+        older = PolicyDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(v1, {"gate": gate})
+        self.assertEqual(older["summary"]["already_present_total"], 1)
+        self.assertEqual(gate.current(policy_id)["version"], 2)
+
+    def test_distributor_rejects_tampered_bundle_without_touching_gates(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:fleet"
+        bundle = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        tampered = dict(bundle)
+        tampered["payload"] = dict(bundle["payload"])
+        tampered["payload"]["rules"] = []
+        gate = PolicyRegistry(trusted_authorities={authority.kid})
+        with self.assertRaises(ValueError):
+            PolicyDistributor(
+                trusted_authorities={authority.kid}
+            ).distribute(tampered, {"gate": gate})
+        self.assertIsNone(gate.current(policy_id))
+
+    def test_distribution_report_verification(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:fleet"
+        v1 = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        gate = PolicyRegistry(trusted_authorities={authority.kid})
+        report = PolicyDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(v1, {"gate-a": gate})
+        verified = verify_policy_distribution_report(
+            report,
+            v1,
+            trusted_authorities={authority.kid},
+        )
+        self.assertEqual(verified["overall_result"], "PASS")
+
+    def test_distribution_report_tampered_ack_rejected(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:fleet"
+        v1 = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        gate = PolicyRegistry(trusted_authorities={authority.kid})
+        report = PolicyDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(v1, {"gate-a": gate})
+        report["acks"][0]["applied"] = not report["acks"][0]["applied"]
+        with self.assertRaises(ValueError):
+            verify_policy_distribution_report(
+                report,
+                v1,
+                trusted_authorities={authority.kid},
+            )
+
+    def test_cli_distribute_roundtrip(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:fleet"
+        bundle = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle_path = root / "bundle.json"
+            authorities_path = root / "authorities.json"
+            registries_path = root / "registries.json"
+            out_path = root / "registries-out.json"
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            registries_path.write_text(
+                json.dumps({"gate-a": PolicyRegistry().to_dict()}),
+                encoding="utf-8",
+            )
+            exit_code = main(
+                [
+                    "--distribute",
+                    str(bundle_path),
+                    "--authorities",
+                    str(authorities_path),
+                    "--registries",
+                    str(registries_path),
+                    "--out",
+                    str(out_path),
+                ]
+            )
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(out_path.exists())
+            restored = PolicyRegistry.from_dict(
+                json.loads(out_path.read_text(encoding="utf-8"))["gate-a"],
+                trusted_authorities={authority.kid},
+            )
+            self.assertEqual(restored.current(policy_id)["version"], 1)
 
 
 if __name__ == "__main__":
