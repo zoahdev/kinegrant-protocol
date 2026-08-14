@@ -1,8 +1,10 @@
 // Universal CLI wrapper around the browser-compatible policy bundle verifier.
 import { readFileSync } from "node:fs";
 import {
+  verifyCapability,
   currentPolicyVersion,
   verifyPolicyBundle,
+  verifyReceiptChain,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -28,8 +30,26 @@ try {
       throw new Error("no current policy version");
     }
     console.log(JSON.stringify(current));
+  } else if (command === "capability") {
+    const [envelopePath, requestPath, issuersPath] = args;
+    const envelope = load(envelopePath);
+    const request = load(requestPath);
+    const trustedIssuers = new Set(load(issuersPath));
+    await verifyCapability(envelope, request, trustedIssuers);
+    console.log("CAPABILITY VALID");
+  } else if (command === "receipts") {
+    const [entriesPath, executorsPath] = args;
+    const entries = load(entriesPath);
+    const trustedExecutors = executorsPath ? new Set(load(executorsPath)) : null;
+    await verifyReceiptChain(entries, trustedExecutors);
+    console.log("RECEIPT CHAIN VALID");
   } else {
-    throw new Error("usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | current <bundles.json> [revoked.json]");
+    throw new Error(
+      "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
+      "current <bundles.json> [revoked.json] | " +
+      "capability <envelope.json> <request.json> <issuers.json> | " +
+      "receipts <entries.json> [executors.json]"
+    );
   }
 } catch (error) {
   console.error(`INVALID: ${error.message}`);

@@ -9,7 +9,9 @@ import {
 import {
   canonicalJson,
   currentPolicyVersion,
+  verifyCapability,
   verifyPolicyBundle,
+  verifyReceiptChain,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const DOMAIN = Buffer.from("KINEGRANT-SIGNED-ENVELOPE-V1\u0000", "utf8");
@@ -78,6 +80,74 @@ function buildBundle(privateKey, publicKey, { version = 1, purposes = ["delivery
   return signEnvelope(privateKey, body);
 }
 
+function buildCapability(privateKey, publicKey, request) {
+  const now = Date.now();
+  const issuedAt = new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const expiresAt = new Date(now + 300 * 1000).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const kid = kidOf(publicKey);
+  const body = {
+    type: "kinegrant:PhysicalActionCapability",
+    version: "0.1",
+    issuer: kid,
+    agent: request.agent,
+    target: request.target,
+    action: request.action,
+    purpose: request.purpose,
+    request_digest:
+      "sha256:" +
+      createHash("sha256")
+        .update(Buffer.from(canonicalJson(request), "utf8"))
+        .digest("hex"),
+    policy_digest: "sha256:" + "0".repeat(64),
+    matched_policy_ids: ["policy-1"],
+    obligations: ["emitActionReceipt"],
+    issued_at: issuedAt,
+    not_before: issuedAt,
+    expires_at: expiresAt,
+    nonce: "n".repeat(32),
+  };
+  const unsigned = { ...body };
+  body.capability_id =
+    "kinegrant:cap:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson(unsigned), "utf8"))
+      .digest("hex");
+  return signEnvelope(privateKey, body);
+}
+
+function buildReceipt(privateKey, publicKey, { capabilityId, previous = null } = {}) {
+  const kid = kidOf(publicKey);
+  const body = {
+    type: "kinegrant:PhysicalActionReceipt",
+    version: "0.1",
+    executor: kid,
+    capability_id: capabilityId || "kinegrant:cap:" + "a".repeat(64),
+    request_digest: "sha256:" + "0".repeat(64),
+    agent: "robot-1",
+    target: "door-7",
+    action: "open",
+    purpose: "delivery",
+    result: "succeeded",
+    started_at: new Date().toISOString(),
+    finished_at: new Date().toISOString(),
+    evidence_hash: null,
+    previous_receipt_hash:
+      previous === null
+        ? null
+        : "sha256:" +
+          createHash("sha256")
+            .update(Buffer.from(canonicalJson(previous), "utf8"))
+            .digest("hex"),
+  };
+  const unsigned = { ...body };
+  body.receipt_id =
+    "kinegrant:receipt:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson(unsigned), "utf8"))
+      .digest("hex");
+  return signEnvelope(privateKey, body);
+}
+
 test("browser verifier canonicalizes JCS", () => {
   assert.equal(canonicalJson({ b: 1, a: 2 }), '{"a":2,"b":1}');
   assert.equal(canonicalJson({ x: "a\u2028b" }), '{"x":"a\\u2028b"}');
@@ -126,5 +196,45 @@ test("browser verifier selects current version and honors revocation", async () 
       revoked: ["urn:policy:browser:1", "urn:policy:browser:2"],
     }),
     null
+  );
+});
+
+test("browser verifier accepts a valid capability and rejects tampering", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const request = {
+    request_id: "req-1",
+    agent: "robot-1",
+    target: "door-7",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const envelope = buildCapability(privateKey, publicKey, request);
+  const payload = await verifyCapability(
+    envelope,
+    request,
+    new Set([envelope.kid])
+  );
+  assert.equal(payload.capability_id.startsWith("kinegrant:cap:"), true);
+  envelope.payload.action = "record";
+  await assert.rejects(() =>
+    verifyCapability(envelope, request, new Set([envelope.kid]))
+  );
+});
+
+test("browser verifier accepts a receipt chain and rejects inconsistency", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const first = buildReceipt(privateKey, publicKey, {
+    capabilityId: "kinegrant:cap:" + "a".repeat(64),
+  });
+  const second = buildReceipt(privateKey, publicKey, {
+    capabilityId: "kinegrant:cap:" + "b".repeat(64),
+    previous: first,
+  });
+  await verifyReceiptChain([first, second], new Set([first.kid]));
+  second.payload.previous_receipt_hash = null;
+  await assert.rejects(() =>
+    verifyReceiptChain([first, second], new Set([first.kid]))
   );
 });

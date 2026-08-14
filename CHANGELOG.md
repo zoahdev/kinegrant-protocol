@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.7.0 - v2.7 first item (unreleased)
+
+- Extended the browser verifier to capabilities (v0.1/v0.2/1.0) and receipt chains (v0.1/1.0) alongside policy bundles; the standalone HTML page and the Node CLI (`capability`, `receipts` commands) expose all three verifications, cross-tested against Python-generated objects.
+
 ## 2.6.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.6.0 on the stable
