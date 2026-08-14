@@ -21,6 +21,7 @@ from ..adapters.mcp import mcp_tool_request
 from ..adapters.ros2 import ros_action_request
 from ..bridges.ros2 import Ros2GoalGate
 from ..capability import CapabilityIssuer
+from ..compliance import ObligationCompliance
 from ..crypto import Ed25519KeyPair
 from ..gate import ActionGate
 from ..models import ActionRequest, PolicyRule
@@ -177,7 +178,12 @@ class Ros2McpDemo:
             )
             if replay or untrusted:
                 raise AssertionError("denied scenario unexpectedly passed")
-            self.log.append(verified, result="succeeded", request=request)
+            receipt = self.log.append(verified, result="succeeded", request=request)
+            obligation_compliant = ObligationCompliance().evaluate(
+                capability,
+                self.log.entries,
+                trusted_executors={self.authority.kid},
+            ).compliant
             self.journal.record(action=request.action, target=request.target)
             self._last_capability = capability
             allowed = True
@@ -185,6 +191,7 @@ class Ros2McpDemo:
         except (PermissionError, ValueError, AssertionError) as exc:
             allowed = False
             reason = f"{type(exc).__name__}: {exc}"
+            obligation_compliant = None
         outcome = {
             "scenario": scenario,
             "stack": stack,
@@ -193,6 +200,7 @@ class Ros2McpDemo:
             "allowed": allowed,
             "reason": reason,
             "expected": expected,
+            "obligation_compliant": obligation_compliant,
             "passed": allowed == ("ALLOW" in expected),
         }
         self.outcomes.append(outcome)
@@ -234,10 +242,20 @@ class Ros2McpDemo:
             self.log.entries,
             trusted_executors={self.authority.kid},
         )
+        compliance_ok = all(
+            outcome["obligation_compliant"]
+            for outcome in self.outcomes
+            if outcome["allowed"]
+        )
         passed = sum(outcome["passed"] for outcome in self.outcomes)
         overall = (
             "PASS"
-            if passed == len(self.outcomes) and receipts_ok and len(self.log.entries) == 2
+            if (
+                passed == len(self.outcomes)
+                and receipts_ok
+                and compliance_ok
+                and len(self.log.entries) == 2
+            )
             else "FAIL"
         )
         return {
@@ -251,6 +269,7 @@ class Ros2McpDemo:
             },
             "receipt_count": len(self.log.entries),
             "receipts_verified": receipts_ok,
+            "obligation_compliance_ok": compliance_ok,
             "outcomes": self.outcomes,
             "limitations": [
                 "Software demonstration only; no real ROS 2 node or MCP server was used.",

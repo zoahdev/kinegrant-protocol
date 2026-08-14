@@ -15,10 +15,12 @@ from ..adapters.matter import matter_command_request
 from ..adapters.opcua import opcua_method_request
 from ..adapters.ros2 import ros_action_request
 from ..capability import CapabilityIssuer
+from ..compliance import ObligationCompliance
 from ..crypto import Ed25519KeyPair
 from ..gate import ActionGate
 from ..models import ActionRequest, PolicyRule
 from ..policy import PolicyEngine
+from ..receipt import ReceiptLog
 from .robot_demo import RobotStack
 
 
@@ -69,6 +71,7 @@ def _policy(issuer: str) -> list[PolicyRule]:
             subjects=("urn:kinegrant:demo:agent:*",),
             purposes=("delivery", "maintenance"),
             constraints={"max_force_newtons": 50, "allowed_zones": ["urn:kinegrant:demo:zone:*"]},
+            obligations=("emitActionReceipt",),
         ),
         PolicyRule(
             "urn:kinegrant:demo:policy:bridge-deny-training",
@@ -89,6 +92,9 @@ class BridgeDemo:
             trusted_policy_issuers={self.authority.kid},
         )
         self.gate = ActionGate(trusted_issuers={self.authority.kid})
+        self.executor = Ed25519KeyPair.generate()
+        self.log = ReceiptLog(self.executor)
+        self.compliance = ObligationCompliance()
         self.stacks = {
             "ros2": RobotStack("ros2", _build_ros2),
             "matter": RobotStack("matter", _build_matter),
@@ -97,7 +103,7 @@ class BridgeDemo:
         self.outcomes: list[dict[str, Any]] = []
         self.fidelity: dict[str, dict[str, str]] = {}
 
-    def _consume(self, stack: RobotStack, request: ActionRequest) -> None:
+    def _consume(self, stack: RobotStack, request: ActionRequest) -> bool:
         decision = self.engine.evaluate(request)
         if not decision.allowed:
             raise PermissionError(decision.reason)
@@ -110,7 +116,13 @@ class BridgeDemo:
             purposes=[request.purpose],
             approval_tier=decision.required_approval_tier,
         )
-        self.gate.authorize(capability, request)
+        verified = self.gate.authorize(capability, request)
+        receipt = self.log.append(verified, result="succeeded", request=request)
+        return self.compliance.evaluate(
+            capability,
+            self.log.entries,
+            trusted_executors={self.executor.kid},
+        ).compliant
 
     def attempt(
         self,
@@ -133,12 +145,13 @@ class BridgeDemo:
         transport = request.context.get("transport")
         self.fidelity[stack_name] = {"target": request.target, "transport": str(transport)}
         try:
-            self._consume(stack, request)
+            obligation_compliant = self._consume(stack, request)
             allowed = True
             reason = "allow"
         except (PermissionError, ValueError) as exc:
             allowed = False
             reason = f"{type(exc).__name__}: {exc}"
+            obligation_compliant = None
         outcome = {
             "scenario": scenario,
             "stack": stack_name,
@@ -146,6 +159,7 @@ class BridgeDemo:
             "allowed": allowed,
             "reason": reason,
             "expected": expected,
+            "obligation_compliant": obligation_compliant,
             "passed": allowed == ("ALLOW" in expected),
         }
         self.outcomes.append(outcome)
@@ -166,8 +180,17 @@ class BridgeDemo:
             self.fidelity[name]["target"].startswith(prefix)
             for name, prefix in (("matter", "matter:"), ("opcua", "opcua:"))
         )
+        compliance_ok = all(
+            outcome["obligation_compliant"]
+            for outcome in self.outcomes
+            if outcome["allowed"]
+        )
         passed = sum(outcome["passed"] for outcome in self.outcomes)
-        overall = "PASS" if passed == len(self.outcomes) and fidelity_ok else "FAIL"
+        overall = (
+            "PASS"
+            if passed == len(self.outcomes) and fidelity_ok and compliance_ok
+            else "FAIL"
+        )
         return {
             "type": "kinegrant:BridgeDemoReport",
             "schema_version": "0.1",
@@ -175,6 +198,7 @@ class BridgeDemo:
             "summary": {"total": len(self.outcomes), "passed": passed, "failed": len(self.outcomes) - passed},
             "adapter_fidelity": self.fidelity,
             "fidelity_ok": fidelity_ok,
+            "obligation_compliance_ok": compliance_ok,
             "outcomes": self.outcomes,
             "limitations": [
                 "Software demonstration only; no real transport was used.",

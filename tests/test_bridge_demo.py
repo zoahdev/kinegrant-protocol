@@ -15,12 +15,14 @@ class BridgeDemoTests(unittest.TestCase):
     def test_overall_pass(self) -> None:
         self.assertEqual(self.report["overall_result"], "PASS")
         self.assertTrue(self.report["fidelity_ok"])
+        self.assertTrue(self.report["obligation_compliance_ok"])
         self.assertEqual(self.report["summary"], {"total": 4, "passed": 4, "failed": 0})
 
     def test_allowed_scenarios_are_allowed(self) -> None:
         allowed = [item for item in self.report["outcomes"] if item["scenario"] == "allowed"]
         self.assertEqual(len(allowed), 3)
         self.assertTrue(all(item["allowed"] for item in allowed))
+        self.assertTrue(all(item["obligation_compliant"] for item in allowed))
         self.assertEqual(
             {item["stack"] for item in allowed},
             {"matter", "opcua", "ros2"},

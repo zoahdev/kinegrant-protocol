@@ -1,8 +1,9 @@
 """Micro-benchmarks for the KineGrant reference implementation.
 
 Prints a JSON report of operations per second for policy evaluation, capability
-issuance, gate authorization, receipt append, and JCS digesting. Results are
-machine-readable and CI-smoked with conservative lower bounds.
+issuance, gate authorization, receipt append, obligation compliance, and JCS
+digesting. Results are machine-readable and CI-smoked with conservative lower
+bounds.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from kinegrant.capability import CapabilityIssuer
+from kinegrant.compliance import ObligationCompliance
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
 from kinegrant.models import ActionRequest, PolicyRule
@@ -40,6 +42,7 @@ def run(iterations: int = 2000) -> dict:
         "*",
         "allow",
         ("open",),
+        obligations=("emitActionReceipt",),
     )
     engine = PolicyEngine([rule], trusted_policy_issuers={authority.kid})
     request = ActionRequest(
@@ -73,6 +76,19 @@ def run(iterations: int = 2000) -> dict:
         ).authorize(capability, request)
         ReceiptLog(executor).append(verified, result="succeeded")
 
+    def obligation_compliance() -> None:
+        capability = issuer.issue(request, decision, ttl_seconds=300)
+        verified = ActionGate(
+            trusted_issuers={authority.kid},
+            replay_store=InMemoryReplayStore(),
+        ).authorize(capability, request)
+        receipt = ReceiptLog(executor).append(verified, result="succeeded")
+        ObligationCompliance().evaluate(
+            capability,
+            [receipt],
+            trusted_executors={executor.kid},
+        )
+
     from kinegrant.canonical import canonical_json
 
     def jcs_digest() -> None:
@@ -87,6 +103,9 @@ def run(iterations: int = 2000) -> dict:
             "capability_issue": round(_measure(issue_cap, iterations), 1),
             "gate_authorize": round(_measure(gate_auth, iterations), 1),
             "receipt_append": round(_measure(receipt_append, max(1, iterations // 10)), 1),
+            "obligation_compliance": round(
+                _measure(obligation_compliance, max(1, iterations // 10)), 1
+            ),
             "jcs_digest": round(_measure(jcs_digest, iterations), 1),
         },
     }

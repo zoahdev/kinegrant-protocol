@@ -16,6 +16,7 @@ class RobotDemoTests(unittest.TestCase):
     def test_demo_overall_pass(self) -> None:
         self.assertEqual(self.report["overall_result"], "PASS")
         self.assertEqual(self.report["summary"], {"total": 8, "passed": 8, "failed": 0})
+        self.assertTrue(self.report["obligation_compliance_ok"])
 
     def test_both_stacks_obey_the_same_policy(self) -> None:
         self.assertGreaterEqual(self.report["actuator_calls"]["ros2"], 2)
@@ -23,6 +24,8 @@ class RobotDemoTests(unittest.TestCase):
         by_scenario = {item["scenario"]: item for item in self.report["outcomes"]}
         self.assertTrue(by_scenario["happy-path"]["allowed"])
         self.assertTrue(by_scenario["record"]["allowed"])
+        for scenario in ("happy-path", "record"):
+            self.assertTrue(by_scenario[scenario]["obligation_compliant"])
 
     def test_fault_injections_are_denied(self) -> None:
         denied = {
