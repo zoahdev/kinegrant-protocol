@@ -8,6 +8,7 @@ from .attestation import build_device_attestation, verify_device_attestation
 from .checkpoint import build_receipt_checkpoint, verify_receipt_checkpoint
 from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
 from .discovery import DiscoveryResolution, ThingActions, ThingRegistry
+from .fuzz import AdapterFuzzHarness
 from .gate import ActionGate, InMemoryReplayStore, SQLiteReplayStore, VerifiedCapability
 from .identity import (
     KineGrantIdentifier,
@@ -48,6 +49,7 @@ from .sequence import (
     SequencePolicy,
     SequenceVerdict,
 )
+from .semantics import PolicyInvariants, RuleInvariant, explain_decision
 from .sensor_evidence import (
     SensorReading,
     build_sensor_commitment,
@@ -71,6 +73,7 @@ __all__ = [
     "ActionJournal",
     "ActionRequest",
     "ActionSpec",
+    "AdapterFuzzHarness",
     "BackedKeyPair",
     "CapabilityIssuer",
     "Decision",
@@ -80,11 +83,13 @@ __all__ = [
     "KineGrantIdentifier",
     "MLDSA65KeyPair",
     "PolicyEngine",
+    "PolicyInvariants",
     "PolicyRule",
     "RED_TEAM_CASES",
     "ReceiptLog",
     "RedTeamSuite",
     "RotatingIdentifierRegistry",
+    "RuleInvariant",
     "RevocationEntry",
     "RevocationList",
     "SensorReading",
@@ -110,6 +115,7 @@ __all__ = [
     "build_sensor_commitment",
     "known_action",
     "evidence_hash_for_commitment",
+    "explain_decision",
     "is_agent_id",
     "is_kinegrant_identifier",
     "is_policy_id",

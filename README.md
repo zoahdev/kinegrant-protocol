@@ -163,6 +163,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   red-team suite `kinegrant-red-team` covering replay, mutation, confused
   deputy, conflict, downgrade, clock, revocation, delegation, adapter, and
   sequence attacks (see [spec/RED-TEAM.md](spec/RED-TEAM.md)).
+- Static policy analysis (`PolicyInvariants`, `explain_decision`) and a
+  deterministic adapter fuzzer (`AdapterFuzzHarness`), plus a
+  [governance charter](GOVERNANCE.md) and [RFC process](docs/RFC-PROCESS.md).
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies
@@ -194,6 +197,7 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 | `codemeta.json` | Machine-readable software and subject metadata |
 | `SECURITY.md` | Vulnerability reporting policy |
 | `CONTRIBUTING.md` | Open contribution and RFC process |
+| `GOVERNANCE.md` | Vendor-neutral governance charter |
 
 ## Non-goals
 
