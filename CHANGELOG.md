@@ -4,6 +4,10 @@
 
 ## 1.0.1 — 2026-08-15
 
+- Added `kinegrant.gatekeeper.Gatekeeper`: one-call composition of sequence
+  check, gate verification and one-time consumption, actuator execution,
+  signed receipt (including failure receipts), obligation compliance, and the
+  action journal, with a machine-readable fail-closed outcome.
 - Patch release on the stable 1.0 wire format: reference implementation
   version 1.0.1; the deployment traces (home-robot, camera-consent) now carry
   both obligations (`emitActionReceipt`, `logAuditEvent`) and report them as
