@@ -4,6 +4,10 @@
 
 ## 1.1.0 — 2026-08-15
 
+- Added fleet revocation distribution (`kinegrant.distribution.
+  RevocationDistributor`) and the `kinegrant-revoke-distribute` CLI: one
+  verified signed revocation bundle is applied idempotently to many gates,
+  with per-gate acknowledgements and a machine-readable fleet report.
 - Milestone release: reference implementation version 1.1.0 on the stable
   1.0 wire format, with additive receipt 1.0, three known obligations
   (`emitActionReceipt`, `logAuditEvent`, `preserveEvidence`), fail-closed

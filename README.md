@@ -162,6 +162,10 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   filters receipts by capability/agent/target/action/purpose/result/time,
   produces a machine-readable summary, and checks obligation compliance;
   `kinegrant-audit` exposes it as a deployable CLI (`--self-test` for CI).
+- Fleet revocation distribution: `RevocationDistributor` verifies one signed
+  revocation bundle under the caller-supplied authorities and applies it to
+  many gates idempotently, with per-gate acknowledgements in a machine-
+  readable report; `kinegrant-revoke-distribute` is the deployable CLI.
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.

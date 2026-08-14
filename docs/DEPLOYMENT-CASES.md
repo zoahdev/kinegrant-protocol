@@ -80,6 +80,23 @@ auditor explicitly opts out (`strict=False`), and obligation checks require a
 non-empty executor trust set. The `kinegrant-audit` CLI wraps this for
 operators (`--self-test` validates the tool itself).
 
+## 7. Revocation distribution
+
+`kinegrant.distribution.RevocationDistributor` applies one verified,
+signed revocation bundle to every gate in a fleet:
+
+- the bundle must verify under the caller-supplied revocation authorities
+  (and an optional expected previous-bundle digest) before any gate is
+  touched;
+- application is idempotent per capability id: re-distributing the same
+  bundle reports `already_present` instead of re-adding;
+- the machine-readable report records per-gate acknowledgements (added /
+  already-present counts) plus the bundle id and version.
+
+The `kinegrant-revoke-distribute` CLI wraps this for operators
+(`bundle.json gates.json authorities.json`; `--self-test` validates the
+tool itself).
+
 ## Acceptance for deployment
 
 - pass the conformance level that matches the deployment (L1-L4);
