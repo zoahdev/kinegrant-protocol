@@ -195,6 +195,7 @@ class AttenuationTests(unittest.TestCase):
         jsonschema.validate(child, schema)
 
     def test_cross_agent_delegation_with_opt_in(self) -> None:
+        delegate_request = self.delegate_request()
         root = self.issuer.issue_scoped(
             self.request,
             self.decision,
@@ -210,14 +211,14 @@ class AttenuationTests(unittest.TestCase):
             root,
             target="door-7",
             delegate_agent="robot-2",
-            delegate_request=self.delegate_request(),
+            delegate_request=delegate_request,
         )
         payload = child["payload"]
         self.assertEqual(payload["delegate_agent"], "robot-2")
         self.assertEqual(payload["delegation_depth"], 1)
         self.assertFalse(payload["delegation_allowed"])
         self.assertEqual(payload["max_delegation_depth"], 0)
-        verified = self.gate.authorize(child, self.delegate_request())
+        verified = self.gate.authorize(child, delegate_request)
         self.assertEqual(verified["agent"], "robot-1")
         self.assertEqual(verified["delegate_agent"], "robot-2")
 
