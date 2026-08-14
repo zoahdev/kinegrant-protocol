@@ -29,6 +29,11 @@
   request digest; delegates cannot re-delegate.
 - Added experimental post-quantum envelopes using FIPS 204 ML-DSA-65
   (`alg: "ML-DSA-65"`) as a parallel to Ed25519.
+- Added forbidden combinations: `ActionJournal` + `SequencePolicy` deny
+  requests once a dangerous set of actions has all been observed, with
+  optional time windows and trigger patterns.
+- Added canonical `urn:kinegrant:*` identifiers for agents, targets, and
+  policies with strict validation and round-trip parsing.
 - Published the nine-case KineGrant Machine Permission Test v0.1.
 - Added machine-readable PASS/FAIL evidence, an independent verifier, source
   commit and runner-digest provenance, and CI execution across Python 3.11–3.13.

@@ -77,6 +77,10 @@ Progress on main:
 - Cross-agent delegation: opt-in bounded delegation (max depth 1-3) with a
   delegate-bound request digest; delegates cannot re-delegate.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
+- Forbidden combinations and cross-action sequence policy with an append-only
+  action journal, time windows, and trigger patterns.
+- Canonical `urn:kinegrant:*` identifier grammar for agents, targets, and
+  policies.
 - Versioned ODRL profile (`kgp-v0.2`) and IEEE 7012 bridge metadata with
   fail-closed constraint mapping and interop tests.
 
