@@ -11,7 +11,7 @@ functionally safe, or that KineGrant is production-ready.
 
 ### Zero-install Codespaces path
 
-Open the current public test branch in [GitHub Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=agent/global-beta&quickstart=1). The checked-in Dev Container installs
+Open the default branch in [GitHub Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=main&quickstart=1). The checked-in Dev Container installs
 the test surface, generates the packet, and runs the independent verifier. A
 successful terminal ends with `PASS`. The resulting files are in
 `reproduction-output/`.
