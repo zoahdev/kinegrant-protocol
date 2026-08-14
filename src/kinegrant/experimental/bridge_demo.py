@@ -15,12 +15,13 @@ from ..adapters.matter import matter_command_request
 from ..adapters.opcua import opcua_method_request
 from ..adapters.ros2 import ros_action_request
 from ..capability import CapabilityIssuer
-from ..compliance import ObligationCompliance
 from ..crypto import Ed25519KeyPair
 from ..gate import ActionGate
+from ..gatekeeper import Gatekeeper
 from ..models import ActionRequest, PolicyRule
 from ..policy import PolicyEngine
 from ..receipt import ReceiptLog
+from ..sequence import ActionJournal, SequencePolicy
 from .robot_demo import RobotStack
 
 
@@ -94,7 +95,14 @@ class BridgeDemo:
         self.gate = ActionGate(trusted_issuers={self.authority.kid})
         self.executor = Ed25519KeyPair.generate()
         self.log = ReceiptLog(self.executor)
-        self.compliance = ObligationCompliance()
+        self.journal = ActionJournal()
+        self.sequence = SequencePolicy([])
+        self.gatekeeper = Gatekeeper(
+            gate=self.gate,
+            sequence=self.sequence,
+            journal=self.journal,
+            receipt_log=self.log,
+        )
         self.stacks = {
             "ros2": RobotStack("ros2", _build_ros2),
             "matter": RobotStack("matter", _build_matter),
@@ -103,11 +111,11 @@ class BridgeDemo:
         self.outcomes: list[dict[str, Any]] = []
         self.fidelity: dict[str, dict[str, str]] = {}
 
-    def _consume(self, stack: RobotStack, request: ActionRequest) -> bool:
+    def _issue(self, request: ActionRequest) -> dict[str, Any]:
         decision = self.engine.evaluate(request)
         if not decision.allowed:
             raise PermissionError(decision.reason)
-        capability = self.issuer.issue_scoped(
+        return self.issuer.issue_scoped(
             request,
             decision,
             ttl_seconds=30,
@@ -116,13 +124,6 @@ class BridgeDemo:
             purposes=[request.purpose],
             approval_tier=decision.required_approval_tier,
         )
-        verified = self.gate.authorize(capability, request)
-        receipt = self.log.append(verified, result="succeeded", request=request)
-        return self.compliance.evaluate(
-            capability,
-            self.log.entries,
-            trusted_executors={self.executor.kid},
-        ).compliant
 
     def attempt(
         self,
@@ -145,9 +146,15 @@ class BridgeDemo:
         transport = request.context.get("transport")
         self.fidelity[stack_name] = {"target": request.target, "transport": str(transport)}
         try:
-            obligation_compliant = self._consume(stack, request)
-            allowed = True
-            reason = "allow"
+            capability = self._issue(request)
+            outcome = self.gatekeeper.execute(
+                capability,
+                request,
+                lambda verified: None,
+            )
+            allowed = outcome.allowed
+            reason = "allow" if allowed else (outcome.reason or outcome.stage)
+            obligation_compliant = outcome.obligation_compliant
         except (PermissionError, ValueError) as exc:
             allowed = False
             reason = f"{type(exc).__name__}: {exc}"

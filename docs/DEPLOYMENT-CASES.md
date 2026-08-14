@@ -56,7 +56,10 @@ readable output.
 Every stage fails closed and the outcome is machine-readable
 (`allowed`, `stage`, `reason`, `capability_id`, `receipt_id`,
 `obligation_compliant`, `journal_recorded`). Deployments should use
-`Gatekeeper` instead of hand-composing these steps.
+`Gatekeeper` instead of hand-composing these steps. The runnable demos
+(`kinegrant-robot-demo`, `kinegrant-bridge-demo`, `kinegrant-ros2-demo`) and
+both deployment traces (home-robot, camera-consent) now run through
+`Gatekeeper`.
 
 ## Acceptance for deployment
 

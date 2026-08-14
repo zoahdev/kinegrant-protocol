@@ -6,12 +6,13 @@ import json
 import sys
 
 from kinegrant.capability import CapabilityIssuer
-from kinegrant.compliance import ObligationCompliance
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
+from kinegrant.gatekeeper import Gatekeeper
 from kinegrant.models import ActionRequest, PolicyRule
 from kinegrant.policy import PolicyEngine
 from kinegrant.receipt import ReceiptLog, verify_receipt_chain
+from kinegrant.sequence import ActionJournal, SequencePolicy
 
 
 def run() -> dict:
@@ -51,34 +52,35 @@ def run() -> dict:
         trusted_issuers={authority.kid},
         replay_store=InMemoryReplayStore(),
     )
-    verified = gate.authorize(capability, request)
-    receipt = ReceiptLog(executor).append(
-        verified,
-        result="succeeded",
-        request=request,
+    log = ReceiptLog(executor)
+    gatekeeper = Gatekeeper(
+        gate=gate,
+        sequence=SequencePolicy([]),
+        journal=ActionJournal(),
+        receipt_log=log,
+    )
+    outcome = gatekeeper.execute(
+        capability,
+        request,
+        lambda verified: None,
         obligation_results=[
             {"obligation": "emitActionReceipt", "status": "satisfied"},
             {"obligation": "logAuditEvent", "status": "satisfied"},
         ],
     )
     chain_ok = verify_receipt_chain(
-        [receipt],
+        log.entries,
         trusted_executors={executor.kid},
-        expected_capability_ids={verified["capability_id"]},
-    )
-    compliance = ObligationCompliance().evaluate(
-        capability,
-        [receipt],
-        trusted_executors={executor.kid},
+        expected_capability_ids={outcome.capability_id},
     )
     trace = {
         "scenario": "home-robot-delivery",
         "decision": decision.to_dict(),
-        "capability_id": verified["capability_id"],
-        "receipt_id": receipt["payload"]["receipt_id"],
+        "capability_id": outcome.capability_id,
+        "receipt_id": outcome.receipt_id,
         "chain_valid": chain_ok,
-        "obligation_compliant": compliance.compliant,
-        "passed": decision.allowed and chain_ok and compliance.compliant,
+        "obligation_compliant": outcome.obligation_compliant,
+        "passed": decision.allowed and chain_ok and outcome.allowed,
     }
     print(json.dumps(trace, indent=2, sort_keys=True))
     return trace
