@@ -7,9 +7,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from kinegrant.capability import CapabilityIssuer
 from kinegrant.crypto import Ed25519KeyPair
-from kinegrant.models import PolicyRule
+from kinegrant.gate import ActionGate, InMemoryReplayStore
+from kinegrant.models import ActionRequest, PolicyRule
+from kinegrant.policy import PolicyEngine
 from kinegrant.policy_bundle import PolicyAuthority
+from kinegrant.receipt import ReceiptLog
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "verify" / "verify_policy_bundle.mjs"
@@ -134,6 +138,102 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             )
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
+
+    def test_browser_verifier_verifies_python_capability(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        issuer = CapabilityIssuer(authority)
+        request = ActionRequest(
+            "urn:kinegrant:browser:request:1",
+            "urn:robot:browser:1",
+            "urn:space:browser:door-1",
+            "open",
+            "delivery",
+        )
+        rule = PolicyRule(
+            "browser-rule-1",
+            authority.kid,
+            "urn:space:browser:*",
+            "allow",
+            ("open",),
+        )
+        decision = PolicyEngine(
+            [rule],
+            trusted_policy_issuers={authority.kid},
+        ).evaluate(request)
+        capability = issuer.issue(request, decision, ttl_seconds=300)
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            envelope_path = base / "capability.json"
+            request_path = base / "request.json"
+            issuers_path = base / "issuers.json"
+            envelope_path.write_text(json.dumps(capability), encoding="utf-8")
+            request_path.write_text(
+                json.dumps(request.to_dict()),
+                encoding="utf-8",
+            )
+            issuers_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            verified = self._run(
+                "capability",
+                str(envelope_path),
+                str(request_path),
+                str(issuers_path),
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("CAPABILITY VALID", verified.stdout)
+
+    def test_browser_verifier_verifies_python_receipt_chain(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        issuer = CapabilityIssuer(authority)
+        executor = Ed25519KeyPair.generate()
+        log = ReceiptLog(executor)
+        gate = ActionGate(
+            trusted_issuers={authority.kid},
+            replay_store=InMemoryReplayStore(),
+        )
+        receipts = []
+        for index in range(2):
+            request = ActionRequest(
+                f"urn:kinegrant:browser:request:{index}",
+                "urn:robot:browser:1",
+                "urn:space:browser:door-1",
+                "open",
+                "delivery",
+            )
+            rule = PolicyRule(
+                f"browser-rule-{index}",
+                authority.kid,
+                "urn:space:browser:*",
+                "allow",
+                ("open",),
+            )
+            decision = PolicyEngine(
+                [rule],
+                trusted_policy_issuers={authority.kid},
+            ).evaluate(request)
+            capability = issuer.issue(request, decision, ttl_seconds=300)
+            verified = gate.authorize(capability, request)
+            receipts.append(
+                log.append(verified, result="succeeded", request=request)
+            )
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            entries_path = base / "receipts.json"
+            executors_path = base / "executors.json"
+            entries_path.write_text(json.dumps(receipts), encoding="utf-8")
+            executors_path.write_text(
+                json.dumps([executor.kid]),
+                encoding="utf-8",
+            )
+            verified = self._run(
+                "receipts",
+                str(entries_path),
+                str(executors_path),
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("RECEIPT CHAIN VALID", verified.stdout)
 
 
 if __name__ == "__main__":

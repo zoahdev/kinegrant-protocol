@@ -3,6 +3,23 @@
 // Works offline and can be embedded in a static page.
 
 const DOMAIN = "KINEGRANT-SIGNED-ENVELOPE-V1\u0000";
+const CAPABILITY_FIELDS = new Set([
+  "type", "version", "issuer", "agent", "target", "action", "purpose",
+  "request_digest", "policy_digest", "matched_policy_ids", "obligations",
+  "issued_at", "not_before", "expires_at", "nonce", "capability_id",
+]);
+const CAPABILITY_FIELDS_V2 = new Set([
+  ...CAPABILITY_FIELDS,
+  "actions", "purposes", "parent_capability_id", "constraints", "approval_tier",
+  "delegation_allowed", "max_delegation_depth", "delegate_agent",
+  "delegation_depth", "root_capability_id", "delegate_allowlist",
+]);
+CAPABILITY_FIELDS_V2.delete("action");
+CAPABILITY_FIELDS_V2.delete("purpose");
+const KNOWN_OBLIGATIONS = new Set([
+  "emitActionReceipt", "logAuditEvent", "preserveEvidence",
+]);
+const OBLIGATION_STATUSES = new Set(["satisfied", "pending", "failed"]);
 
 function escapeJsonString(value) {
   return JSON.stringify(value)
@@ -59,6 +76,23 @@ async function sha256Hex(bytes) {
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0")
   ).join("");
+}
+
+async function digestOfObject(value) {
+  return "sha256:" + (await sha256Hex(new TextEncoder().encode(canonicalJson(value))));
+}
+
+async function contentId(prefix, value) {
+  return prefix + ":" + (await sha256Hex(new TextEncoder().encode(canonicalJson(value))));
+}
+
+function globMatch(pattern, value) {
+  if (pattern === "*") return true;
+  const escaped = pattern
+    .split("*")
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join(".*");
+  return new RegExp(`^${escaped}$`).test(value);
 }
 
 async function verifyEnvelope(envelope) {
@@ -193,10 +227,280 @@ export function currentPolicyVersion(payloads, { revoked = [], now } = {}) {
   return best;
 }
 
+async function validateCommon(payload, request, envelope) {
+  const now = Date.now();
+  const issuedAt = parseTime(payload.issued_at);
+  const notBefore = parseTime(payload.not_before);
+  const expiresAt = parseTime(payload.expires_at);
+  if (notBefore < issuedAt || expiresAt <= notBefore) {
+    throw new Error("invalid capability time window");
+  }
+  if (expiresAt - notBefore > 300000) {
+    throw new Error("capability lifetime exceeds protocol maximum");
+  }
+  if (now < notBefore) throw new Error("capability is not active yet");
+  if (now >= expiresAt) throw new Error("capability has expired");
+  if (typeof payload.nonce !== "string" || payload.nonce.length < 20) {
+    throw new Error("capability nonce is invalid");
+  }
+  if (
+    !Array.isArray(payload.matched_policy_ids) ||
+    payload.matched_policy_ids.length === 0
+  ) {
+    throw new Error("capability has no matching policy");
+  }
+  if (
+    !Array.isArray(payload.obligations) ||
+    payload.obligations.some((item) => !KNOWN_OBLIGATIONS.has(item))
+  ) {
+    throw new Error("capability obligations are invalid");
+  }
+  if (!/^sha256:[0-9a-f]{64}$/.test(payload.policy_digest || "")) {
+    throw new Error("capability policy digest is invalid");
+  }
+  const unsigned = { ...payload };
+  delete unsigned.capability_id;
+  delete unsigned.root_capability_id;
+  const expected = await contentId("kinegrant:cap", unsigned);
+  if (payload.capability_id !== expected) {
+    throw new Error("capability identifier is inconsistent");
+  }
+}
+
+async function verifyCapabilityV1(payload, envelope, request, trustedIssuers) {
+  const fields = new Set(Object.keys(payload));
+  if (
+    fields.size !== CAPABILITY_FIELDS.size ||
+    [...fields].some((key) => !CAPABILITY_FIELDS.has(key))
+  ) {
+    throw new Error("capability fields do not match the v0.1 schema");
+  }
+  if (payload.type !== "kinegrant:PhysicalActionCapability") {
+    throw new Error("wrong capability type");
+  }
+  if (payload.version !== "0.1") throw new Error("unsupported capability version");
+  if (payload.issuer !== envelope.kid) {
+    throw new Error("capability issuer does not match signing key");
+  }
+  if (!trustedIssuers.has(payload.issuer)) {
+    throw new Error("untrusted capability issuer");
+  }
+  const requestDigest = await digestOfObject(request);
+  if (payload.request_digest !== requestDigest) {
+    throw new Error("capability does not authorize this request");
+  }
+  for (const field of ["agent", "target", "action", "purpose"]) {
+    if (payload[field] !== request[field]) {
+      throw new Error(`capability ${field} mismatch`);
+    }
+  }
+  await validateCommon(payload, request, envelope);
+  const unsigned = { ...payload };
+  delete unsigned.capability_id;
+  const expected = await contentId("kinegrant:cap", unsigned);
+  if (payload.capability_id !== expected) {
+    throw new Error("capability identifier is inconsistent");
+  }
+  return payload;
+}
+
+async function verifyCapabilityV2(payload, envelope, request, trustedIssuers) {
+  const fields = new Set(Object.keys(payload));
+  if (
+    fields.size !== CAPABILITY_FIELDS_V2.size ||
+    [...fields].some((key) => !CAPABILITY_FIELDS_V2.has(key))
+  ) {
+    throw new Error("capability fields do not match the scoped schema");
+  }
+  if (payload.type !== "kinegrant:PhysicalActionCapability") {
+    throw new Error("wrong capability type");
+  }
+  if (payload.issuer !== envelope.kid) {
+    throw new Error("capability issuer does not match signing key");
+  }
+  if (!trustedIssuers.has(payload.issuer)) {
+    throw new Error("untrusted capability issuer");
+  }
+  const requestDigest = await digestOfObject(request);
+  if (payload.request_digest !== requestDigest) {
+    throw new Error("capability does not authorize this request");
+  }
+  if (payload.agent !== request.agent) {
+    throw new Error("capability agent mismatch");
+  }
+  if (!globMatch(payload.target, request.target)) {
+    throw new Error("capability target scope mismatch");
+  }
+  if (!Array.isArray(payload.actions) || !payload.actions.includes(request.action)) {
+    throw new Error("capability action scope mismatch");
+  }
+  if (!Array.isArray(payload.purposes) || !payload.purposes.includes(request.purpose)) {
+    throw new Error("capability purpose scope mismatch");
+  }
+  const parentId = payload.parent_capability_id;
+  if (parentId !== null && (typeof parentId !== "string" || parentId.length === 0)) {
+    throw new Error("capability parent id must be a string or null");
+  }
+  const constraints = payload.constraints;
+  if (typeof constraints !== "object" || constraints === null || Array.isArray(constraints)) {
+    throw new Error("capability constraints must be an object");
+  }
+  for (const name of ["max_force_newtons", "max_velocity_mps"]) {
+    const value = constraints[name];
+    if (value !== undefined && (typeof value !== "number" || value < 0)) {
+      throw new Error(`capability ${name} must be a non-negative number`);
+    }
+  }
+  const zones = constraints.allowed_zones;
+  if (
+    zones !== undefined &&
+    (!Array.isArray(zones) ||
+      zones.length === 0 ||
+      zones.some((zone) => typeof zone !== "string" || zone.length === 0))
+  ) {
+    throw new Error("capability allowed_zones must be a non-empty list");
+  }
+  const tier = payload.approval_tier;
+  if (!Number.isInteger(tier) || tier < 0 || tier > 2) {
+    throw new Error("capability approval_tier must be an integer between 0 and 2");
+  }
+  if (typeof payload.delegation_allowed !== "boolean") {
+    throw new Error("capability delegation_allowed must be a boolean");
+  }
+  const maxDepth = payload.max_delegation_depth;
+  if (!Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 3) {
+    throw new Error("capability max_delegation_depth must be an integer between 0 and 3");
+  }
+  const depth = payload.delegation_depth;
+  if (!Number.isInteger(depth) || depth < 0 || depth > 3) {
+    throw new Error("capability delegation_depth must be an integer between 0 and 3");
+  }
+  const delegate = payload.delegate_agent;
+  if (delegate !== null && (typeof delegate !== "string" || delegate.length === 0)) {
+    throw new Error("capability delegate_agent must be a non-empty string or null");
+  }
+  if (typeof payload.root_capability_id !== "string" || payload.root_capability_id.length === 0) {
+    throw new Error("capability root_capability_id must be a non-empty string");
+  }
+  const allowlist = payload.delegate_allowlist;
+  if (
+    allowlist !== null &&
+    (!Array.isArray(allowlist) ||
+      allowlist.some((item) => typeof item !== "string" || item.length === 0))
+  ) {
+    throw new Error("capability delegate_allowlist must be a list or null");
+  }
+  await validateCommon(payload, request, envelope);
+  return payload;
+}
+
+export async function verifyCapability(envelope, request, trustedIssuers) {
+  const payload = await verifyEnvelope(envelope);
+  const version = payload.version;
+  if (version === "0.1") {
+    return verifyCapabilityV1(payload, envelope, request, trustedIssuers);
+  }
+  if (version === "0.2" || version === "1.0") {
+    return verifyCapabilityV2(payload, envelope, request, trustedIssuers);
+  }
+  throw new Error("unsupported capability version");
+}
+
+function validateReceiptV10(payload) {
+  const hasObligations = Object.prototype.hasOwnProperty.call(
+    payload,
+    "obligation_results"
+  );
+  const hasFailureReason = Object.prototype.hasOwnProperty.call(
+    payload,
+    "failure_reason"
+  );
+  if (!hasObligations && !hasFailureReason) {
+    throw new Error("receipt 1.0 requires an additive extension");
+  }
+  if (hasFailureReason) {
+    const reason = payload.failure_reason;
+    if (typeof reason !== "string" || reason.length === 0) {
+      throw new Error("receipt failure_reason is invalid");
+    }
+  }
+  if (hasObligations) {
+    const results = payload.obligation_results;
+    if (!Array.isArray(results) || results.length === 0) {
+      throw new Error("receipt obligation_results are invalid");
+    }
+    for (const item of results) {
+      if (typeof item !== "object" || item === null) {
+        throw new Error("receipt obligation result must be an object");
+      }
+      const allowed = new Set(["obligation", "status", "failure_reason"]);
+      if (Object.keys(item).some((key) => !allowed.has(key))) {
+        throw new Error("receipt obligation result has unknown fields");
+      }
+      if (!KNOWN_OBLIGATIONS.has(item.obligation)) {
+        throw new Error("receipt obligation is unknown");
+      }
+      if (!OBLIGATION_STATUSES.has(item.status)) {
+        throw new Error("receipt obligation status is invalid");
+      }
+      const reason = item.failure_reason;
+      const hasReason = Object.prototype.hasOwnProperty.call(item, "failure_reason");
+      if (hasReason && (typeof reason !== "string" || reason.length === 0)) {
+        throw new Error("receipt obligation failure_reason is invalid");
+      }
+      if (item.status === "failed" && (typeof reason !== "string" || reason.length === 0)) {
+        throw new Error("a failed obligation requires a failure_reason");
+      }
+    }
+  }
+}
+
+export async function verifyReceiptChain(entries, trustedExecutors) {
+  let previous = null;
+  const seen = new Set();
+  for (const envelope of entries) {
+    const payload = await verifyEnvelope(envelope);
+    if (payload.type !== "kinegrant:PhysicalActionReceipt") {
+      throw new Error("wrong receipt type");
+    }
+    if (payload.version !== "0.1" && payload.version !== "1.0") {
+      throw new Error("unsupported receipt version");
+    }
+    if (payload.version === "1.0") validateReceiptV10(payload);
+    if (payload.executor !== envelope.kid) {
+      throw new Error("receipt executor does not match signing key");
+    }
+    if (trustedExecutors && !trustedExecutors.has(payload.executor)) {
+      throw new Error("untrusted executor");
+    }
+    if (typeof payload.capability_id !== "string" || seen.has(payload.capability_id)) {
+      throw new Error("duplicate terminal receipt");
+    }
+    seen.add(payload.capability_id);
+    const unsigned = { ...payload };
+    delete unsigned.receipt_id;
+    const expectedId = await contentId("kinegrant:receipt", unsigned);
+    if (payload.receipt_id !== expectedId) {
+      throw new Error("receipt identifier is inconsistent");
+    }
+    const expectedHash =
+      previous === null
+        ? null
+        : "sha256:" + (await sha256Hex(new TextEncoder().encode(canonicalJson(previous))));
+    if (payload.previous_receipt_hash !== expectedHash) {
+      throw new Error("receipt chain is inconsistent");
+    }
+    previous = envelope;
+  }
+  return true;
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
     verifyPolicyBundle,
     currentPolicyVersion,
+    verifyCapability,
+    verifyReceiptChain,
   };
 }
