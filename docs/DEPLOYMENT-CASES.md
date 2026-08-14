@@ -23,15 +23,17 @@ windows.
 
 ## 4. Obligation enforcement
 
-When a policy rule carries an obligation (e.g. `emitActionReceipt`), the
+When a policy rule carries an obligation (e.g. `emitActionReceipt` or
+`logAuditEvent`), the
 deployment MUST be able to demonstrate that the obligation was fulfilled.
 `kinegrant.compliance.ObligationCompliance` is the fail-closed auditor for
 this step:
 
 - the executor must provide a signed receipt for the exact capability;
 - the receipt chain must verify under the caller-supplied executor trust set;
-- a receipt 1.0 must report the obligation as `satisfied`; a `0.1` receipt is
-  itself the fulfillment of `emitActionReceipt`;
+- a receipt 1.0 must report each obligation as `satisfied`; a `0.1` receipt is
+  itself the fulfillment of `emitActionReceipt`, while `logAuditEvent`
+  requires the explicit audit-log commitment in a `1.0` receipt;
 - unknown obligations, missing receipts, receipts for other capabilities, and
   unverified executors all fail compliance.
 

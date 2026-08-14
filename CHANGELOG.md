@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.0.1 — 2026-08-15
+
+- Patch release on the stable 1.0 wire format: reference implementation
+  version 1.0.1; the deployment traces (home-robot, camera-consent) now carry
+  both obligations (`emitActionReceipt`, `logAuditEvent`) and report them as
+  satisfied in receipt 1.0.
 - Added the `logAuditEvent` obligation (audit-log commitment) to the known
   obligation vocabulary across Python, JavaScript, and Go, the capability and
   receipt-1.0 schemas, the ODRL kgp-v0.2 duty mapping, and obligation

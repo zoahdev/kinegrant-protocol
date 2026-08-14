@@ -27,7 +27,7 @@ def run() -> dict:
         subjects=("urn:kinegrant:home:agent:*",),
         purposes=("delivery",),
         constraints={"max_force_newtons": 40, "allowed_zones": ["urn:kinegrant:home:zone:*"]},
-        obligations=("emitActionReceipt",),
+        obligations=("emitActionReceipt", "logAuditEvent"),
     )
     engine = PolicyEngine([rule], trusted_policy_issuers={authority.kid})
     request = ActionRequest(
@@ -56,6 +56,10 @@ def run() -> dict:
         verified,
         result="succeeded",
         request=request,
+        obligation_results=[
+            {"obligation": "emitActionReceipt", "status": "satisfied"},
+            {"obligation": "logAuditEvent", "status": "satisfied"},
+        ],
     )
     chain_ok = verify_receipt_chain(
         [receipt],
