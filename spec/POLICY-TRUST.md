@@ -99,6 +99,17 @@ policy engine over a bounded Cartesian request space and reports
 allowed/denied/exceptions, per-rule applicability, and allow rules that never
 win (shadowed by deny-overrides).
 
+## Audit aggregation
+
+`audit_policy_bundles` (`--audit-summary`) evaluates many labeled bundles in
+one run: each bundle is verified, statically analyzed, and coverage-checked;
+unverifiable bundles are recorded as failed instead of aborting the audit.
+The machine-readable `kinegrant:PolicyAuditSummary` reports verified/failed
+counts, analysis and coverage failures, findings grouped by code, and
+aggregate allowed/denied/exception/shadowed totals. `overall_result` is PASS
+only when every bundle verifies and has no error findings or coverage
+exceptions.
+
 ## Non-goals
 
 - No ledger, token, or consensus mechanism is required or implied.

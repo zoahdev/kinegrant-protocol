@@ -466,6 +466,119 @@ def policy_bundle_coverage(
     }
 
 
+def audit_policy_bundles(
+    bundles: Mapping[str, Mapping[str, Any]],
+    *,
+    trusted_authorities: set[str] | None = None,
+    agents: Iterable[str] = ("urn:kinegrant:coverage:agent:1",),
+    targets: Iterable[str] = ("urn:kinegrant:coverage:target:1",),
+    actions: Iterable[str] = ("open",),
+    purposes: Iterable[str] = ("delivery",),
+    max_requests: int = 200,
+) -> dict[str, Any]:
+    """Aggregate verification, analysis, and coverage across policy bundles.
+
+    Every bundle is evaluated independently; a bundle that fails verification
+    is recorded as failed instead of aborting the run, so the summary is a
+    complete fleet audit picture. ``overall_result`` is PASS only when every
+    bundle verifies, its static analysis has no error findings, and its
+    coverage has no exceptions or shadowed allows.
+    """
+    if not isinstance(bundles, Mapping) or not bundles:
+        raise ValueError("at least one labeled bundle is required")
+    entries: list[dict[str, Any]] = []
+    findings_by_code: dict[str, int] = {}
+    totals = {
+        "allowed": 0,
+        "denied": 0,
+        "exceptions": 0,
+        "shadowed_allows": 0,
+    }
+    for label in sorted(bundles):
+        bundle = bundles[label]
+        entry: dict[str, Any] = {
+            "label": label,
+            "verified": False,
+            "policy_id": None,
+            "bundle_version": None,
+            "analysis_result": None,
+            "coverage_result": None,
+            "error_findings": [],
+            "shadowed_allows": [],
+            "error": None,
+        }
+        try:
+            analysis = analyze_policy_bundle(
+                bundle,
+                trusted_authorities=trusted_authorities,
+            )
+            coverage = policy_bundle_coverage(
+                bundle,
+                trusted_authorities=trusted_authorities,
+                agents=agents,
+                targets=targets,
+                actions=actions,
+                purposes=purposes,
+                max_requests=max_requests,
+            )
+            entry.update(
+                {
+                    "verified": True,
+                    "policy_id": analysis["policy_id"],
+                    "bundle_version": analysis["bundle_version"],
+                    "analysis_result": analysis["overall_result"],
+                    "coverage_result": coverage["overall_result"],
+                    "error_findings": [
+                        finding["code"]
+                        for finding in analysis["findings"]
+                        if finding["severity"] == "error"
+                    ],
+                    "shadowed_allows": coverage["shadowed_allows"],
+                }
+            )
+            for code in entry["error_findings"]:
+                findings_by_code[code] = findings_by_code.get(code, 0) + 1
+            totals["allowed"] += coverage["summary"]["allowed"]
+            totals["denied"] += coverage["summary"]["denied"]
+            totals["exceptions"] += coverage["summary"]["exceptions"]
+            totals["shadowed_allows"] += coverage["summary"]["shadowed_allows"]
+        except (ValueError, TypeError) as exc:
+            entry["error"] = f"{type(exc).__name__}: {exc}"
+        entries.append(entry)
+
+    verified = sum(1 for entry in entries if entry["verified"])
+    analysis_failures = sum(
+        1
+        for entry in entries
+        if entry["verified"] and entry["analysis_result"] == "FAIL"
+    )
+    coverage_failures = sum(
+        1
+        for entry in entries
+        if entry["verified"] and entry["coverage_result"] == "FAIL"
+    )
+    passed = (
+        verified == len(entries)
+        and analysis_failures == 0
+        and coverage_failures == 0
+    )
+    return {
+        "type": "kinegrant:PolicyAuditSummary",
+        "schema_version": "0.1",
+        "overall_result": "PASS" if passed else "FAIL",
+        "summary": {
+            "bundles_total": len(entries),
+            "verified": verified,
+            "failed": len(entries) - verified,
+            "analysis_failures": analysis_failures,
+            "coverage_failures": coverage_failures,
+            "findings_by_code": findings_by_code,
+            **totals,
+        },
+        "bundles": entries,
+    }
+
+
 @dataclass(frozen=True)
 class PolicyRevocation:
     policy_id: str
@@ -925,6 +1038,11 @@ def _self_test() -> int:
         trusted_authorities={authority.kid},
     )
     checks.append(coverage["overall_result"] == "PASS")
+    audit = audit_policy_bundles(
+        {"gate-a": v1, "gate-b": v2},
+        trusted_authorities={authority.kid},
+    )
+    checks.append(audit["overall_result"] == "PASS")
     return 0 if all(checks) else 1
 
 
@@ -1058,6 +1176,28 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0 if report["overall_result"] == "PASS" else 1
+    if "--audit-summary" in args:
+        bundles_path = args[args.index("--audit-summary") + 1]
+        authorities_path = args[args.index("--authorities") + 1]
+        bundles = json.loads(Path(bundles_path).read_text(encoding="utf-8"))
+        authorities = json.loads(Path(authorities_path).read_text(encoding="utf-8"))
+        kwargs: dict[str, Any] = {}
+        for flag in ("agents", "targets", "actions", "purposes"):
+            if f"--{flag}" in args:
+                kwargs[flag] = tuple(
+                    args[args.index(f"--{flag}") + 1].split(",")
+                )
+        if "--max-requests" in args:
+            kwargs["max_requests"] = int(
+                args[args.index("--max-requests") + 1]
+            )
+        report = audit_policy_bundles(
+            bundles,
+            trusted_authorities=set(authorities),
+            **kwargs,
+        )
+        print(json.dumps(report, indent=2, sort_keys=True))
+        return 0 if report["overall_result"] == "PASS" else 1
     print(
         "usage: kinegrant-policy-bundle --verify <bundle.json> --authorities <ids.json> "
         "[--policy-id <id>] | --activate <bundle.json> --authorities <ids.json> "
@@ -1068,6 +1208,9 @@ def main(argv: list[str] | None = None) -> int:
         "--verify-report <report.json> --bundle <bundle.json> --authorities <ids.json> | "
         "--analyze <bundle.json> --authorities <ids.json> | "
         "--coverage <bundle.json> --authorities <ids.json> "
+        "[--agents a,b] [--targets t] [--actions act] [--purposes p] "
+        "[--max-requests N] | "
+        "--audit-summary <bundles.json> --authorities <ids.json> "
         "[--agents a,b] [--targets t] [--actions act] [--purposes p] "
         "[--max-requests N] | "
         "--self-test",

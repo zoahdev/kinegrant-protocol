@@ -15,6 +15,7 @@ from kinegrant.policy_bundle import (
     PolicyDistributor,
     PolicyRegistry,
     analyze_policy_bundle,
+    audit_policy_bundles,
     build_policy_bundle,
     bundle_to_odrl,
     main,
@@ -777,6 +778,143 @@ class PolicyBundleTests(unittest.TestCase):
                     [
                         "--coverage",
                         str(shadow_path),
+                        "--authorities",
+                        str(authorities_path),
+                        "--targets",
+                        "urn:space:test:door-1",
+                    ]
+                ),
+                1,
+            )
+
+    def test_audit_summary_all_clean(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:audit"
+        v1 = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        summary = audit_policy_bundles(
+            {"gate-a": v1},
+            trusted_authorities={authority.kid},
+            targets=("urn:space:test:door-1",),
+        )
+        self.assertEqual(summary["overall_result"], "PASS")
+        self.assertEqual(summary["summary"]["verified"], 1)
+        self.assertEqual(summary["summary"]["bundles_total"], 1)
+
+    def test_audit_summary_records_failed_bundle(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:audit-fail"
+        clean = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        tampered = dict(clean)
+        tampered["payload"] = dict(clean["payload"])
+        tampered["payload"]["rules"] = []
+        summary = audit_policy_bundles(
+            {"gate-a": clean, "gate-b": tampered},
+            trusted_authorities={authority.kid},
+            targets=("urn:space:test:door-1",),
+        )
+        self.assertEqual(summary["overall_result"], "FAIL")
+        self.assertEqual(summary["summary"]["verified"], 1)
+        self.assertEqual(summary["summary"]["failed"], 1)
+        failed = next(
+            entry for entry in summary["bundles"] if not entry["verified"]
+        )
+        self.assertIn("invalid signature", failed["error"])
+
+    def test_audit_summary_counts_findings_by_code(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:audit-conflict"
+        conflicting = authority.publish(
+            policy_id,
+            [
+                PolicyRule(
+                    policy_id,
+                    authority.kid,
+                    "urn:space:test:door-1",
+                    "allow",
+                    ("open",),
+                ),
+                PolicyRule(
+                    policy_id + "-deny",
+                    authority.kid,
+                    "urn:space:test:door-1",
+                    "deny",
+                    ("open",),
+                ),
+            ],
+            ttl_seconds=3600,
+        )
+        summary = audit_policy_bundles(
+            {"gate-a": conflicting},
+            trusted_authorities={authority.kid},
+            targets=("urn:space:test:door-1",),
+        )
+        self.assertEqual(summary["summary"]["analysis_failures"], 1)
+        self.assertEqual(
+            summary["summary"]["findings_by_code"].get("conflicting_effect"),
+            1,
+        )
+
+    def test_audit_summary_requires_input(self) -> None:
+        with self.assertRaises(ValueError):
+            audit_policy_bundles(
+                {},
+                trusted_authorities={"any"},
+            )
+
+    def test_cli_audit_summary_exit_codes(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:audit-cli"
+        clean = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        tampered = dict(clean)
+        tampered["payload"] = dict(clean["payload"])
+        tampered["payload"]["rules"] = []
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            clean_path = root / "clean.json"
+            mixed_path = root / "mixed.json"
+            authorities_path = root / "authorities.json"
+            clean_path.write_text(
+                json.dumps({"gate-a": clean}),
+                encoding="utf-8",
+            )
+            mixed_path.write_text(
+                json.dumps({"gate-a": clean, "gate-b": tampered}),
+                encoding="utf-8",
+            )
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                main(
+                    [
+                        "--audit-summary",
+                        str(clean_path),
+                        "--authorities",
+                        str(authorities_path),
+                        "--targets",
+                        "urn:space:test:door-1",
+                    ]
+                ),
+                0,
+            )
+            self.assertEqual(
+                main(
+                    [
+                        "--audit-summary",
+                        str(mixed_path),
                         "--authorities",
                         str(authorities_path),
                         "--targets",

@@ -192,7 +192,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   (`kinegrant-policy-bundle --analyze`, fail-closed exit codes);
   `policy_bundle_coverage` runs a bounded request-space check
   (`--coverage`) reporting default denies, per-rule applicability, and
-  shadowed allows.
+  shadowed allows; `audit_policy_bundles` (`--audit-summary`) aggregates
+  verification, analysis, and coverage across a fleet of bundles into one
+  machine-readable audit report.
 - Fleet policy distribution: `PolicyDistributor` verifies one signed policy
   bundle under the caller's trusted authorities and applies it to many
   registries idempotently (never auto-downgrading), with per-registry
