@@ -19,7 +19,9 @@ const CAPABILITY_FIELDS_V2 = new Set([
 CAPABILITY_FIELDS_V2.delete("action");
 CAPABILITY_FIELDS_V2.delete("purpose");
 const OBLIGATION_STATUSES = new Set(["satisfied", "pending", "failed"]);
-const KNOWN_OBLIGATIONS = new Set(["emitActionReceipt", "logAuditEvent"]);
+const KNOWN_OBLIGATIONS = new Set([
+  "emitActionReceipt", "logAuditEvent", "preserveEvidence",
+]);
 
 function b64urlDecode(value) {
   if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error("invalid base64url");

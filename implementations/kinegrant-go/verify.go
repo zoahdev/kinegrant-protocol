@@ -50,7 +50,7 @@ var obligationStatuses = map[string]bool{
 }
 
 var knownObligations = map[string]bool{
-	"emitActionReceipt": true, "logAuditEvent": true,
+	"emitActionReceipt": true, "logAuditEvent": true, "preserveEvidence": true,
 }
 
 func jsonString(value string) ([]byte, error) {

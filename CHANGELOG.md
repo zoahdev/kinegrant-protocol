@@ -4,6 +4,11 @@
 
 ## 1.0.1 — 2026-08-15
 
+- Added the third known obligation `preserveEvidence` (evidence-preservation
+  commitment) across Python, JavaScript, Go, the capability/decision/
+  receipt-1.0 schemas, the ODRL kgp-v0.2 duty mapping, and obligation
+  compliance; like `logAuditEvent`, it requires an explicit receipt 1.0
+  commitment.
 - `Gatekeeper` now accepts a `revocation_list` and rejects revoked
   capabilities at a dedicated `revocation` stage before the gate; the
   conformance `gatekeeper_boundary` mark covers revocation denial, and the

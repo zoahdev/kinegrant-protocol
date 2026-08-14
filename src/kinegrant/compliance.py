@@ -23,6 +23,9 @@ from .receipt import KNOWN_OBLIGATIONS, verify_receipt_chain
 
 _SATISFIED = "satisfied"
 _FAILED = "failed"
+# Obligations whose fulfillment requires an explicit receipt 1.0 commitment
+# (a plain 0.1 receipt proves only that a receipt was emitted).
+_COMMITMENT_OBLIGATIONS = frozenset({"logAuditEvent", "preserveEvidence"})
 
 
 @dataclass(frozen=True)
@@ -118,12 +121,21 @@ class ObligationCompliance:
                 # A 0.1 receipt is itself the fulfillment of emitActionReceipt.
                 results.append(ObligationResult(obligation, _SATISFIED))
                 continue
-            if obligation == "logAuditEvent" and obligation_results is None:
+            if obligation in _COMMITMENT_OBLIGATIONS and obligation_results is None:
+                message = {
+                    "logAuditEvent": "audit-log commitment missing from receipt",
+                    "preserveEvidence": (
+                        "evidence-preservation commitment missing from receipt"
+                    ),
+                }.get(
+                    obligation,
+                    f"{obligation} commitment missing from receipt",
+                )
                 results.append(
                     ObligationResult(
                         obligation,
                         _FAILED,
-                        "audit-log commitment missing from receipt",
+                        message,
                     )
                 )
                 continue
