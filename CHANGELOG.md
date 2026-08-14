@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2.5.0 - v2.5 first item (unreleased)
+
+- Added `audit_policy_bundles`: aggregates verification, static analysis, and bounded coverage across many labeled policy bundles into a machine-readable `kinegrant:PolicyAuditSummary` (verified/failed counts, analysis and coverage failures, findings-by-code, aggregate allowed/denied/exception/shadowed totals); unverifiable bundles are recorded as failed instead of aborting the run.
+- `kinegrant-policy-bundle --audit-summary` exits 1 unless every bundle verifies and has no error findings or coverage exceptions.
+
 ## 2.4.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.4.0 on the stable

@@ -286,6 +286,14 @@ Exit criterion: an auditor can run one command on a signed bundle and get machin
 
 Exit criterion: an adopter can run one example and see the full signed policy lifecycle pass end to end, then reproduce it with their own authority keys. Released as v2.4.0 (2026-08-15).
 
+## v2.5 - fleet audit and governance
+
+- policy bundle audit aggregation (`audit_policy_bundles` + `--audit-summary`): one machine-readable report over a fleet of bundles covering verification, static analysis, coverage, and findings-by-code (complete via PR #94);
+- RFC-0003 acceptance vote (community/steering action);
+- policy-bundle verification in the browser public verifier (needs site source).
+
+Exit criterion: an auditor can audit an entire policy fleet with one command and get a machine-readable, fail-closed summary.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
