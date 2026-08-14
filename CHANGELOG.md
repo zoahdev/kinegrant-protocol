@@ -4,6 +4,11 @@
 
 ## 1.5.0 — 2026-08-15
 
+- Added the Gatekeeper boundary model check (`kinegrant.gatekeeper_modelcheck.
+  check_gatekeeper_boundary`): bounded enumeration over allow/deny/actuator-
+  failure scenarios verifying composition invariants (actuator after the
+  boundary, receipts after gate consumption, journal only on compliant
+  success, no replay double-execution, denials carry stages).
 - Milestone release: reference implementation version 1.5.0 on the stable
   1.0 wire format, with the Machine Permission Test upgraded to v0.3 (17/17,
   receipt-1.0 obligations, compliance evasion, fleet revocation
