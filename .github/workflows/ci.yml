@@ -50,3 +50,30 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install build
       - run: python -m build
+      - name: Verify source distribution includes ESP32-C3 firmware
+        run: |
+          python - <<'PY'
+          import glob
+          import tarfile
+
+          archives = glob.glob("dist/*.tar.gz")
+          if len(archives) != 1:
+              raise SystemExit(f"expected one source distribution, found {archives}")
+
+          required_suffixes = {
+              "proof/esp32-c3/firmware/CMakeLists.txt",
+              "proof/esp32-c3/firmware/sdkconfig.defaults",
+              "proof/esp32-c3/firmware/main/CMakeLists.txt",
+              "proof/esp32-c3/firmware/main/kgp_firmware.c",
+              "proof/esp32-c3/firmware/components/monocypher/CMakeLists.txt",
+          }
+          with tarfile.open(archives[0], "r:gz") as archive:
+              names = archive.getnames()
+          missing = {
+              suffix
+              for suffix in required_suffixes
+              if not any(name.endswith(suffix) for name in names)
+          }
+          if missing:
+              raise SystemExit(f"firmware source missing from sdist: {sorted(missing)}")
+          PY
