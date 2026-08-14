@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.2.0 — 2026-08-15
+
+- Milestone release: reference implementation version 1.2.0 on the stable
+  1.0 wire format, adding fleet revocation distribution
+  (`RevocationDistributor` + `kinegrant-revoke-distribute`), audit CSV and
+  self-verifying evidence-packet export (`kinegrant-audit --csv/--packet`),
+  and the `revocation_distribution` conformance mark (L1-L4 at 20/20).
+
 ## 1.1.0 — 2026-08-15
 
 - The conformance suite now includes a `revocation_distribution` mark (L3:

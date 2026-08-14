@@ -181,6 +181,13 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
 - conformance suite at 19/19 including obligation and boundary marks;
 - cross-system ROS 2 + MCP demo and ODRL forbidden-combination mapping.
 
+## v1.2 — fleet management (complete with v1.2.0)
+
+- fleet revocation distribution (`RevocationDistributor` +
+  `kinegrant-revoke-distribute` CLI) with per-gate acknowledgements;
+- receipt-audit exports: CSV and self-verifying evidence packets;
+- conformance suite at 20/20 including the `revocation_distribution` mark.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
