@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added the standards-outreach package (`docs/STANDARDS-OUTREACH.md`) and
+  synced v1.0.0 assets and metadata to the static mirror repositories.
 - Released **v1.0.0**: stable wire format `1.0` accepted (KGP-RFC-0001),
   reference implementation version 1.0.0, interim steering committee record,
   and certification-program draft adopted. See the v1.0.0 GitHub release.
