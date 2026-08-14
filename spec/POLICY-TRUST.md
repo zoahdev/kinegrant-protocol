@@ -123,7 +123,9 @@ policy distribution reports, plus self-verifying receipt evidence packets
 (`kinegrant:ReceiptEvidencePacket` integrity and receipt structure) in the
 browser, and audit CSV exports (header and row consistency).
 External reproduction reports (`kinegrant:ReproductionReport` structure and
-verification consistency) are also validated in the browser.
+verification consistency) and revocation distribution reports (structure,
+summary consistency, optional bundle binding) are also validated in the
+browser.
 `verify/verify_policy_bundle.mjs` exposes the same logic as a Node CLI for CI
 cross-checks.
 

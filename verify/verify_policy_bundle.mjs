@@ -11,6 +11,7 @@ import {
   verifyRevocationBundle,
   verifyAuditCsv,
   verifyReproductionReport,
+  verifyRevocationDistributionReport,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -88,6 +89,21 @@ try {
     console.log(
       `REPRODUCTION REPORT VALID (${result.passed_cases}/${result.required_cases})`
     );
+  } else if (command === "revocation-distribution") {
+    const [reportPath, bundlePath, authoritiesPath] = args;
+    const report = load(reportPath);
+    const bundle = bundlePath ? load(bundlePath) : undefined;
+    const trustedAuthorities = authoritiesPath
+      ? new Set(load(authoritiesPath))
+      : undefined;
+    const result = await verifyRevocationDistributionReport(
+      report,
+      bundle,
+      trustedAuthorities
+    );
+    console.log(
+      `REVOCATION DISTRIBUTION REPORT VALID (${result.gates} gates, added=${result.added_total})`
+    );
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
@@ -99,7 +115,8 @@ try {
       "distribution-report <report.json> <bundle.json> <authorities.json> | " +
       "evidence-packet <packet.json> | " +
       "audit-csv <file.csv> | " +
-      "reproduction-report <report.json>"
+      "reproduction-report <report.json> | " +
+      "revocation-distribution <report.json> [bundle.json] [authorities.json]"
     );
   }
 } catch (error) {

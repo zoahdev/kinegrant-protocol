@@ -358,6 +358,14 @@ Exit criterion: an auditor can validate an exported audit CSV in the browser wit
 
 Exit criterion: an external implementer can validate a reproduction report in the browser without installing anything.
 
+## v2.14 - browser fleet verification
+
+- browser verifier validates revocation distribution reports (structure, summary consistency, optional bundle binding) (complete via PR #112);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: a fleet operator can validate a revocation distribution report in the browser without installing anything.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
