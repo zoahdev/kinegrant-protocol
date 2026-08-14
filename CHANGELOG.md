@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Extended the Machine Permission Test to v0.2: five new executable cases for
+  physical constraints, scoped attenuation with parent verification,
+  cross-agent delegation, approval-tier propagation into receipts, and
+  forbidden combinations (14 total, schema_version 0.2).
 - Implemented RFC 8785 JCS canonical JSON (deterministic key ordering by UTF-16
   code units, ECMAScript number formatting, strict safe-integer bounds) as the
   encoding behind all digests and signatures.

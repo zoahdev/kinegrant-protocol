@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://kinegrant.com/schemas/machine-permission-test-evidence-v0.1.json",
+  "$id": "https://kinegrant.com/schemas/machine-permission-test-evidence-v0.2.json",
   "title": "KineGrant Machine Permission Test Evidence",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "run_id", "generated_at", "protocol", "reference_implementation", "source_commit", "runner_digest", "environment", "overall_result", "summary", "cases", "limitations"],
   "properties": {
-    "schema_version": {"const": "0.1"},
+    "schema_version": {"const": "0.2"},
     "run_id": {"type": "string", "pattern": "^urn:kinegrant:mpt:run:[0-9a-f-]{36}$"},
     "generated_at": {"type": "string", "format": "date-time"},
     "protocol": {"const": "KGP-001 Experimental Open Draft 0.1"},
@@ -41,7 +41,7 @@
     },
     "cases": {
       "type": "array",
-      "minItems": 9,
+      "minItems": 14,
       "items": {
         "type": "object",
         "additionalProperties": false,

@@ -112,6 +112,8 @@ class AttenuationTests(unittest.TestCase):
             max_velocity_mps=1.5,
             allowed_zones=["dock-*"],
         )
+        # An unrestricted parent may gain limits; the verifier must accept it.
+        self.assertTrue(verify_attenuation(child["payload"], self.root_payload))
         with self.assertRaises(ValueError):
             self.issuer.issue_attenuated(
                 child,

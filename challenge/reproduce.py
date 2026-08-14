@@ -139,7 +139,7 @@ def create_reproduction(
         ],
         "verification": {
             "verifier": "challenge/verify_reproduction.py",
-            "required_cases": 9,
+            "required_cases": len(evidence["cases"]),
             "passed_cases": evidence["summary"]["passed"],
         },
         "overall_result": evidence["overall_result"],

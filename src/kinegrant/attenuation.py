@@ -393,15 +393,20 @@ def verify_attenuation(
             if child_value is None:
                 continue
             parent_value = parent_constraints.get(name)
-            if parent_value is None or child_value > parent_value:
+            # An unrestricted parent may gain a limit; an already-limited
+            # parent may only be tightened further.
+            if parent_value is not None and child_value > parent_value:
                 return False
         child_zones = child_constraints.get("allowed_zones")
         if child_zones is not None:
             parent_zones = parent_constraints.get("allowed_zones")
-            if not isinstance(child_zones, list) or not isinstance(parent_zones, list):
+            if not isinstance(child_zones, list):
                 return False
-            if any(not _matches(zone, parent_zones) for zone in child_zones):
-                return False
+            if parent_zones is not None:
+                if not isinstance(parent_zones, list):
+                    return False
+                if any(not _matches(zone, parent_zones) for zone in child_zones):
+                    return False
         return True
     except (KeyError, TypeError, ValueError):
         return False

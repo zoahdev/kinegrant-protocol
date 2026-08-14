@@ -84,7 +84,9 @@ signed receipt. The same policy denies recording and training-data capture.
 The reproducible [Machine Permission Test](challenge/README.md) emits strict JSON
 evidence with an explicit `PASS` or `FAIL`. It exercises no-grant denial,
 single-use authorization, replay, request binding, issuer and expiry checks,
-concurrent consumption, persistent replay state, and receipt trust. Validate
+concurrent consumption, persistent replay state, receipt trust, physical
+constraints, attenuation, delegation, approval tiers, and forbidden
+combinations across fourteen executable cases. Validate
 the output with
 [`machine-permission-test-evidence.schema.json`](spec/schemas/machine-permission-test-evidence.schema.json).
 Download the checksum-addressed packet and reference evidence from the
