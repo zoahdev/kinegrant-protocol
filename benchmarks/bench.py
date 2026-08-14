@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from kinegrant.audit import ReceiptAuditor
+from kinegrant.cache import CachedPolicyEngine
 from kinegrant.capability import CapabilityIssuer
 from kinegrant.compliance import ObligationCompliance
 from kinegrant.crypto import Ed25519KeyPair
@@ -66,6 +67,11 @@ def run(iterations: int = 2000) -> dict:
 
     def policy_eval() -> None:
         engine.evaluate(request)
+
+    cached_engine = CachedPolicyEngine(engine)
+
+    def cached_policy_eval() -> None:
+        cached_engine.evaluate(request)
 
     def issue_cap() -> None:
         issuer.issue(request, decision, ttl_seconds=300)
@@ -167,6 +173,9 @@ def run(iterations: int = 2000) -> dict:
         "iterations": iterations,
         "operations_per_second": {
             "policy_evaluate": round(_measure(policy_eval, iterations), 1),
+            "cached_policy_evaluate": round(
+                _measure(cached_policy_eval, iterations), 1
+            ),
             "capability_issue": round(_measure(issue_cap, iterations), 1),
             "gate_authorize": round(_measure(gate_auth, iterations), 1),
             "receipt_append": round(_measure(receipt_append, max(1, iterations // 10)), 1),

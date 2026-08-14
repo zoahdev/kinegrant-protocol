@@ -24,6 +24,7 @@ class BenchmarkTests(unittest.TestCase):
         report = json.loads(output.getvalue())
         ops = report["operations_per_second"]
         self.assertGreaterEqual(ops["policy_evaluate"], 2000)
+        self.assertGreaterEqual(ops["cached_policy_evaluate"], 5000)
         self.assertGreaterEqual(ops["capability_issue"], 200)
         self.assertGreaterEqual(ops["gate_authorize"], 100)
         self.assertGreaterEqual(ops["receipt_append"], 20)

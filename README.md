@@ -168,6 +168,10 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   revocation bundle under the caller-supplied authorities and applies it to
   many gates idempotently, with per-gate acknowledgements in a machine-
   readable report; `kinegrant-revoke-distribute` is the deployable CLI.
+- Bounded policy-decision cache: `CachedPolicyEngine` wraps a policy engine
+  with an LRU cache (hit/miss statistics, automatic invalidation on policy
+  change, future requests never cached) for high-rate deployments; the
+  micro-benchmarks include cached-policy throughput.
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.
