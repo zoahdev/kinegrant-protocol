@@ -155,8 +155,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   adapters with adapter-fidelity checks (see
   [spec/ROS2-BRIDGE.md](spec/ROS2-BRIDGE.md)).
 - Hardware-trust groundwork: `TrustedClock`, signed sensor-evidence
-  commitments bound into receipts, and notarized receipt checkpoints (see
-  [spec/HARDWARE-TRUST.md](spec/HARDWARE-TRUST.md)).
+  commitments bound into receipts, notarized receipt checkpoints, signing
+  backends for hardware keys, and device attestations with measured-boot
+  claims (see [spec/HARDWARE-TRUST.md](spec/HARDWARE-TRUST.md)).
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies

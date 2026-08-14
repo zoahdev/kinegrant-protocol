@@ -92,7 +92,9 @@ Progress on main:
   generator, plus a Matter/OPC UA/ROS 2 bridge demo with adapter-fidelity
   checks.
 - Hardware-trust groundwork: monotonic `TrustedClock`, signed sensor-evidence
-  commitments bound into receipts, and notarized receipt checkpoints.
+  commitments bound into receipts, notarized receipt checkpoints, signing
+  backends for hardware keys, and device attestations with measured-boot
+  claims.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.

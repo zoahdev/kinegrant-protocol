@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added signing backends (`SigningBackend`, `BackedKeyPair`) for hardware keys
+  and device attestations with firmware digest, boot counter, and measured
+  boot chain.
 - Added v0.4 hardware-trust groundwork: `TrustedClock` (rejects backwards and
   anomalous-jumping time), signed sensor-evidence commitments bound into
   receipts, and notarized receipt checkpoints.
