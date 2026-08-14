@@ -342,6 +342,14 @@ Exit criterion: an external implementer can reproduce fleet policy distribution 
 
 Exit criterion: an auditor can validate an exported receipt evidence packet in the browser without installing anything. Released as v2.11.0 (2026-08-15).
 
+## v2.12 - browser audit verification
+
+- browser verifier validates audit CSV exports (header and row consistency) (complete via PR #108);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can validate an exported audit CSV in the browser without installing anything.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

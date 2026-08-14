@@ -10,6 +10,7 @@ import {
   canonicalJson,
   currentPolicyVersion,
   verifyCapability,
+  verifyAuditCsv,
   verifyMptEvidence,
   verifyPolicyDistributionReport,
   verifyPolicyBundle,
@@ -372,4 +373,35 @@ test("browser verifier validates receipt evidence packets", async () => {
   assert.equal(result.receipts, 1);
   packet.receipts[0].capability_id = "kinegrant:cap:" + "e".repeat(64);
   await assert.rejects(() => verifyReceiptEvidencePacket(packet));
+});
+
+const AUDIT_CSV_HEADER =
+  "receipt_id,capability_id,agent,target,action,purpose,result," +
+  "started_at,finished_at,evidence_hash,previous_receipt_hash," +
+  "failure_reason,obligation_results";
+
+test("browser verifier validates audit CSV", () => {
+  const csv =
+    AUDIT_CSV_HEADER +
+    "\n" +
+    [
+      "kinegrant:receipt:" + "a".repeat(64),
+      "kinegrant:cap:" + "a".repeat(64),
+      "robot-1",
+      "door-7",
+      "open",
+      "delivery",
+      "succeeded",
+      new Date().toISOString(),
+      new Date().toISOString(),
+      "",
+      "",
+      "",
+      "",
+    ].join(",") +
+    "\n";
+  const result = verifyAuditCsv(csv);
+  assert.equal(result.rows, 1);
+  assert.throws(() => verifyAuditCsv("a,b,c\n1,2,3"));
+  assert.throws(() => verifyAuditCsv(AUDIT_CSV_HEADER + "\nonly-one-field"));
 });

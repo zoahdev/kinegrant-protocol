@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.12.0 - v2.12 first item (unreleased)
+
+- Browser verifier validates audit CSV exports (`verifyAuditCsv`: expected header columns, per-row column consistency, non-empty receipt/capability ids); the HTML page and Node CLI (`audit-csv` command) expose it, cross-tested against a Python-exported CSV.
+
 ## 2.11.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.11.0 on the
