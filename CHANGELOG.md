@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.13.0 - v2.13 first item (unreleased)
+## 2.13.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.13.0 on the
+  stable 1.0 wire format, adding reproduction report validation to the
+  browser verifier.
 
 - Browser verifier validates external reproduction reports (`verifyReproductionReport`: report id, protocol, source, environment, materials, artifacts, verification consistency, overall-result consistency); the HTML page and Node CLI (`reproduction-report` command) expose it, cross-tested against a Python-generated report.
 
