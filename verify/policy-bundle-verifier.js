@@ -555,6 +555,120 @@ export function verifyMptEvidence(evidence) {
   };
 }
 
+export async function verifyRevocationBundle(bundle, trustedAuthorities) {
+  const payload = await verifyEnvelope(bundle);
+  if (payload.type !== "kinegrant:RevocationBundle") {
+    throw new Error("wrong revocation bundle type");
+  }
+  if (payload.schema_version !== "0.1") {
+    throw new Error("unsupported revocation bundle version");
+  }
+  if (payload.issuer !== bundle.kid) {
+    throw new Error("revocation bundle issuer does not match signing key");
+  }
+  if (!trustedAuthorities.has(payload.issuer)) {
+    throw new Error("untrusted revocation authority");
+  }
+  if (!Number.isInteger(payload.version) || payload.version < 1) {
+    throw new Error("bundle version must be a positive integer");
+  }
+  if (
+    payload.previous_bundle_digest != null &&
+    !/^sha256:[0-9a-f]{64}$/.test(payload.previous_bundle_digest)
+  ) {
+    throw new Error("previous_bundle_digest must be a sha256 digest or null");
+  }
+  if (!Array.isArray(payload.revocations)) {
+    throw new Error("revocations must be an array");
+  }
+  for (const entry of payload.revocations) {
+    if (typeof entry !== "object" || entry === null) {
+      throw new Error("each revocation entry must be an object");
+    }
+    if (typeof entry.capability_id !== "string" || entry.capability_id.length === 0) {
+      throw new Error("revocation capability_id is invalid");
+    }
+    if (
+      entry.reason !== null &&
+      (typeof entry.reason !== "string" || entry.reason.length === 0)
+    ) {
+      throw new Error("revocation reason is invalid");
+    }
+    if (typeof entry.at !== "string" || Number.isNaN(Date.parse(entry.at))) {
+      throw new Error("revocation timestamp is invalid");
+    }
+  }
+  const unsigned = { ...payload };
+  delete unsigned.bundle_id;
+  const expected = await contentId("kinegrant:revocation-bundle", unsigned);
+  if (payload.bundle_id !== expected) {
+    throw new Error("revocation bundle identifier is inconsistent");
+  }
+  return payload;
+}
+
+export async function verifyPolicyDistributionReport(
+  report,
+  bundle,
+  trustedAuthorities,
+  { now } = {}
+) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("policy distribution report must be an object");
+  }
+  if (report.type !== "kinegrant:PolicyDistributionReport") {
+    throw new Error("wrong policy distribution report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported policy distribution report version");
+  }
+  if (report.overall_result !== "PASS") {
+    throw new Error("policy distribution report is not PASS");
+  }
+  const payload = await verifyPolicyBundle(bundle, trustedAuthorities, { now });
+  if (report.policy_id !== payload.policy_id) {
+    throw new Error("policy distribution report references a different policy");
+  }
+  if (report.bundle_id !== payload.bundle_id) {
+    throw new Error("policy distribution report references a different bundle");
+  }
+  if (report.bundle_version !== payload.version) {
+    throw new Error("policy distribution report references a different version");
+  }
+  if (!Array.isArray(report.acks) || report.acks.length === 0) {
+    throw new Error("policy distribution report has no acknowledgements");
+  }
+  for (const ack of report.acks) {
+    if (typeof ack !== "object" || ack === null) {
+      throw new Error("each acknowledgement must be an object");
+    }
+    if (typeof ack.gate_id !== "string" || ack.gate_id.length === 0) {
+      throw new Error("acknowledgement gate_id is invalid");
+    }
+    if (ack.policy_id !== payload.policy_id || ack.bundle_id !== payload.bundle_id) {
+      throw new Error("acknowledgement references a different bundle");
+    }
+    if (typeof ack.applied !== "boolean") {
+      throw new Error("acknowledgement applied flag is invalid");
+    }
+  }
+  const summary = report.summary;
+  if (typeof summary !== "object" || summary === null) {
+    throw new Error("policy distribution report summary is invalid");
+  }
+  if (summary.registries !== report.acks.length) {
+    throw new Error("policy distribution report summary is inconsistent");
+  }
+  if (
+    summary.applied_total !== report.acks.filter((ack) => ack.applied).length ||
+    summary.already_present_total !==
+      report.acks.filter((ack) => !ack.applied).length
+  ) {
+    throw new Error("policy distribution report summary is inconsistent");
+  }
+  return report;
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -563,5 +677,7 @@ if (typeof globalThis !== "undefined") {
     verifyCapability,
     verifyReceiptChain,
     verifyMptEvidence,
+    verifyRevocationBundle,
+    verifyPolicyDistributionReport,
   };
 }
