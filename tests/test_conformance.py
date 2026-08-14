@@ -23,6 +23,17 @@ class ConformanceSuiteTests(unittest.TestCase):
         levels = {mark["level"] for mark in self.report["marks"]}
         self.assertEqual(levels, {"L1", "L2", "L3", "L4"})
 
+    def test_independent_verification_cross_checks(self) -> None:
+        independent = self.report["independent_verification"]
+        self.assertEqual(independent["overall_result"], "PASS")
+        self.assertTrue(independent["checks"])
+        for check in independent["checks"]:
+            self.assertIn(check["capability"], {"PASS", "SKIP"})
+            self.assertIn(check["receipts"], {"PASS", "SKIP"})
+        self.assertTrue(
+            any(check["capability"] == "PASS" for check in independent["checks"])
+        )
+
     def test_level_marks_cover_key_properties(self) -> None:
         names = {mark["name"] for mark in self.report["marks"]}
         for required in (

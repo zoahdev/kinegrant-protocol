@@ -20,8 +20,12 @@ process approves a certification program.
 from __future__ import annotations
 
 import json
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass
 from datetime import timedelta
+from pathlib import Path
 from typing import Any, Callable
 
 from .attenuation import verify_attenuation
@@ -96,16 +100,198 @@ class ConformanceRunner:
     def run_all(self) -> dict[str, Any]:
         marks = [mark for level in ("L1", "L2", "L3", "L4") for mark in self.run_level(level)]
         passed = sum(mark.passed for mark in marks)
+        independent = self._independent_verification()
         return {
             "type": "kinegrant:ConformanceReport",
             "schema_version": "0.1",
             "overall_result": "PASS" if passed == len(marks) else "FAIL",
             "summary": {"total": len(marks), "passed": passed, "failed": len(marks) - passed},
             "marks": [mark.to_dict() for mark in marks],
+            "independent_verification": independent,
             "limitations": [
                 "Reference-implementation self-assessment; certification of "
                 "third-party implementations awaits RFC approval.",
+                "Independent verifiers (JavaScript, Go) cross-check generated "
+                "capabilities and receipt chains; unavailable tools are "
+                "recorded as skipped.",
             ],
+        }
+
+    def _independent_verification(self) -> dict[str, Any]:
+        root = Path(__file__).resolve().parents[2]
+        js_cli = root / "implementations" / "kinegrant-js" / "src" / "cli.mjs"
+        go_dir = root / "implementations" / "kinegrant-go"
+        node = shutil.which("node") or str(
+            Path(
+                r"C:\Users\zoah\.cache\codex-runtimes\codex-primary-runtime"
+            )
+            / "dependencies" / "node" / "bin" / "node.exe"
+        )
+        node_available = Path(node).is_file()
+        go_available = shutil.which("go") is not None
+
+        rule = PolicyRule(
+            "urn:kinegrant:conformance:independent:rule",
+            self.authority.kid,
+            "urn:kinegrant:conformance:target:*",
+            "allow",
+            ("open",),
+            obligations=("emitActionReceipt",),
+        )
+        engine = PolicyEngine([rule], trusted_policy_issuers={self.authority.kid})
+        decision = engine.evaluate(self.request)
+        capability = self.issuer.issue_scoped(
+            self.request,
+            decision,
+            ttl_seconds=300,
+            target=self.request.target,
+            actions=["open"],
+            purposes=["delivery"],
+            wire_version="1.0",
+        )
+        gate = ActionGate(
+            trusted_issuers={self.authority.kid},
+            replay_store=InMemoryReplayStore(),
+        )
+        executor = Ed25519KeyPair.generate()
+        log = ReceiptLog(executor)
+        receipts = []
+        for index in range(2):
+            request = ActionRequest(
+                f"urn:kinegrant:conformance:independent:request:{index}",
+                "urn:kinegrant:conformance:agent:1",
+                "urn:kinegrant:conformance:target:door-7",
+                "open",
+                "delivery",
+            )
+            verified = gate.authorize(
+                self.issuer.issue_scoped(
+                    request,
+                    engine.evaluate(request),
+                    ttl_seconds=300,
+                    target=request.target,
+                    actions=["open"],
+                    purposes=["delivery"],
+                    wire_version="1.0",
+                ),
+                request,
+            )
+            receipts.append(
+                log.append(verified, result="succeeded", request=request)
+            )
+
+        checks: list[dict[str, Any]] = []
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            capability_path = base / "capability.json"
+            request_path = base / "request.json"
+            issuers_path = base / "issuers.json"
+            receipts_path = base / "receipts.json"
+            executors_path = base / "executors.json"
+            capability_path.write_text(json.dumps(capability), encoding="utf-8")
+            request_path.write_text(json.dumps(self.request.to_dict()), encoding="utf-8")
+            issuers_path.write_text(
+                json.dumps([self.authority.kid]),
+                encoding="utf-8",
+            )
+            receipts_path.write_text(json.dumps(receipts), encoding="utf-8")
+            executors_path.write_text(
+                json.dumps([executor.kid]),
+                encoding="utf-8",
+            )
+
+            for tool, command in (
+                ("kinegrant-js", [node, str(js_cli)] if node_available else None),
+                (
+                    "kinegrant-go",
+                    ["go", "run", "./cmd/kinegrant-verify"]
+                    if go_available
+                    else None,
+                ),
+            ):
+                if command is None:
+                    checks.append(
+                        {
+                            "tool": tool,
+                            "capability": "SKIP",
+                            "receipts": "SKIP",
+                            "detail": "toolchain unavailable",
+                        }
+                    )
+                    continue
+                try:
+                    capability_proc = subprocess.run(
+                        [
+                            *command,
+                            "verify-capability",
+                            str(capability_path),
+                            str(request_path),
+                            str(issuers_path),
+                        ],
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        timeout=120,
+                        cwd=go_dir if tool == "kinegrant-go" else None,
+                    )
+                    receipt_proc = subprocess.run(
+                        [
+                            *command,
+                            "verify-receipts",
+                            str(receipts_path),
+                            str(executors_path),
+                        ],
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        timeout=120,
+                        cwd=go_dir if tool == "kinegrant-go" else None,
+                    )
+                    capability_ok = (
+                        capability_proc.returncode == 0
+                        and "CAPABILITY VALID" in capability_proc.stdout
+                    )
+                    receipts_ok = (
+                        receipt_proc.returncode == 0
+                        and "RECEIPT CHAIN VALID" in receipt_proc.stdout
+                    )
+                    checks.append(
+                        {
+                            "tool": tool,
+                            "capability": "PASS" if capability_ok else "FAIL",
+                            "receipts": "PASS" if receipts_ok else "FAIL",
+                            "detail": (
+                                capability_proc.stderr[:200]
+                                if not capability_ok
+                                else receipt_proc.stderr[:200]
+                                if not receipts_ok
+                                else "cross-verified"
+                            ),
+                        }
+                    )
+                except Exception as exc:  # a crashing verifier is a failure
+                    checks.append(
+                        {
+                            "tool": tool,
+                            "capability": "ERROR",
+                            "receipts": "ERROR",
+                            "detail": f"{type(exc).__name__}: {exc}",
+                        }
+                    )
+        return {
+            "schema_version": "0.1",
+            "overall_result": (
+                "PASS"
+                if all(
+                    check["capability"] in {"PASS", "SKIP"}
+                    and check["receipts"] in {"PASS", "SKIP"}
+                    for check in checks
+                )
+                else "FAIL"
+            ),
+            "checks": checks,
         }
 
     def _level1(self) -> tuple[ConformanceMark, ...]:
