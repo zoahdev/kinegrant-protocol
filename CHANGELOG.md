@@ -4,6 +4,9 @@
 
 ## 1.1.0 — 2026-08-15
 
+- The conformance suite now includes a `revocation_distribution` mark (L3:
+  verified signed bundle applied to two gates) — L1-L4 is 20/20 — and the
+  micro-benchmarks gained a `revocation_distribute` metric.
 - Receipt auditing now exports CSV (`ReceiptAuditor.export_csv`) and
   self-verifying evidence packets (`export_packet` with a content-addressed
   digest); `kinegrant-audit` gained `--csv FILE` and `--packet FILE`.

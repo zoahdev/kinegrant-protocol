@@ -20,11 +20,17 @@ from kinegrant.audit import ReceiptAuditor
 from kinegrant.capability import CapabilityIssuer
 from kinegrant.compliance import ObligationCompliance
 from kinegrant.crypto import Ed25519KeyPair
+from kinegrant.distribution import RevocationDistributor
 from kinegrant.gate import ActionGate, InMemoryReplayStore
 from kinegrant.gatekeeper import Gatekeeper
 from kinegrant.models import ActionRequest, PolicyRule
 from kinegrant.policy import PolicyEngine
 from kinegrant.receipt import ReceiptLog
+from kinegrant.revocation import (
+    RevocationList,
+    build_revocation_bundle,
+    sign_revocation_bundle,
+)
 from kinegrant.sequence import ActionJournal, SequencePolicy
 
 
@@ -127,6 +133,29 @@ def run(iterations: int = 2000) -> dict:
             trusted_executors={executor.kid},
         ).summary()
 
+    distribution_authority = Ed25519KeyPair.generate()
+    distribution_rl = RevocationList()
+    for index in range(5):
+        distribution_rl.revoke("kinegrant:cap:" + f"{index:064x}")
+    distribution_bundle = sign_revocation_bundle(
+        build_revocation_bundle(
+            distribution_rl,
+            issuer=distribution_authority.kid,
+        ),
+        distribution_authority,
+    )
+
+    def revocation_distribute() -> None:
+        RevocationDistributor(
+            trusted_authorities={distribution_authority.kid}
+        ).distribute(
+            distribution_bundle,
+            {
+                "gate-1": RevocationList(),
+                "gate-2": RevocationList(),
+            },
+        )
+
     from kinegrant.canonical import canonical_json
 
     def jcs_digest() -> None:
@@ -149,6 +178,9 @@ def run(iterations: int = 2000) -> dict:
             ),
             "audit_summary": round(
                 _measure(audit_summary, max(1, iterations // 10)), 1
+            ),
+            "revocation_distribute": round(
+                _measure(revocation_distribute, max(1, iterations // 10)), 1
             ),
             "jcs_digest": round(_measure(jcs_digest, iterations), 1),
         },
