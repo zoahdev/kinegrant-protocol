@@ -22,6 +22,7 @@ kinegrant-mpt = "kinegrant.mpt:main"
 kinegrant-robot-demo = "kinegrant.experimental.robot_demo:main"
 kinegrant-bridge-demo = "kinegrant.experimental.bridge_demo:main"
 kinegrant-ros2-demo = "kinegrant.experimental.ros2_demo:main"
+kinegrant-audit = "kinegrant.audit:main"
 kinegrant-red-team = "kinegrant.redteam:main"
 kinegrant-conformance = "kinegrant.conformance:main"
 

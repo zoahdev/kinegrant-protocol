@@ -158,6 +158,10 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   call with a machine-readable outcome; every stage fails closed. All three
   runnable demos and both deployment traces use `Gatekeeper`, and the
   micro-benchmarks include its throughput.
+- Receipt audit interface: `ReceiptAuditor` verifies the receipt chain,
+  filters receipts by capability/agent/target/action/purpose/result/time,
+  produces a machine-readable summary, and checks obligation compliance;
+  `kinegrant-audit` exposes it as a deployable CLI (`--self-test` for CI).
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.

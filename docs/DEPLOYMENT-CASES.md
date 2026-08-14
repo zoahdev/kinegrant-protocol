@@ -61,6 +61,24 @@ Every stage fails closed and the outcome is machine-readable
 both deployment traces (home-robot, camera-consent) now run through
 `Gatekeeper`.
 
+## 6. Receipt auditing
+
+`kinegrant.audit.ReceiptAuditor` is the deployable audit surface:
+
+- `chain_valid()` verifies the whole receipt chain under the caller-supplied
+  executor trust set;
+- `query(...)` filters verified receipts by capability, agent, target, action,
+  purpose, result, and time window;
+- `summary()` emits a machine-readable audit summary (totals by result and
+  action, first/last timestamps);
+- `compliance_for(capability)` checks that the capability's obligations are
+  fulfilled by the chain.
+
+Auditing is fail-closed: queries on an invalid chain are rejected unless the
+auditor explicitly opts out (`strict=False`), and obligation checks require a
+non-empty executor trust set. The `kinegrant-audit` CLI wraps this for
+operators (`--self-test` validates the tool itself).
+
 ## Acceptance for deployment
 
 - pass the conformance level that matches the deployment (L1-L4);
