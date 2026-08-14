@@ -3,6 +3,7 @@
 **Permission infrastructure for physical AI.**
 
 [![CI](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/ci.yml)
+[![ESP32-C3 Firmware](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml/badge.svg)](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml)
 [![Release](https://img.shields.io/github/v/release/zoahdev/kinegrant-protocol)](https://github.com/zoahdev/kinegrant-protocol/releases)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
@@ -98,6 +99,18 @@ validity alone is not treated as executor trust or proof of physical action.
 Independent implementers can generate a provenance-bound packet with one
 cross-platform command and verify it without trusting hosted output. See
 [REPRODUCING.md](REPRODUCING.md).
+
+## Low-risk ESP32-C3 proof
+
+The non-normative [ESP32-C3 proof profile](proof/esp32-c3/README.md) now includes
+locked-by-default ESP-IDF firmware, secret-safe provisioning, a strict serial
+bridge, persistent device replay state, device-signed acknowledgements, a
+no-actuation preflight, and a reproducible firmware build in GitHub Actions.
+
+Its physical evidence status remains **NOT_RUN**. The repository does not claim
+that a GPIO, servo, or real machine has moved, and this experiment is not a
+functional-safety control or certification. Hardware assembly and the published
+acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-protocol/issues/7).
 
 ## Repository map
 

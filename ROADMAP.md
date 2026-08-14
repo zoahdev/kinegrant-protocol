@@ -33,7 +33,21 @@
 Exit criterion: an external implementer can download one packet, reproduce all
 nine cases, and submit Schema-valid evidence without trusting the website UI.
 
-Next execution task: [low-risk ESP32-C3 permission proof](https://github.com/zoahdev/kinegrant-protocol/issues/7).
+## Low-risk ESP32-C3 permission proof — software boundary complete
+
+- locked-by-default ESP-IDF firmware for the ESP32-C3;
+- exact device/action/position, expiry, sequence, boot-counter, and challenge checks;
+- Ed25519 command verification and device-signed acknowledgement;
+- replay state committed to NVS before the actuator call;
+- secret-safe provisioning helper and public provisioning record;
+- strict host serial bridge and no-actuation HIL preflight;
+- official ESP-IDF container build and unsigned firmware artifacts in GitHub Actions;
+- 82 repository tests across Python 3.11–3.13.
+
+Physical evidence remains **NOT_RUN**. Procurement, assembly, wiring review,
+filming, and the acceptance matrix in
+[issue #7](https://github.com/zoahdev/kinegrant-protocol/issues/7) require a real
+device and must not be inferred from software or CI results.
 
 ## v0.2 — precise profiles
 
