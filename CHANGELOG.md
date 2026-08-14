@@ -4,6 +4,11 @@
 
 ## 1.2.0 — 2026-08-15
 
+- Added the bounded policy-decision cache (`kinegrant.cache.
+  CachedPolicyEngine`): LRU decisions keyed by policy+request digest, hit/miss
+  statistics, automatic invalidation on policy change, and future requests
+  never cached; the micro-benchmarks gained a `cached_policy_evaluate`
+  metric.
 - Milestone release: reference implementation version 1.2.0 on the stable
   1.0 wire format, adding fleet revocation distribution
   (`RevocationDistributor` + `kinegrant-revoke-distribute`), audit CSV and
