@@ -729,6 +729,89 @@ export async function verifyReceiptEvidencePacket(packet) {
   };
 }
 
+const AUDIT_CSV_COLUMNS = [
+  "receipt_id",
+  "capability_id",
+  "agent",
+  "target",
+  "action",
+  "purpose",
+  "result",
+  "started_at",
+  "finished_at",
+  "evidence_hash",
+  "previous_receipt_hash",
+  "failure_reason",
+  "obligation_results",
+];
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[index + 1] === '"') {
+          field += '"';
+          index += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(field);
+      field = "";
+    } else if (char === "\n") {
+      row.push(field);
+      field = "";
+      rows.push(row);
+      row = [];
+    } else if (char !== "\r") {
+      field += char;
+    }
+  }
+  row.push(field);
+  rows.push(row);
+  return rows;
+}
+
+export function verifyAuditCsv(text) {
+  if (typeof text !== "string" || text.length === 0) {
+    throw new Error("audit CSV text is required");
+  }
+  const rows = parseCsv(text);
+  const header = rows[0];
+  if (
+    !header ||
+    header.length !== AUDIT_CSV_COLUMNS.length ||
+    AUDIT_CSV_COLUMNS.some((column, index) => header[index] !== column)
+  ) {
+    throw new Error("audit CSV header does not match the expected columns");
+  }
+  let dataRows = 0;
+  for (const row of rows.slice(1)) {
+    if (row.every((field) => field === "")) continue;
+    if (row.length !== AUDIT_CSV_COLUMNS.length) {
+      throw new Error("audit CSV row has inconsistent column count");
+    }
+    if (row[0].length === 0 || row[1].length === 0) {
+      throw new Error("audit CSV row is missing receipt_id or capability_id");
+    }
+    dataRows += 1;
+  }
+  return {
+    rows: dataRows,
+    columns: AUDIT_CSV_COLUMNS.length,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -740,5 +823,6 @@ if (typeof globalThis !== "undefined") {
     verifyRevocationBundle,
     verifyPolicyDistributionReport,
     verifyReceiptEvidencePacket,
+    verifyAuditCsv,
   };
 }

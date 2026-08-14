@@ -9,6 +9,7 @@ import {
   verifyPolicyBundle,
   verifyReceiptChain,
   verifyRevocationBundle,
+  verifyAuditCsv,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -74,6 +75,11 @@ try {
     console.log(
       `EVIDENCE PACKET VALID (${result.receipts} receipts)`
     );
+  } else if (command === "audit-csv") {
+    const [csvPath] = args;
+    const text = readFileSync(csvPath, "utf8");
+    const result = verifyAuditCsv(text);
+    console.log(`AUDIT CSV VALID (${result.rows} rows)`);
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
@@ -83,7 +89,8 @@ try {
       "mpt <evidence.json> | " +
       "revocation <bundle.json> <authorities.json> | " +
       "distribution-report <report.json> <bundle.json> <authorities.json> | " +
-      "evidence-packet <packet.json>"
+      "evidence-packet <packet.json> | " +
+      "audit-csv <file.csv>"
     );
   }
 } catch (error) {

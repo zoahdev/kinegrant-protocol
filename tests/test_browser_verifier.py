@@ -359,6 +359,49 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(verified.returncode, 0, verified.stderr)
             self.assertIn("EVIDENCE PACKET VALID", verified.stdout)
 
+    def test_browser_verifier_verifies_python_audit_csv(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        issuer = CapabilityIssuer(authority)
+        executor = Ed25519KeyPair.generate()
+        log = ReceiptLog(executor)
+        gate = ActionGate(
+            trusted_issuers={authority.kid},
+            replay_store=InMemoryReplayStore(),
+        )
+        request = ActionRequest(
+            "urn:kinegrant:browser:request:1",
+            "urn:robot:browser:1",
+            "urn:space:browser:door-1",
+            "open",
+            "delivery",
+        )
+        rule = PolicyRule(
+            "browser-rule-1",
+            authority.kid,
+            "urn:space:browser:*",
+            "allow",
+            ("open",),
+        )
+        decision = PolicyEngine(
+            [rule],
+            trusted_policy_issuers={authority.kid},
+        ).evaluate(request)
+        capability = issuer.issue(request, decision, ttl_seconds=300)
+        verified = gate.authorize(capability, request)
+        log.append(verified, result="succeeded", request=request)
+        auditor = ReceiptAuditor(
+            log.entries,
+            trusted_executors={executor.kid},
+        )
+        csv_text = auditor.export_csv()
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            csv_path = base / "audit.csv"
+            csv_path.write_text(csv_text, encoding="utf-8")
+            verified = self._run("audit-csv", str(csv_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("AUDIT CSV VALID", verified.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
