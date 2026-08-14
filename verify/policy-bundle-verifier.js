@@ -1010,6 +1010,92 @@ export async function verifyRevocationDistributionReport(
   };
 }
 
+function constraintToOdrl(key, value) {
+  if (key === "max_force_newtons") {
+    return { leftOperand: "maxForceNewtons", operator: "eq", rightOperand: value };
+  }
+  if (key === "max_velocity_mps") {
+    return { leftOperand: "maxVelocityMps", operator: "eq", rightOperand: value };
+  }
+  if (key === "allowed_zones") {
+    return { leftOperand: "allowedZones", operator: "eq", rightOperand: value };
+  }
+  if (key === "min_approval_tier") {
+    return { leftOperand: "minApprovalTier", operator: "eq", rightOperand: value };
+  }
+  if (key === "not_before") {
+    return { leftOperand: "dateTime", operator: "gt", rightOperand: value };
+  }
+  if (key === "not_after") {
+    return { leftOperand: "dateTime", operator: "lt", rightOperand: value };
+  }
+  if (key === "required_context" && typeof value === "object" && value !== null) {
+    return Object.keys(value).map((operand) => ({
+      leftOperand: operand,
+      operator: "eq",
+      rightOperand: value[operand],
+    }));
+  }
+  throw new Error("cannot serialize unknown KineGrant constraint: " + key);
+}
+
+export async function policyBundleToOdrl(
+  bundle,
+  trustedAuthorities,
+  { now } = {}
+) {
+  const payload = await verifyPolicyBundle(bundle, trustedAuthorities, { now });
+  const permission = [];
+  const prohibition = [];
+  for (const rule of payload.rules) {
+    const statement = {
+      target: rule.target,
+      assignee: [...rule.subjects],
+      action: [...rule.actions],
+    };
+    const constraints = [];
+    for (const key of Object.keys(rule.constraints || {})) {
+      const mapped = constraintToOdrl(key, rule.constraints[key]);
+      if (Array.isArray(mapped)) {
+        constraints.push(...mapped);
+      } else {
+        constraints.push(mapped);
+      }
+    }
+    if (constraints.length > 0) {
+      statement.constraint = constraints;
+    }
+    if (Array.isArray(rule.obligations) && rule.obligations.length > 0) {
+      const duties = rule.obligations.map((obligation) => {
+        if (!KNOWN_OBLIGATIONS.has(obligation)) {
+          throw new Error("cannot serialize unknown obligation: " + obligation);
+        }
+        return { action: obligation };
+      });
+      statement.duty = duties;
+    }
+    if (rule.effect === "allow") {
+      permission.push(statement);
+    } else {
+      prohibition.push(statement);
+    }
+  }
+  const document = {
+    "@context": "http://www.w3.org/ns/odrl/2/",
+    "@type": "Offer",
+    uid: payload.policy_id,
+    profile: "https://kinegrant.com/profiles/odrl/kgp-v0.2",
+    assigner: payload.issuer,
+  };
+  if (permission.length > 0) {
+    document.permission = permission;
+  }
+  if (prohibition.length > 0) {
+    document.prohibition = prohibition;
+  }
+  return document;
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -1024,5 +1110,6 @@ if (typeof globalThis !== "undefined") {
     verifyAuditCsv,
     verifyReproductionReport,
     verifyRevocationDistributionReport,
+    policyBundleToOdrl,
   };
 }

@@ -278,7 +278,8 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   receipt chains, MPT evidence (v0.5), revocation bundles, and policy distribution
   reports, receipt evidence packets, and audit CSV exports, entirely in the
   browser, plus external reproduction and revocation distribution reports
-  (zero dependencies; host `verify/` anywhere and link the page).
+  and ODRL mapping of verified bundles (zero dependencies; host `verify/`
+  anywhere and link the page).
 - Stable wire format: the reference implementation issues and verifies `1.0`
   capabilities (frozen scoped shape), with `capability-1.0` schema and
   KGP-RFC-0001 accepted, and the JavaScript and Go verifiers accept `0.2`/`1.0`

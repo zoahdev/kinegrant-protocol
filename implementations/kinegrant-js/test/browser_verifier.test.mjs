@@ -19,6 +19,7 @@ import {
   verifyReproductionReport,
   verifyRevocationBundle,
   verifyRevocationDistributionReport,
+  policyBundleToOdrl,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const DOMAIN = Buffer.from("KINEGRANT-SIGNED-ENVELOPE-V1\u0000", "utf8");
@@ -44,7 +45,7 @@ function signEnvelope(privateKey, payload) {
   return { alg: "EdDSA", kid, payload, signature: b64url(signature) };
 }
 
-function buildBundle(privateKey, publicKey, { version = 1, purposes = ["delivery"] } = {}) {
+function buildBundle(privateKey, publicKey, { version = 1, purposes = ["delivery"], constraints = {}, obligations = [] } = {}) {
   const now = Date.now();
   const kid = kidOf(publicKey);
   const policyId = "urn:policy:browser";
@@ -67,8 +68,8 @@ function buildBundle(privateKey, publicKey, { version = 1, purposes = ["delivery
         actions: ["open"],
         subjects: ["*"],
         purposes,
-        constraints: {},
-        obligations: [],
+        constraints,
+        obligations,
         priority: 0,
         source: {},
       },
@@ -258,8 +259,7 @@ function buildReproductionReport() {
   };
 }
 
-function buildRevocationDistributionReport(privateKey, publicKey) {
-  const bundle = buildRevocationBundle(privateKey, publicKey);
+function buildRevocationDistributionReport(bundle) {
   return {
     type: "kinegrant:RevocationDistributionReport",
     schema_version: "0.1",
@@ -483,7 +483,7 @@ test("browser verifier validates reproduction reports", () => {
 test("browser verifier validates revocation distribution reports", async () => {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
   const bundle = buildRevocationBundle(privateKey, publicKey);
-  const report = buildRevocationDistributionReport(privateKey, publicKey);
+  const report = buildRevocationDistributionReport(bundle);
   const result = await verifyRevocationDistributionReport(
     report,
     bundle,
@@ -499,5 +499,29 @@ test("browser verifier validates revocation distribution reports", async () => {
   report.acks[0].bundle_id = "kinegrant:revocation-bundle:" + "0".repeat(64);
   await assert.rejects(() =>
     verifyRevocationDistributionReport(report, bundle, new Set([bundle.kid]))
+  );
+});
+
+test("browser verifier maps policy bundles to ODRL", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey, {
+    constraints: { max_force_newtons: 5 },
+    obligations: ["emitActionReceipt"],
+  });
+  const document = await policyBundleToOdrl(bundle, new Set([bundle.kid]));
+  assert.equal(document.uid, "urn:policy:browser");
+  assert.equal(
+    document.profile,
+    "https://kinegrant.com/profiles/odrl/kgp-v0.2"
+  );
+  assert.equal(document.permission.length, 1);
+  assert.equal(document.permission[0].duty[0].action, "emitActionReceipt");
+  assert.equal(
+    document.permission[0].constraint[0].leftOperand,
+    "maxForceNewtons"
+  );
+  bundle.payload.rules[0].effect = "deny";
+  await assert.rejects(() =>
+    policyBundleToOdrl(bundle, new Set([bundle.kid]))
   );
 });
