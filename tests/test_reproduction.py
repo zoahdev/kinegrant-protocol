@@ -17,7 +17,7 @@ class ExternalReproductionTests(unittest.TestCase):
     def test_public_codespaces_link_targets_runnable_branch(self) -> None:
         expected = (
             "https://codespaces.new/zoahdev/kinegrant-protocol"
-            "?ref=agent/global-beta&quickstart=1"
+            "?ref=main&quickstart=1"
         )
         self.assertIn(expected, (ROOT / "README.md").read_text(encoding="utf-8"))
         self.assertIn(expected, (ROOT / "REPRODUCING.md").read_text(encoding="utf-8"))
