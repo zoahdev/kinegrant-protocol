@@ -371,6 +371,36 @@ class AttenuationTests(unittest.TestCase):
         tampered["root_capability_id"] = "kinegrant:cap:" + "0" * 64
         self.assertFalse(verify_attenuation(tampered, self.root_payload))
 
+    def test_wire_version_1_0_capability_flow(self) -> None:
+        root = self.issuer.issue_scoped(
+            self.request,
+            self.decision,
+            ttl_seconds=30,
+            target="door-*",
+            actions=["open"],
+            purposes=["delivery"],
+            wire_version="1.0",
+        )
+        self.assertEqual(root["payload"]["version"], "1.0")
+        child = self.issuer.issue_attenuated(
+            root,
+            target="door-7",
+            ttl_seconds=10,
+        )
+        self.assertEqual(child["payload"]["version"], "1.0")
+        self.assertTrue(verify_attenuation(child["payload"], root["payload"]))
+        verified = self.gate.authorize(child, self.request)
+        self.assertEqual(verified["version"], "1.0")
+        schema_path = (
+            Path(__file__).resolve().parents[1]
+            / "spec"
+            / "schemas"
+            / "capability-1.0.schema.json"
+        )
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        jsonschema.validate(root, schema)
+        jsonschema.validate(child, schema)
+
 
 if __name__ == "__main__":
     unittest.main()

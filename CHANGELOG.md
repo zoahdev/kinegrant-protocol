@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added stable wire format `1.0`: reference implementation issues and verifies
+  frozen-scoped capabilities, published `capability-1.0` schema, and KGP-RFC-0001
+  accepted (comment window open). Reference implementation version bumped to
+  `0.2.0`.
 - Added runnable deployment examples (home-robot delivery, camera consent)
   with full protocol traces and a deployment-cases guide.
 - Added the second independent implementation (`kinegrant-go`, standard

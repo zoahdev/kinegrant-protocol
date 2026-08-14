@@ -3,7 +3,8 @@
 > Status: draft for community review
 
 Wire objects carry an explicit `version`. The reference implementation
-supports `0.1` (exact action triple) and `0.2` (scoped capabilities).
+supports `0.1` (exact action triple), `0.2` (scoped capabilities), and `1.0`
+(frozen scoped capabilities, identical shape to `0.2` with a version marker).
 
 Rules:
 
@@ -14,5 +15,5 @@ Rules:
   release;
 - version negotiation is explicit at the integration layer, never guessed.
 
-A stable `1.0` wire format, once accepted by an RFC, freezes compatibility
+A stable `1.0` wire format is accepted by KGP-RFC-0001, freezes compatibility,
 and starts the deprecation policy.

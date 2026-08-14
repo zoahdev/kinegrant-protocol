@@ -77,6 +77,7 @@ class CapabilityIssuer:
         delegation_allowed: bool = False,
         max_delegation_depth: int = 0,
         delegate_allowlist: list[str] | None = None,
+        wire_version: str = "0.2",
     ) -> dict[str, Any]:
         """Issue a v0.2 capability with a narrowed-but-still-scoped grant."""
         if not decision.allowed:
@@ -100,6 +101,8 @@ class CapabilityIssuer:
             or any(not isinstance(item, str) or not item for item in delegate_allowlist)
         ):
             raise ValueError("delegate_allowlist must be a list of non-empty strings or None")
+        if wire_version not in ("0.2", "1.0"):
+            raise ValueError("wire_version must be 0.2 or 1.0")
         scope_actions = list(actions or (request.action,))
         scope_purposes = list(purposes or (request.purpose,))
         scope_target = target or request.target
@@ -113,7 +116,7 @@ class CapabilityIssuer:
         issued_at = utc_now()
         body = {
             "type": "kinegrant:PhysicalActionCapability",
-            "version": "0.2",
+            "version": wire_version,
             "issuer": self.key_pair.kid,
             "agent": request.agent,
             "target": scope_target,

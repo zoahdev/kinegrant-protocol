@@ -47,7 +47,7 @@ def _matches(value: str, patterns: list[str]) -> bool:
 def _require_parent(parent: dict[str, Any]) -> None:
     if parent.get("type") != "kinegrant:PhysicalActionCapability":
         raise ValueError("parent is not a KineGrant capability")
-    if parent.get("version") not in ("0.1", "0.2"):
+    if parent.get("version") not in ("0.1", "0.2", "1.0"):
         raise ValueError("unsupported parent capability version")
     for field in (
         "issuer", "agent", "target",
@@ -56,7 +56,7 @@ def _require_parent(parent: dict[str, Any]) -> None:
     ):
         if field not in parent:
             raise ValueError(f"parent capability is missing {field}")
-    if parent.get("version") == "0.2":
+    if parent.get("version") in ("0.2", "1.0"):
         for field in (
             "actions",
             "purposes",
@@ -78,7 +78,7 @@ def _require_parent(parent: dict[str, Any]) -> None:
 
 
 def _parent_scope(parent: dict[str, Any]) -> tuple[str, list[str], list[str]]:
-    if parent.get("version") == "0.2":
+    if parent.get("version") in ("0.2", "1.0"):
         target = parent["target"]
         actions = parent["actions"]
         purposes = parent["purposes"]
@@ -282,9 +282,12 @@ def attenuate_capability(
     if not isinstance(approval_tier, int) or isinstance(approval_tier, bool) or not 0 <= approval_tier <= 2:
         raise ValueError("parent approval_tier must be an integer between 0 and 2")
 
+    child_version = parent.get("version")
+    if child_version not in ("0.2", "1.0"):
+        child_version = VERSION
     body = {
         "type": "kinegrant:PhysicalActionCapability",
-        "version": VERSION,
+        "version": child_version,
         "issuer": parent["issuer"],
         "agent": child_agent,
         "target": child_target,
@@ -321,7 +324,9 @@ def verify_attenuation(
         _require_parent(parent)
         if child.get("type") != "kinegrant:PhysicalActionCapability":
             return False
-        if child.get("version") != VERSION:
+        if child.get("version") not in ("0.2", "1.0"):
+            return False
+        if parent.get("version") in ("0.2", "1.0") and child.get("version") != parent.get("version"):
             return False
         if child.get("parent_capability_id") != parent.get("capability_id"):
             return False
