@@ -374,6 +374,14 @@ Exit criterion: a fleet operator can validate a revocation distribution report i
 
 Exit criterion: an ODRL consumer can see the ODRL representation of a verified bundle in the browser. Released as v2.15.0 (2026-08-15).
 
+## v2.16 - browser vocabulary verification
+
+- browser verifier validates the `kg.action.*` action vocabulary (fail-closed on unknown terms) (complete via PR #116);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: a user can validate an action list against the canonical vocabulary in the browser.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

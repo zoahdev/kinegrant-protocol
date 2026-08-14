@@ -23,6 +23,7 @@ from kinegrant.policy_bundle import (
 )
 from kinegrant.receipt import ReceiptLog
 from kinegrant.distribution import RevocationDistributor
+from kinegrant.vocabulary import ACTION_TERMS
 from kinegrant.revocation import (
     RevocationList,
     build_revocation_bundle,
@@ -513,6 +514,26 @@ class BrowserVerifierInteropTests(unittest.TestCase):
                 document["permission"][0]["duty"][0]["action"],
                 "emitActionReceipt",
             )
+
+    def test_browser_verifier_validates_action_vocabulary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            actions_path = base / "actions.json"
+            actions_path.write_text(
+                json.dumps(list(ACTION_TERMS)),
+                encoding="utf-8",
+            )
+            verified = self._run("vocabulary", str(actions_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("ACTION VOCABULARY VALID", verified.stdout)
+            bad_path = base / "bad.json"
+            bad_path.write_text(
+                json.dumps(["kg.action.explode"]),
+                encoding="utf-8",
+            )
+            rejected = self._run("vocabulary", str(bad_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
 
 
 if __name__ == "__main__":
