@@ -104,6 +104,74 @@ class RevocationDistributor:
         }
 
 
+def verify_distribution_report(
+    report: Mapping[str, Any],
+    bundle: Mapping[str, Any],
+    *,
+    trusted_authorities: set[str] | None = None,
+) -> dict[str, Any]:
+    """Verify that a fleet report belongs to the given bundle and is consistent.
+
+    The report must reference the exact bundle id and version, its summary
+    must match the per-gate acknowledgements, every acknowledgement must
+    reference the same bundle, and the bundle itself must verify under the
+    caller-supplied authorities. Returns the report on success and raises
+    ``ValueError`` on any inconsistency (fail-closed).
+    """
+    if not isinstance(report, Mapping):
+        raise ValueError("distribution report must be an object")
+    if report.get("type") != "kinegrant:RevocationDistributionReport":
+        raise ValueError("wrong distribution report type")
+    if report.get("schema_version") != "0.1":
+        raise ValueError("unsupported distribution report version")
+    if report.get("overall_result") != "PASS":
+        raise ValueError("distribution report is not PASS")
+
+    verify_revocation_bundle(
+        bundle,
+        trusted_authorities=trusted_authorities,
+    )
+    payload = verify_envelope(bundle)
+    bundle_id = payload.get("bundle_id")
+    version = payload.get("version")
+    if report.get("bundle_id") != bundle_id:
+        raise ValueError("distribution report references a different bundle")
+    if report.get("bundle_version") != version:
+        raise ValueError("distribution report references a different bundle version")
+
+    acks = report.get("acks")
+    if not isinstance(acks, list):
+        raise ValueError("distribution report acks must be an array")
+    for ack in acks:
+        if not isinstance(ack, Mapping):
+            raise ValueError("distribution report acks must be objects")
+        if ack.get("bundle_id") != bundle_id:
+            raise ValueError("distribution ack references a different bundle")
+        if ack.get("applied") is not True:
+            raise ValueError("distribution ack is not applied")
+        if not isinstance(ack.get("added_count"), int) or isinstance(
+            ack.get("added_count"), bool
+        ):
+            raise ValueError("distribution ack added_count must be an integer")
+        if not isinstance(ack.get("already_present"), int) or isinstance(
+            ack.get("already_present"), bool
+        ):
+            raise ValueError("distribution ack already_present must be an integer")
+
+    summary = report.get("summary")
+    if not isinstance(summary, Mapping):
+        raise ValueError("distribution report summary must be an object")
+    expected_added = sum(ack.get("added_count", 0) for ack in acks)
+    expected_already = sum(ack.get("already_present", 0) for ack in acks)
+    if summary.get("gates") != len(acks):
+        raise ValueError("distribution report gate count is inconsistent")
+    if summary.get("added_total") != expected_added:
+        raise ValueError("distribution report added_total is inconsistent")
+    if summary.get("already_present_total") != expected_already:
+        raise ValueError("distribution report already_present_total is inconsistent")
+    return dict(report)
+
+
 def _self_test() -> int:
     from .crypto import Ed25519KeyPair
     from .revocation import RevocationList, build_revocation_bundle, sign_revocation_bundle

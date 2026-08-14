@@ -167,7 +167,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Fleet revocation distribution: `RevocationDistributor` verifies one signed
   revocation bundle under the caller-supplied authorities and applies it to
   many gates idempotently, with per-gate acknowledgements in a machine-
-  readable report; `kinegrant-revoke-distribute` is the deployable CLI.
+  readable report; `verify_distribution_report` re-validates a fleet report
+  against its bundle (id/version binding, count integrity, trusted
+  authorities), and `kinegrant-revoke-distribute` is the deployable CLI.
 - Bounded policy-decision cache: `CachedPolicyEngine` wraps a policy engine
   with an LRU cache (hit/miss statistics, automatic invalidation on policy
   change, future requests never cached) for high-rate deployments; the
