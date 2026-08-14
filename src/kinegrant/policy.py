@@ -14,6 +14,9 @@ SUPPORTED_CONSTRAINTS = {
     "required_context",
     "requires_human_present",
     "max_risk_tier",
+    "max_force_newtons",
+    "max_velocity_mps",
+    "allowed_zones",
 }
 
 
@@ -29,6 +32,22 @@ def _validate_rule(rule: PolicyRule, require_known_actions: bool = False) -> Non
         rule.constraints["required_context"], dict
     ):
         raise ValueError("required_context must be an object")
+    for name in ("max_force_newtons", "max_velocity_mps"):
+        value = rule.constraints.get(name)
+        if value is not None and (
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or value < 0
+        ):
+            raise ValueError(f"{name} must be a non-negative number")
+    allowed_zones = rule.constraints.get("allowed_zones")
+    if allowed_zones is not None:
+        if (
+            not isinstance(allowed_zones, list)
+            or not allowed_zones
+            or any(not isinstance(item, str) or not item.strip() for item in allowed_zones)
+        ):
+            raise ValueError("allowed_zones must be a non-empty list of non-empty strings")
     if require_known_actions:
         validate_actions(rule.actions, context=f"actions in policy rule {rule.policy_id}")
 
@@ -60,6 +79,50 @@ def _constraints_hold(rule: PolicyRule, request: ActionRequest, now: datetime) -
         actual_risk = request.context.get("risk_tier")
         if not isinstance(actual_risk, int) or actual_risk > int(max_risk):
             return False
+
+    # Physical constraints are fail-closed for both effects:
+    # - an allow rule applies only when the request proves it is within bounds;
+    # - a deny rule applies when the request is missing evidence or exceeds bounds.
+    is_deny = rule.effect == "deny"
+    saw_physical = False
+
+    max_force = constraints.get("max_force_newtons")
+    if max_force is not None:
+        saw_physical = True
+        declared = request.context.get("force_newtons")
+        valid = isinstance(declared, (int, float)) and not isinstance(declared, bool)
+        violated = not valid or declared > max_force
+        if violated:
+            if is_deny:
+                return True
+            return False
+
+    max_velocity = constraints.get("max_velocity_mps")
+    if max_velocity is not None:
+        saw_physical = True
+        declared = request.context.get("velocity_mps")
+        valid = isinstance(declared, (int, float)) and not isinstance(declared, bool)
+        violated = not valid or declared > max_velocity
+        if violated:
+            if is_deny:
+                return True
+            return False
+
+    allowed_zones = constraints.get("allowed_zones")
+    if allowed_zones is not None:
+        saw_physical = True
+        zone = request.context.get("zone")
+        in_zone = isinstance(zone, str) and zone.strip() and any(
+            fnmatchcase(zone, pattern) for pattern in allowed_zones
+        )
+        if is_deny:
+            if in_zone:
+                return True
+        elif not in_zone:
+            return False
+
+    if is_deny and saw_physical:
+        return False
     return True
 
 
