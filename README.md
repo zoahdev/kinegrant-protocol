@@ -109,6 +109,8 @@ cross-platform command and verify it without trusting hosted output. See
 | `spec/schemas/` | Strict Draft 2020-12 schemas for all core objects |
 | `challenge/` | Reproducible Machine Permission Test instructions |
 | `REPRODUCING.md` | External reproduction and evidence-submission guide |
+| `examples/` | Public, schema-valid signed sample objects |
+| `proof/esp32-c3/` | Non-normative low-risk device-boundary experiment |
 | `src/kinegrant/` | Python reference implementation |
 | `tests/` | Executable security and interoperability checks |
 | `CITATION.cff` | Citation metadata for exact releases and commits |

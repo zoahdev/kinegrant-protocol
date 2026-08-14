@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kinegrant.com/proof/esp32-c3/schemas/physical-proof-evidence.schema.json",
+  "title": "KineGrant ESP32-C3 paper-barrier proof evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "evidence_type", "evidence_mode", "overall_result", "run_id", "generated_at", "started_at", "finished_at", "protocol", "reference_implementation", "source_commit", "device", "environment", "verification", "artifacts", "cases", "limitations"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "evidence_type": {"const": "kinegrant:ESP32C3PaperBarrierProofEvidence"},
+    "evidence_mode": {"enum": ["simulation", "physical"]},
+    "overall_result": {"enum": ["NOT_RUN", "SIMULATION_PASS", "PHYSICAL_PASS", "FAIL"]},
+    "run_id": {"type": "string", "pattern": "^urn:kinegrant:esp32c3-proof:run:[0-9a-f-]{36}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "started_at": {"oneOf": [{"type": "null"}, {"type": "string", "format": "date-time"}]},
+    "finished_at": {"oneOf": [{"type": "null"}, {"type": "string", "format": "date-time"}]},
+    "protocol": {"const": "KGP-001 Experimental Open Draft 0.1"},
+    "reference_implementation": {"const": "0.1.1"},
+    "source_commit": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^[0-9a-f]{40,64}$"}]},
+    "device": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["board_model", "device_id", "device_key", "firmware_version", "firmware_digest", "pinout_record_digest"],
+      "properties": {
+        "board_model": {"type": "string", "minLength": 1},
+        "device_id": {"type": "string", "minLength": 1},
+        "device_key": {"oneOf": [{"type": "null"}, {"type": "string", "pattern": "^kinegrant:key:ed25519:[A-Za-z0-9_-]{43}$"}]},
+        "firmware_version": {"type": "string", "minLength": 1},
+        "firmware_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
+        "pinout_record_digest": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]}
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host_platform", "servo_model", "load", "servo_supply_voltage", "power_plan_reviewed"],
+      "properties": {
+        "host_platform": {"type": "string", "minLength": 1},
+        "servo_model": {"type": "string", "minLength": 1},
+        "load": {"const": "lightweight-paper-barrier"},
+        "servo_supply_voltage": {"oneOf": [{"type": "null"}, {"type": "number", "minimum": 4.5, "maximum": 5.5}]},
+        "power_plan_reviewed": {"type": "boolean"}
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allow_receipts_verified", "deny_receipts_verified", "tampered_receipts_rejected", "untrusted_executor_rejected", "device_acks_verified"],
+      "properties": {
+        "allow_receipts_verified": {"type": "boolean"},
+        "deny_receipts_verified": {"type": "boolean"},
+        "tampered_receipts_rejected": {"type": "boolean"},
+        "untrusted_executor_rejected": {"type": "boolean"},
+        "device_acks_verified": {"type": "boolean"}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "path", "media_type", "sha256", "bytes"],
+        "properties": {
+          "role": {"enum": ["firmware", "pinout_record", "wiring_photo", "serial_log", "host_log", "video", "receipts", "device_acks", "other"]},
+          "path": {"type": "string", "minLength": 1},
+          "media_type": {"type": "string", "minLength": 1},
+          "sha256": {"$ref": "#/$defs/digest"},
+          "bytes": {"type": "integer", "minimum": 1}
+        }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "attempts", "passed", "measurements", "artifact_digests", "notes"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^HWP-[0-9]{3}$"},
+          "name": {"type": "string", "minLength": 1},
+          "attempts": {"type": "integer", "minimum": 0},
+          "passed": {"type": "boolean"},
+          "measurements": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["actuator_calls", "observed_movements", "denials", "abnormal_resets", "overheat_events"],
+            "properties": {
+              "actuator_calls": {"type": "integer", "minimum": 0},
+              "observed_movements": {"type": "integer", "minimum": 0},
+              "denials": {"type": "integer", "minimum": 0},
+              "abnormal_resets": {"type": "integer", "minimum": 0},
+              "overheat_events": {"type": "integer", "minimum": 0}
+            }
+          },
+          "artifact_digests": {"type": "array", "items": {"$ref": "#/$defs/digest"}, "uniqueItems": true},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "limitations": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"evidence_mode": {"const": "simulation"}}},
+      "then": {"properties": {"overall_result": {"enum": ["NOT_RUN", "SIMULATION_PASS", "FAIL"]}}},
+      "else": {"properties": {"overall_result": {"enum": ["NOT_RUN", "PHYSICAL_PASS", "FAIL"]}}}
+    }
+  ],
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}
