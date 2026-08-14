@@ -31,6 +31,13 @@ class DeploymentExampleTests(unittest.TestCase):
         trace = module.run()
         self.assertTrue(trace["passed"])
 
+    def test_policy_bundle_lifecycle_example(self) -> None:
+        module = self._load("examples/policy-bundle/policy_bundle.py")
+        trace = module.run()
+        self.assertTrue(trace["passed"])
+        self.assertEqual(trace["phases"]["fleet"]["initial_applied"], 2)
+        self.assertEqual(trace["phases"]["revocation"]["rolled_back_to"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -278,6 +278,14 @@ Exit criterion: an ODRL consumer can ingest a KineGrant policy bundle's rules th
 
 Exit criterion: an auditor can run one command on a signed bundle and get machine-readable conflict and coverage findings before deployment. Released as v2.3.0 (2026-08-15).
 
+## v2.4 - adoption examples and schema governance
+
+- executable policy-bundle lifecycle example (`examples/policy-bundle`, machine-readable PASS trace covering publish, enforce, ODRL round trip, fleet distribution, audit, coverage, and revocation rollback) (complete via PR #92);
+- RFC-0003 acceptance vote (community/steering action);
+- policy-bundle verification in the browser public verifier (needs site source).
+
+Exit criterion: an adopter can run one example and see the full signed policy lifecycle pass end to end, then reproduce it with their own authority keys.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
