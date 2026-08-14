@@ -1,0 +1,22 @@
+{
+  "alg": "EdDSA",
+  "kid": "kinegrant:key:ed25519:0EqyMnQrtKs6E2i9RhXk5tAiSrcaAWuvhSCjMsl3hzc",
+  "payload": {
+    "type": "kinegrant:PhysicalActionReceipt",
+    "version": "0.1",
+    "executor": "kinegrant:key:ed25519:0EqyMnQrtKs6E2i9RhXk5tAiSrcaAWuvhSCjMsl3hzc",
+    "capability_id": "kinegrant:cap:2222222222222222222222222222222222222222222222222222222222222222",
+    "request_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "agent": "demo-agent",
+    "target": "sandbox-actuator-1",
+    "action": "move_token",
+    "purpose": "public_demo",
+    "result": "succeeded",
+    "started_at": "2026-08-11T02:00:00Z",
+    "finished_at": "2026-08-11T02:00:01Z",
+    "evidence_hash": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "previous_receipt_hash": null,
+    "receipt_id": "kinegrant:receipt:2bab5a8915637414b85dd1b746cf823ac05e7d7dbe53c3d331e31f142ba7e919"
+  },
+  "signature": "Pih4DoMOyw07bJ2sqT5GstNuGh3Y_dahlyCWxN7XLdFegdKTZo6Ek80O1DJuvghgFzfUxQMcAeePuBfKIMHlAA"
+}

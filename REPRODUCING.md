@@ -9,6 +9,22 @@ functionally safe, or that KineGrant is production-ready.
 
 ## Five-minute path
 
+### Zero-install Codespaces path
+
+Open the current public test branch in [GitHub Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=agent/global-beta&quickstart=1). The checked-in Dev Container installs
+the test surface, generates the packet, and runs the independent verifier. A
+successful terminal ends with `PASS`. The resulting files are in
+`reproduction-output/`.
+
+Codespaces is a convenience environment, not independent evidence by itself.
+Publish the exact commit, environment, report, and checksum so others can check
+the result. The `External Reproduction` workflow runs on changes to this test
+surface; after the workflow reaches the default branch it can also be started
+manually from the Actions tab. Project-owned workflow runs are reference
+evidence, not third-party reproduction.
+
+### Local path
+
 Use Python 3.11 or newer in a fresh checkout:
 
 ```bash
@@ -30,6 +46,17 @@ contains:
   digest, and the independently checked overall result.
 - `reproduction-report.sha256`: a ready-to-publish SHA-256 checksum for the
   report.
+- `sample-receipt-v0.1.json`: the committed, Schema-valid signed receipt used by
+  the public browser verifier and bound into the packet by SHA-256.
+- `materials/`: the exact generators, independent verifiers, Schemas, and
+  receipt source named in the report, preserving repository-relative paths.
+
+The packet is portable. After downloading and extracting it, verify it without
+a KineGrant checkout by running:
+
+```bash
+python materials/challenge/verify_reproduction.py reproduction-report.json
+```
 
 Every GitHub Actions run also publishes the Python 3.12 packet as a downloadable
 30-day workflow artifact named with the exact tested commit.

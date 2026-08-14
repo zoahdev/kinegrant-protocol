@@ -1,0 +1,42 @@
+name: External Reproduction
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/reproduce.yml"
+      - ".devcontainer/**"
+      - "challenge/**"
+      - "examples/sample-receipt-v0.1.json"
+      - "spec/schemas/**"
+      - "src/**"
+      - "tests/**"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Bind the report and artifact to the reviewed branch commit instead
+          # of GitHub's ephemeral pull-request merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install published test surface
+        run: python -m pip install --disable-pip-version-check -e '.[test]'
+      - name: Generate and independently verify packet
+        run: python challenge/reproduce.py --source-commit "$(git rev-parse HEAD)" --output-dir "$RUNNER_TEMP/kinegrant-reproduction" && python challenge/verify_reproduction.py "$RUNNER_TEMP/kinegrant-reproduction/reproduction-report.json"
+      - name: Publish exact reproduction packet
+        uses: actions/upload-artifact@v7
+        with:
+          name: kinegrant-external-reproduction-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/kinegrant-reproduction/
+          if-no-files-found: error
+          retention-days: 30

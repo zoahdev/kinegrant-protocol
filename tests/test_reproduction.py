@@ -10,8 +10,18 @@ from unittest.mock import patch
 from challenge.reproduce import create_reproduction
 from challenge.verify_reproduction import verify_reproduction
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 class ExternalReproductionTests(unittest.TestCase):
+    def test_public_codespaces_link_targets_runnable_branch(self) -> None:
+        expected = (
+            "https://codespaces.new/zoahdev/kinegrant-protocol"
+            "?ref=agent/global-beta&quickstart=1"
+        )
+        self.assertIn(expected, (ROOT / "README.md").read_text(encoding="utf-8"))
+        self.assertIn(expected, (ROOT / "REPRODUCING.md").read_text(encoding="utf-8"))
+
     def _create(self, output: Path, commit: str) -> dict:
         def fake_git(args: list[str]) -> str:
             return commit if args == ["rev-parse", "HEAD"] else ""
@@ -28,6 +38,10 @@ class ExternalReproductionTests(unittest.TestCase):
             self.assertEqual(report["overall_result"], "PASS")
             self.assertEqual(verified["source"]["commit"], "a" * 40)
             self.assertEqual(verified["verification"]["passed_cases"], 9)
+            self.assertTrue((output / "sample-receipt-v0.1.json").is_file())
+            self.assertTrue(
+                (output / "materials/challenge/verify_reproduction.py").is_file()
+            )
             report_path = output / "reproduction-report.json"
             expected_checksum = sha256(report_path.read_bytes()).hexdigest()
             self.assertEqual(
@@ -64,6 +78,28 @@ class ExternalReproductionTests(unittest.TestCase):
 
             with self.assertRaises(Exception):
                 verify_reproduction(report_path)
+
+    def test_changed_receipt_bytes_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self._create(output, "d" * 40)
+            receipt_path = output / "sample-receipt-v0.1.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            receipt["payload"]["action"] = "tampered_action"
+            receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "receipt (size|digest) mismatch"):
+                verify_reproduction(output / "reproduction-report.json")
+
+    def test_changed_portable_material_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            self._create(output, "e" * 40)
+            verifier_path = output / "materials/challenge/verify_evidence.py"
+            verifier_path.write_text("# changed\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "material digest mismatch"):
+                verify_reproduction(output / "reproduction-report.json")
 
 
 if __name__ == "__main__":
