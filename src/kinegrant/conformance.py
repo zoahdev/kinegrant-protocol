@@ -40,7 +40,12 @@ from .gatekeeper_modelcheck import check_gatekeeper_boundary
 from .gatekeeper import Gatekeeper
 from .models import ActionRequest, PolicyRule
 from .policy import PolicyEngine
-from .policy_bundle import PolicyAuthority, PolicyRegistry, verify_policy_bundle
+from .policy_bundle import (
+    PolicyAuthority,
+    PolicyDistributor,
+    PolicyRegistry,
+    verify_policy_bundle,
+)
 from .receipt import ReceiptLog, verify_receipt_chain
 from .revocation import (
     RevocationList,
@@ -952,6 +957,46 @@ class ConformanceRunner:
                 "policy_bundle_trust",
                 policy_bundle_ok,
                 "signed versions verified, revoked version rolled back",
+            )
+        )
+
+        fleet_a = PolicyRegistry(trusted_authorities={policy_authority.kid})
+        fleet_b = PolicyRegistry(trusted_authorities={policy_authority.kid})
+        fleet_report = PolicyDistributor(
+            trusted_authorities={policy_authority.kid}
+        ).distribute(
+            v1,
+            {"gate-a": fleet_a, "gate-b": fleet_b},
+        )
+        fleet_ok = (
+            fleet_report["overall_result"] == "PASS"
+            and fleet_report["summary"]["applied_total"] == 2
+            and fleet_a.current(policy_id)["version"] == 1
+            and fleet_b.current(policy_id)["version"] == 1
+        )
+        upgrade = PolicyDistributor(
+            trusted_authorities={policy_authority.kid}
+        ).distribute(
+            v2,
+            {"gate-a": fleet_a, "gate-b": fleet_b},
+        )
+        noop = PolicyDistributor(
+            trusted_authorities={policy_authority.kid}
+        ).distribute(
+            v1,
+            {"gate-a": fleet_a},
+        )
+        policy_fleet_ok = (
+            fleet_ok
+            and upgrade["summary"]["applied_total"] == 2
+            and noop["summary"]["already_present_total"] == 1
+        )
+        marks.append(
+            ConformanceMark(
+                "L3",
+                "policy_fleet_distribution",
+                policy_fleet_ok,
+                "verified bundle applied to fleet, upgrades applied, no downgrades",
             )
         )
         return tuple(marks)

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 2.1.0 - v2.1 first item (unreleased)
+
+- Added fleet policy distribution (`PolicyDistributor`): one verified signed policy bundle is applied to many registries idempotently (never auto-downgrading) with per-registry acknowledgements in a machine-readable `kinegrant:PolicyDistributionReport`; `verify_policy_distribution_report` re-validates a fleet report against its bundle (policy/bundle/version binding, count integrity, fail-closed); `kinegrant-policy-bundle --distribute` and `--verify-report` are the deployable CLI paths.
+- Conformance suite is now 23/23 with the new L3 `policy_fleet_distribution` mark (fleet applied, upgrades applied, no auto-downgrade).
+
 ## 2.0.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.0.0 on the stable

@@ -398,6 +398,162 @@ class PolicyAuthority:
         return registry.revoke(policy_id, last["version"], reason=reason)
 
 
+@dataclass(frozen=True)
+class GatePolicyAck:
+    gate_id: str
+    policy_id: str
+    bundle_id: str
+    applied: bool
+    current_before: int | None
+    current_after: int | None
+    detail: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "gate_id": self.gate_id,
+            "policy_id": self.policy_id,
+            "bundle_id": self.bundle_id,
+            "applied": self.applied,
+            "current_before": self.current_before,
+            "current_after": self.current_after,
+            "detail": self.detail,
+        }
+
+
+class PolicyDistributor:
+    """Verify one signed policy bundle and apply it to many registries.
+
+    Distribution is fail-closed: the bundle must verify under the caller's
+    trusted authorities before any registry is touched. A registry already
+    running a version at least as new is left untouched (idempotent no-op);
+    downgrades are never applied automatically.
+    """
+
+    def __init__(
+        self,
+        *,
+        trusted_authorities: set[str] | None = None,
+    ) -> None:
+        self.trusted_authorities = set(trusted_authorities or ())
+
+    def distribute(
+        self,
+        bundle: Mapping[str, Any],
+        registries: Mapping[str, PolicyRegistry],
+        *,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        payload = verify_policy_bundle(
+            bundle,
+            trusted_authorities=self.trusted_authorities or None,
+            now=now,
+        )
+        policy_id = payload["policy_id"]
+        version = payload["version"]
+        bundle_id = payload["bundle_id"]
+        acks: list[GatePolicyAck] = []
+        for gate_id in sorted(registries):
+            registry = registries[gate_id]
+            current = registry.current(policy_id, now=now)
+            current_version = current["version"] if current is not None else None
+            if current_version is not None and current_version >= version:
+                acks.append(
+                    GatePolicyAck(
+                        gate_id=gate_id,
+                        policy_id=policy_id,
+                        bundle_id=bundle_id,
+                        applied=False,
+                        current_before=current_version,
+                        current_after=current_version,
+                        detail="already at a current version",
+                    )
+                )
+                continue
+            registry.activate(bundle, now=now)
+            after = registry.current(policy_id, now=now)
+            acks.append(
+                GatePolicyAck(
+                    gate_id=gate_id,
+                    policy_id=policy_id,
+                    bundle_id=bundle_id,
+                    applied=True,
+                    current_before=current_version,
+                    current_after=after["version"] if after is not None else None,
+                    detail="policy bundle activated",
+                )
+            )
+        return {
+            "type": "kinegrant:PolicyDistributionReport",
+            "schema_version": "0.1",
+            "policy_id": policy_id,
+            "bundle_id": bundle_id,
+            "bundle_version": version,
+            "overall_result": "PASS",
+            "summary": {
+                "registries": len(acks),
+                "applied_total": sum(ack.applied for ack in acks),
+                "already_present_total": sum(not ack.applied for ack in acks),
+            },
+            "acks": [ack.to_dict() for ack in acks],
+        }
+
+
+def verify_policy_distribution_report(
+    report: Mapping[str, Any],
+    bundle: Mapping[str, Any],
+    *,
+    trusted_authorities: set[str] | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Verify a fleet report against its bundle (fail-closed)."""
+    if not isinstance(report, Mapping):
+        raise ValueError("policy distribution report must be an object")
+    if report.get("type") != "kinegrant:PolicyDistributionReport":
+        raise ValueError("wrong policy distribution report type")
+    if report.get("schema_version") != "0.1":
+        raise ValueError("unsupported policy distribution report version")
+    if report.get("overall_result") != "PASS":
+        raise ValueError("policy distribution report is not PASS")
+    payload = verify_policy_bundle(
+        bundle,
+        trusted_authorities=trusted_authorities,
+        now=now,
+    )
+    policy_id = payload["policy_id"]
+    version = payload["version"]
+    bundle_id = payload["bundle_id"]
+    if report.get("policy_id") != policy_id:
+        raise ValueError("policy distribution report references a different policy")
+    if report.get("bundle_id") != bundle_id:
+        raise ValueError("policy distribution report references a different bundle")
+    if report.get("bundle_version") != version:
+        raise ValueError("policy distribution report references a different version")
+    acks = report.get("acks")
+    if not isinstance(acks, list) or not acks:
+        raise ValueError("policy distribution report has no acknowledgements")
+    for ack in acks:
+        if not isinstance(ack, Mapping):
+            raise ValueError("each acknowledgement must be an object")
+        if not isinstance(ack.get("gate_id"), str) or not ack["gate_id"]:
+            raise ValueError("acknowledgement gate_id is invalid")
+        if ack.get("policy_id") != policy_id or ack.get("bundle_id") != bundle_id:
+            raise ValueError("acknowledgement references a different bundle")
+        if not isinstance(ack.get("applied"), bool):
+            raise ValueError("acknowledgement applied flag is invalid")
+    summary = report.get("summary")
+    if not isinstance(summary, Mapping):
+        raise ValueError("policy distribution report summary is invalid")
+    if summary.get("registries") != len(acks):
+        raise ValueError("policy distribution report summary is inconsistent")
+    if summary.get("applied_total") != sum(ack["applied"] for ack in acks):
+        raise ValueError("policy distribution report summary is inconsistent")
+    if summary.get("already_present_total") != sum(
+        not ack["applied"] for ack in acks
+    ):
+        raise ValueError("policy distribution report summary is inconsistent")
+    return report
+
+
 def _self_test() -> int:
     from .crypto import Ed25519KeyPair
 
@@ -456,6 +612,39 @@ def _self_test() -> int:
         checks.append(False)
     except ValueError:
         checks.append(True)
+    fleet_a = PolicyRegistry(trusted_authorities={authority.kid})
+    fleet_b = PolicyRegistry(trusted_authorities={authority.kid})
+    fleet_report = PolicyDistributor(
+        trusted_authorities={authority.kid}
+    ).distribute(
+        v1,
+        {"gate-a": fleet_a, "gate-b": fleet_b},
+    )
+    checks.append(
+        fleet_report["overall_result"] == "PASS"
+        and fleet_report["summary"]["applied_total"] == 2
+        and fleet_a.current(policy_id)["version"] == 1
+        and fleet_b.current(policy_id)["version"] == 1
+    )
+    verify_policy_distribution_report(
+        fleet_report,
+        v1,
+        trusted_authorities={authority.kid},
+    )
+    upgrade = PolicyDistributor(
+        trusted_authorities={authority.kid}
+    ).distribute(
+        v2,
+        {"gate-a": fleet_a, "gate-b": fleet_b},
+    )
+    checks.append(upgrade["summary"]["applied_total"] == 2)
+    noop = PolicyDistributor(
+        trusted_authorities={authority.kid}
+    ).distribute(
+        v1,
+        {"gate-a": fleet_a},
+    )
+    checks.append(noop["summary"]["already_present_total"] == 1)
     return 0 if all(checks) else 1
 
 
@@ -513,11 +702,58 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(json.dumps(payload, indent=2, sort_keys=True))
         return 0
+    if "--distribute" in args:
+        bundle_path = args[args.index("--distribute") + 1]
+        authorities_path = args[args.index("--authorities") + 1]
+        registries_path = args[args.index("--registries") + 1]
+        bundle = json.loads(Path(bundle_path).read_text(encoding="utf-8"))
+        authorities = json.loads(Path(authorities_path).read_text(encoding="utf-8"))
+        raw_states = json.loads(Path(registries_path).read_text(encoding="utf-8"))
+        registries = {
+            gate_id: PolicyRegistry.from_dict(
+                state,
+                trusted_authorities=set(authorities),
+            )
+            for gate_id, state in raw_states.items()
+        }
+        report = PolicyDistributor(
+            trusted_authorities=set(authorities)
+        ).distribute(bundle, registries)
+        if "--out" in args:
+            out_path = Path(args[args.index("--out") + 1])
+            states = {
+                gate_id: registry.to_dict()
+                for gate_id, registry in registries.items()
+            }
+            out_path.write_text(
+                json.dumps(states, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+        print(json.dumps(report, indent=2, sort_keys=True))
+        return 0
+    if "--verify-report" in args:
+        report_path = args[args.index("--verify-report") + 1]
+        bundle_path = args[args.index("--bundle") + 1]
+        authorities_path = args[args.index("--authorities") + 1]
+        report_data = json.loads(Path(report_path).read_text(encoding="utf-8"))
+        bundle = json.loads(Path(bundle_path).read_text(encoding="utf-8"))
+        authorities = json.loads(Path(authorities_path).read_text(encoding="utf-8"))
+        verified = verify_policy_distribution_report(
+            report_data,
+            bundle,
+            trusted_authorities=set(authorities),
+        )
+        print(json.dumps(verified, indent=2, sort_keys=True))
+        return 0
     print(
         "usage: kinegrant-policy-bundle --verify <bundle.json> --authorities <ids.json> "
         "[--policy-id <id>] | --activate <bundle.json> --authorities <ids.json> "
         "[--registry <state.json>] [--out <state.json>] | "
-        "--current <state.json> --policy-id <id> | --self-test",
+        "--current <state.json> --policy-id <id> | "
+        "--distribute <bundle.json> --authorities <ids.json> --registries <states.json> "
+        "[--out <states.json>] | "
+        "--verify-report <report.json> --bundle <bundle.json> --authorities <ids.json> | "
+        "--self-test",
         file=sys.stderr,
     )
     return 2
