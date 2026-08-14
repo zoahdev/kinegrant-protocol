@@ -98,7 +98,7 @@ python -m unittest discover -s tests -v
 - 三个演示与两个部署案例现在都使用 `Gatekeeper` 一体化编排；性能基准包含 `gatekeeper_execute` 吞吐指标。
 - 收据审计接口：`ReceiptAuditor` 验证收据链、按能力/主体/目标/动作/目的/结果/时间过滤、输出机器可读审计摘要，并支持义务合规核验；可导出 CSV 与自校验证据包；`kinegrant-audit` 是可部署的命令行工具（`--csv`/`--packet` 导出，`--distribution-report` 可附带校验车队撤销回执，`--self-test` 供 CI 使用）。
 - 车队级撤销分发：`RevocationDistributor` 在调用方信任的撤销机构下验证一份签名撤销包，并幂等地批量应用到多个门禁，输出逐门禁回执的机器可读报告；`verify_distribution_report` 可复核回执与撤销包的绑定（id/版本、计数自洽、信任机构）；`kinegrant-revoke-distribute` 是可部署的命令行工具。
-- 签名策略包：`PolicyAuthority` 发布带版本号与有效期的签名策略文档；`PolicyRegistry` 在调用方信任的机构下激活策略包，按“最高版本生效”回答当前版本，并在逐版本撤销后自动回滚；`verify_policy_bundle` / `rules_from_bundle` 在签名、机构、时间窗与摘要校验全部通过后把规则交给策略引擎；`kinegrant-policy-bundle` 是可部署的命令行工具；独立的 JavaScript/Go 验证器也会在一致性报告里交叉核验 Python 签发的策略包与当前版本回滚。
+- 签名策略包：`PolicyAuthority` 发布带版本号与有效期的签名策略文档；`PolicyRegistry` 在调用方信任的机构下激活策略包，按“最高版本生效”回答当前版本，并在逐版本撤销后自动回滚；`verify_policy_bundle` / `rules_from_bundle` 在签名、机构、时间窗与摘要校验全部通过后把规则交给策略引擎；`kinegrant-policy-bundle` 是可部署的命令行工具；独立的 JavaScript/Go 验证器也会在一致性报告里交叉核验 Python 签发的策略包与当前版本回滚；`bundle_to_odrl` 可把验证过的策略包映射为 ODRL（kgp-v0.2 profile）。稳定性与弃用规则见 `docs/STABILITY.md`。
 - 车队级策略分发：`PolicyDistributor` 在调用方信任的机构下验证一份签名策略包，并幂等地批量应用到多个注册表（绝不自动降级），输出逐注册表回执的机器可读报告；`verify_policy_distribution_report` 可复核回执与策略包的绑定；`kinegrant-policy-bundle --distribute` 是可部署的命令行工具。
 - 有界策略决策缓存：`CachedPolicyEngine` 用 LRU 缓存包装策略引擎（命中/未命中统计、策略变更自动失效、未来请求不缓存），适合高频率部署；性能基准包含缓存命中吞吐，三个演示与两个部署案例都走缓存评估。
 - Gatekeeper 边界模型检查：`check_gatekeeper_boundary` 枚举可执行决策空间（放行、序列/门禁/撤销/义务拒绝、执行器失败）并验证组合不变量——执行器只在边界放行后才动、收据紧随门禁消费、动作日志只记完全合规的成功、重放不能二次执行、每次拒绝都带阶段。

@@ -196,6 +196,44 @@ def rules_from_bundle(
     return tuple(_rule_from_dict(rule) for rule in payload["rules"])
 
 
+def bundle_to_odrl(
+    bundle: Mapping[str, Any],
+    *,
+    trusted_authorities: set[str] | None = None,
+    expected_policy_id: str | None = None,
+    now: datetime | None = None,
+    policy_uid: str | None = None,
+    assigner: str | None = None,
+) -> dict[str, Any]:
+    """Verify a signed policy bundle and serialize its rules as ODRL.
+
+    The output uses the versioned ``kgp-v0.2`` profile, so the resulting
+    document can be parsed back with ``kinegrant.adapters.odrl.odrl_to_rules``
+    as a faithful round trip. Verification is fail-closed: nothing is mapped
+    unless the bundle passes signature, authority, time-window, and digest
+    checks.
+    """
+    payload = verify_policy_bundle(
+        bundle,
+        trusted_authorities=trusted_authorities,
+        expected_policy_id=expected_policy_id,
+        now=now,
+    )
+    rules = rules_from_bundle(
+        bundle,
+        trusted_authorities=trusted_authorities,
+        expected_policy_id=expected_policy_id,
+        now=now,
+    )
+    from .adapters.odrl import rules_to_odrl
+
+    return rules_to_odrl(
+        rules,
+        policy_uid=policy_uid or payload["policy_id"],
+        assigner=assigner or payload["issuer"],
+    )
+
+
 @dataclass(frozen=True)
 class PolicyRevocation:
     policy_id: str

@@ -46,6 +46,15 @@ an auditor can reproduce the decision, and receipts reveal less than raw logs.
 - Domain names, trademarks, and registries are community assets governed by
   this charter.
 
+## Stability and compatibility
+
+- Wire formats, schemas, and experimental surfaces follow
+  `docs/STABILITY.md` and `COMPATIBILITY.md`.
+- Release managers verify checksummed artifacts (`scripts/verify_release.py`
+  and the security review kit packet) before publishing.
+- Deprecating or removing a protocol surface requires an accepted RFC and is
+  announced in CHANGELOG and ROADMAP at least one minor release in advance.
+
 ## Amendment
 
 This charter is amended only through the RFC process.

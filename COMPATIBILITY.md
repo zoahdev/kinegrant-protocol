@@ -17,3 +17,14 @@ Rules:
 
 A stable `1.0` wire format is accepted by KGP-RFC-0001, freezes compatibility,
 and starts the deprecation policy.
+
+## Policy bundles (v2.0+)
+
+`kinegrant:PolicyBundle` payloads carry `schema_version: "0.1"` (experimental
+until an RFC freezes it). Verification is fail-closed: signature, trusted
+authority, policy id, time window, and rules digest must all pass before rules
+are used. Rules serialize as `PolicyRule` objects and round-trip through the
+ODRL `kgp-v0.2` profile (`bundle_to_odrl` / `odrl_to_rules`). Unknown
+obligations and constraints remain rejected, so an experimental schema change
+can never silently weaken a policy. The full stability and deprecation rules
+are in `docs/STABILITY.md`.
