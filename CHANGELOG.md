@@ -4,6 +4,10 @@
 
 ## 1.0.1 — 2026-08-15
 
+- The conformance suite now runs its `obligation_compliance` mark through
+  `Gatekeeper` with both obligations (`emitActionReceipt`, `logAuditEvent`)
+  and adds a `gatekeeper_boundary` mark (allow, replay denial, sequence
+  denial, journal) — L1-L4 is now 19 marks.
 - All three runnable demos and both deployment traces now run through
   `Gatekeeper.execute()` instead of hand-composing sequence/gate/receipt/
   compliance/journal steps; the micro-benchmarks gained a

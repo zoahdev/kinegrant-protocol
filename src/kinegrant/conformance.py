@@ -28,9 +28,9 @@ from .attenuation import verify_attenuation
 from .attestation import build_device_attestation, verify_device_attestation
 from .capability import CapabilityIssuer
 from .checkpoint import build_receipt_checkpoint, verify_receipt_checkpoint
-from .compliance import ObligationCompliance
 from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
 from .gate import ActionGate, InMemoryReplayStore
+from .gatekeeper import Gatekeeper
 from .models import ActionRequest, PolicyRule
 from .policy import PolicyEngine
 from .receipt import ReceiptLog, verify_receipt_chain
@@ -300,7 +300,7 @@ class ConformanceRunner:
             "urn:kinegrant:conformance:target:door-7",
             "allow",
             ("open",),
-            obligations=("emitActionReceipt",),
+            obligations=("emitActionReceipt", "logAuditEvent"),
         )
         obligation_decision = PolicyEngine(
             [obligation_rule],
@@ -314,27 +314,123 @@ class ConformanceRunner:
             actions=["open"],
             purposes=["delivery"],
         )
-        obligation_verified = ActionGate(
-            trusted_issuers={self.authority.kid},
-            replay_store=InMemoryReplayStore(),
-        ).authorize(obligation_capability, self.request)
         obligation_executor = Ed25519KeyPair.generate()
-        obligation_receipt = ReceiptLog(obligation_executor).append(
-            obligation_verified,
-            result="succeeded",
-            request=self.request,
-        )
-        obligation_compliant = ObligationCompliance().evaluate(
+        obligation_outcome = Gatekeeper(
+            gate=ActionGate(
+                trusted_issuers={self.authority.kid},
+                replay_store=InMemoryReplayStore(),
+            ),
+            sequence=SequencePolicy([]),
+            journal=ActionJournal(),
+            receipt_log=ReceiptLog(obligation_executor),
+        ).execute(
             obligation_capability,
-            [obligation_receipt],
-            trusted_executors={obligation_executor.kid},
-        ).compliant
+            self.request,
+            lambda verified: None,
+            obligation_results=[
+                {"obligation": "emitActionReceipt", "status": "satisfied"},
+                {"obligation": "logAuditEvent", "status": "satisfied"},
+            ],
+        )
         marks.append(
             ConformanceMark(
                 "L2",
                 "obligation_compliance",
-                obligation_compliant,
-                "receipt obligation satisfied",
+                obligation_outcome.allowed
+                and bool(obligation_outcome.obligation_compliant),
+                f"stage={obligation_outcome.stage}, compliant="
+                f"{obligation_outcome.obligation_compliant}",
+            )
+        )
+
+        boundary_rule = PolicyRule(
+            "urn:kinegrant:conformance:policy:l2-boundary",
+            self.authority.kid,
+            "urn:kinegrant:conformance:target:*",
+            "allow",
+            ("open", "enter"),
+            obligations=("emitActionReceipt",),
+        )
+        boundary_engine = PolicyEngine(
+            [boundary_rule],
+            trusted_policy_issuers={self.authority.kid},
+        )
+        boundary_journal = ActionJournal()
+        boundary_sequence = SequencePolicy(
+            [
+                ForbiddenCombination(
+                    "l2-boundary-open-enter",
+                    patterns=(
+                        ("open", "urn:kinegrant:conformance:target:*"),
+                    ),
+                    trigger=("enter", "urn:kinegrant:conformance:target:*"),
+                )
+            ]
+        )
+        boundary_executor = Ed25519KeyPair.generate()
+        boundary_gatekeeper = Gatekeeper(
+            gate=ActionGate(
+                trusted_issuers={self.authority.kid},
+                replay_store=InMemoryReplayStore(),
+            ),
+            sequence=boundary_sequence,
+            journal=boundary_journal,
+            receipt_log=ReceiptLog(boundary_executor),
+        )
+        actuator_calls: list[str] = []
+        open_capability = self.issuer.issue_scoped(
+            self.request,
+            boundary_engine.evaluate(self.request),
+            ttl_seconds=30,
+            target=self.request.target,
+            actions=["open"],
+            purposes=["delivery"],
+        )
+        first = boundary_gatekeeper.execute(
+            open_capability,
+            self.request,
+            lambda verified: actuator_calls.append(verified["capability_id"]),
+        )
+        replay = boundary_gatekeeper.execute(
+            open_capability,
+            self.request,
+            lambda verified: actuator_calls.append(verified["capability_id"]),
+        )
+        enter = ActionRequest(
+            "urn:kinegrant:conformance:request:enter",
+            "urn:kinegrant:conformance:agent:1",
+            "urn:kinegrant:conformance:target:door-7",
+            "enter",
+            "delivery",
+        )
+        enter_capability = self.issuer.issue_scoped(
+            enter,
+            boundary_engine.evaluate(enter),
+            ttl_seconds=30,
+            target=enter.target,
+            actions=["enter"],
+            purposes=["delivery"],
+        )
+        sequence_denied = boundary_gatekeeper.execute(
+            enter_capability,
+            enter,
+            lambda verified: actuator_calls.append(verified["capability_id"]),
+        )
+        boundary_ok = (
+            first.allowed
+            and not replay.allowed
+            and replay.stage == "gate"
+            and not sequence_denied.allowed
+            and sequence_denied.stage == "sequence"
+            and len(actuator_calls) == 1
+            and len(boundary_journal.entries) == 1
+        )
+        marks.append(
+            ConformanceMark(
+                "L2",
+                "gatekeeper_boundary",
+                boundary_ok,
+                "open+replay denied+sequence denied",
             )
         )
         return tuple(marks)

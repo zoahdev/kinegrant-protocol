@@ -16,7 +16,7 @@ class ConformanceSuiteTests(unittest.TestCase):
         self.assertEqual(self.report["overall_result"], "PASS")
         self.assertEqual(
             self.report["summary"],
-            {"total": 18, "passed": 18, "failed": 0},
+            {"total": 19, "passed": 19, "failed": 0},
         )
 
     def test_all_four_levels_are_present(self) -> None:
@@ -36,6 +36,7 @@ class ConformanceSuiteTests(unittest.TestCase):
             "approval_tiers",
             "forbidden_combination",
             "obligation_compliance",
+            "gatekeeper_boundary",
             "delegation",
             "delegate_allowlist",
             "revocation",
