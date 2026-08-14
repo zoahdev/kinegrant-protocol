@@ -18,12 +18,14 @@ Exit code 0 only when every automated check passes.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import importlib.util
 import json
 import os
 import re
 import subprocess
 import sys
+import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -173,12 +175,74 @@ def _checklist(checks: dict[str, Any]) -> list[dict[str, str]]:
     ]
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_packet(kit: dict[str, Any], packet_dir: Path) -> None:
+    packet_dir.mkdir(parents=True, exist_ok=True)
+    kit_path = packet_dir / "security-review-kit.json"
+    commands_path = packet_dir / "reproduce-commands.txt"
+    zip_path = packet_dir / f"SecurityReviewKit-v{kit['reference_implementation']}.zip"
+    checksums_path = packet_dir / "SHA256SUMS.txt"
+    kit_path.write_text(
+        json.dumps(kit, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    commands_path.write_text("\n".join(kit["commands"]) + "\n", encoding="utf-8")
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.write(kit_path, kit_path.name)
+        zf.write(commands_path, commands_path.name)
+    lines = []
+    for name in (kit_path.name, zip_path.name):
+        lines.append(f"{_sha256(packet_dir / name)}  {name}")
+    checksums_path.write_text("\n".join(sorted(lines)) + "\n", encoding="ascii")
+
+
+def _verify_packet(packet_dir: Path) -> tuple[bool, str]:
+    checksums_path = packet_dir / "SHA256SUMS.txt"
+    if not checksums_path.is_file():
+        return False, "missing SHA256SUMS.txt"
+    expected: dict[str, str] = {}
+    for line in checksums_path.read_text(encoding="ascii").splitlines():
+        if not line.strip():
+            continue
+        digest, name = line.split()
+        expected[name] = digest
+    for name, digest in expected.items():
+        path = packet_dir / name
+        if not path.is_file():
+            return False, f"missing packet file: {name}"
+        if _sha256(path) != digest:
+            return False, f"checksum mismatch for {name}"
+    kit_path = packet_dir / "security-review-kit.json"
+    kit = json.loads(kit_path.read_text(encoding="utf-8"))
+    if kit.get("type") != "kinegrant:SecurityReviewKit":
+        return False, "wrong kit type"
+    if kit.get("overall_result") != "PASS":
+        return False, "kit overall_result is not PASS"
+    return True, "SECURITY KIT PACKET VERIFIED"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate the security review kit")
-    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--output", default=None, type=Path)
     parser.add_argument("--source-commit", default=None)
     parser.add_argument("--release-dir", default=None)
+    parser.add_argument("--packet-dir", default=None, type=Path)
+    parser.add_argument("--verify-packet", default=None, type=Path)
     args = parser.parse_args(argv)
+
+    if args.verify_packet is not None:
+        ok, detail = _verify_packet(args.verify_packet)
+        print(detail)
+        return 0 if ok else 1
+    if args.output is None:
+        parser.error("--output is required")
 
     checks = _checks(args.source_commit, args.release_dir)
     automated = [check for key, check in checks.items() if key != "release_packet"]
@@ -221,6 +285,8 @@ def main(argv: list[str] | None = None) -> int:
         json.dumps(kit, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    if args.packet_dir is not None:
+        _write_packet(kit, args.packet_dir)
     print(json.dumps(kit, indent=2, sort_keys=True))
     return 0 if overall == "PASS" else 1
 
