@@ -11,6 +11,7 @@ from kinegrant.capability import CapabilityIssuer
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
 from kinegrant.models import ActionRequest, PolicyRule
+from kinegrant.mpt import run_machine_permission_test
 from kinegrant.policy import PolicyEngine
 from kinegrant.policy_bundle import PolicyAuthority
 from kinegrant.receipt import ReceiptLog
@@ -234,6 +235,16 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             )
             self.assertEqual(verified.returncode, 0, verified.stderr)
             self.assertIn("RECEIPT CHAIN VALID", verified.stdout)
+
+    def test_browser_verifier_verifies_python_mpt_evidence(self) -> None:
+        evidence = run_machine_permission_test()
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            evidence_path = base / "evidence.json"
+            evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+            verified = self._run("mpt", str(evidence_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("MPT EVIDENCE VALID", verified.stdout)
 
 
 if __name__ == "__main__":

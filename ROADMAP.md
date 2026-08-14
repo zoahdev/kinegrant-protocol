@@ -310,6 +310,14 @@ Exit criterion: anyone can verify a signed policy bundle in a browser without in
 
 Exit criterion: a visitor can verify a policy bundle, a capability, and a receipt chain in the browser without installing anything. Released as v2.7.0 (2026-08-15).
 
+## v2.8 - browser challenge verification
+
+- browser verifier validates MPT evidence locally (schema 0.4, required cases MPT-001..020, summary and overall-result consistency) (complete via PR #100);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: a visitor can validate a Machine Permission Test evidence file in the browser without installing anything.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

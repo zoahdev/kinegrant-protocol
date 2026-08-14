@@ -10,6 +10,7 @@ import {
   canonicalJson,
   currentPolicyVersion,
   verifyCapability,
+  verifyMptEvidence,
   verifyPolicyBundle,
   verifyReceiptChain,
 } from "../../../verify/policy-bundle-verifier.js";
@@ -148,6 +149,25 @@ function buildReceipt(privateKey, publicKey, { capabilityId, previous = null } =
   return signEnvelope(privateKey, body);
 }
 
+function buildMptEvidence() {
+  const cases = Array.from({ length: 20 }, (_, index) => ({
+    id: `MPT-${String(index + 1).padStart(3, "0")}`,
+    name: "case " + (index + 1),
+    expected: "PASS",
+    observed: "PASS",
+    passed: true,
+    evidence: {},
+  }));
+  return {
+    schema_version: "0.4",
+    run_id: "urn:kinegrant:mpt:run:" + "0".repeat(36),
+    overall_result: "PASS",
+    summary: { total: 20, passed: 20, failed: 0 },
+    cases,
+    limitations: [],
+  };
+}
+
 test("browser verifier canonicalizes JCS", () => {
   assert.equal(canonicalJson({ b: 1, a: 2 }), '{"a":2,"b":1}');
   assert.equal(canonicalJson({ x: "a\u2028b" }), '{"x":"a\\u2028b"}');
@@ -237,4 +257,16 @@ test("browser verifier accepts a receipt chain and rejects inconsistency", async
   await assert.rejects(() =>
     verifyReceiptChain([first, second], new Set([first.kid]))
   );
+});
+
+test("browser verifier validates MPT evidence and rejects tampering", () => {
+  const evidence = buildMptEvidence();
+  const result = verifyMptEvidence(evidence);
+  assert.equal(result.overall_result, "PASS");
+  assert.equal(result.summary.passed, 20);
+  evidence.summary.passed = 19;
+  assert.throws(() => verifyMptEvidence(evidence));
+  const missing = buildMptEvidence();
+  missing.cases.pop();
+  assert.throws(() => verifyMptEvidence(missing));
 });
