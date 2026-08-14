@@ -5,7 +5,8 @@ Status: **software model only; physical validation is pending**.
 Read the [hardware and power gate](HARDWARE.md) before buying or connecting any
 component.
 The [bounded serial transport profile](TRANSPORT.md) defines fail-closed framing
-for later firmware and host integration.
+and the software-tested host serial adapter. Firmware and physical integration
+remain pending.
 
 This directory defines the non-normative
 `kgp-esp32c3-paper-barrier/0.1` experiment for GitHub issue
@@ -151,6 +152,9 @@ that escape the evidence directory are rejected. The manifest authenticates
 artifact bytes by SHA-256 but is not itself a physical sensor or independent
 witness; signed device acknowledgements and KGP receipts remain separate packet
 artifacts.
+
+Use the [recording checklist](VIDEO-SHOT-LIST.md) to capture every acceptance
+case without substituting edited video for signed logs and evidence manifests.
 
 ## Explicit limitations
 

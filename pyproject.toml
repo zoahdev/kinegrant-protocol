@@ -14,6 +14,7 @@ dependencies = ["cryptography>=42"]
 
 [project.optional-dependencies]
 test = ["jsonschema[format]>=4.23"]
+hardware = ["pyserial>=3.5"]
 
 [project.scripts]
 kinegrant-demo = "kinegrant.cli:main"
