@@ -49,6 +49,12 @@ jobs:
       - name: Go verifier tests
         working-directory: implementations/kinegrant-go
         run: go test ./...
+      - name: CLI smoke tests
+        run: |
+          kinegrant-conformance >/tmp/conformance.json && python -m json.tool /tmp/conformance.json >/dev/null
+          kinegrant-red-team >/tmp/redteam.json && python -m json.tool /tmp/redteam.json >/dev/null
+          kinegrant-robot-demo >/tmp/robot.json && python -m json.tool /tmp/robot.json >/dev/null
+          kinegrant-bridge-demo >/tmp/bridge.json && python -m json.tool /tmp/bridge.json >/dev/null
 
   package:
     runs-on: ubuntu-latest
