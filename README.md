@@ -175,6 +175,10 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   Ed25519 envelopes, v0.1 capabilities, and receipt chains signed by the
   Python reference implementation (see
   [implementations/README.md](implementations/README.md)).
+- Independent Go verifier (`kinegrant-go`, standard library only) cross-tested
+  against the Python reference implementation in CI, plus the first stable
+  wire-format RFC draft ([docs/rfcs/0001-stable-wire-format.md](docs/rfcs/0001-stable-wire-format.md))
+  and the [certification program draft](CERTIFICATION.md).
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies

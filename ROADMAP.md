@@ -110,6 +110,8 @@ Progress on main:
   wire-format compatibility policy for the 1.0 stabilization path.
 - Interoperability: an independent JavaScript verifier (`kinegrant-js`)
   cross-tested against the Python reference implementation in CI.
+- Interoperability: an independent Go verifier (`kinegrant-go`) and the first
+  stable wire-format RFC draft plus certification-program draft.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.
