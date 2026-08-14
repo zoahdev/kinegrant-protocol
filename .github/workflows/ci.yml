@@ -58,6 +58,7 @@ jobs:
           kinegrant-ros2-demo >/tmp/ros2mcp.json && python -m json.tool /tmp/ros2mcp.json >/dev/null
           kinegrant-audit --self-test >/tmp/audit.json && python -m json.tool /tmp/audit.json >/dev/null
           kinegrant-revoke-distribute --self-test >/tmp/revdist.json && python -m json.tool /tmp/revdist.json >/dev/null
+          python scripts/security_review_kit.py --output /tmp/kit.json >/dev/null
 
   package:
     runs-on: ubuntu-latest

@@ -100,6 +100,7 @@ python -m unittest discover -s tests -v
 - 车队级撤销分发：`RevocationDistributor` 在调用方信任的撤销机构下验证一份签名撤销包，并幂等地批量应用到多个门禁，输出逐门禁回执的机器可读报告；`verify_distribution_report` 可复核回执与撤销包的绑定（id/版本、计数自洽、信任机构）；`kinegrant-revoke-distribute` 是可部署的命令行工具。
 - 有界策略决策缓存：`CachedPolicyEngine` 用 LRU 缓存包装策略引擎（命中/未命中统计、策略变更自动失效、未来请求不缓存），适合高频率部署；性能基准包含缓存命中吞吐，三个演示与两个部署案例都走缓存评估。
 - Gatekeeper 边界模型检查：`check_gatekeeper_boundary` 枚举可执行决策空间（放行、序列/门禁/撤销/义务拒绝、执行器失败）并验证组合不变量——执行器只在边界放行后才动、收据紧随门禁消费、动作日志只记完全合规的成功、重放不能二次执行、每次拒绝都带阶段。
+- 安全审计材料包：`python scripts/security_review_kit.py --output kit.json` 生成机器可读审计包——真实运行一致性/MPT/红队/基准/全量测试，记录外部审计师所需的全部命令与材料，并输出由这些结果背书的检查清单。
 - 跨主体委派是 opt-in 且有界：一份能力最多授权一个特定被委托人并在收窄范围内使用，被委托人永远不能再次转委。根能力可以用 fleet 级 `delegate_allowlist` 限制被委托人。
 - 离线撤销：`RevocationList` 加 `root_capability_id` 让门禁拒绝已撤销的能力，撤销根即撤销整条委派链。签名、版本化的 `RevocationBundle` 提供可认证的分发。参见 [spec/REVOCATION.md](spec/REVOCATION.md)。
 - WoT 风格发现：带认证的 `ThingRegistry` 将 Thing Description 映射到动作与策略指针；未认证发现永远不能携带授权指针。参见 [spec/DISCOVERY.md](spec/DISCOVERY.md)。
