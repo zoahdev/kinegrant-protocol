@@ -16,7 +16,7 @@ class RedTeamSuiteTests(unittest.TestCase):
         self.assertEqual(self.report["overall_result"], "PASS")
         self.assertEqual(
             self.report["summary"],
-            {"total": 10, "passed": 10, "failed": 0},
+            {"total": 11, "passed": 11, "failed": 0},
         )
 
     def test_case_ids_match_the_corpus(self) -> None:
@@ -29,7 +29,7 @@ class RedTeamSuiteTests(unittest.TestCase):
         categories = {case["category"] for case in self.report["cases"]}
         for required in ("replay", "mutation", "confused-deputy", "conflict",
                          "downgrade", "clock", "revocation", "delegation",
-                         "adapter", "sequence"):
+                         "adapter", "sequence", "obligation"):
             self.assertIn(required, categories)
 
     def test_cli_emits_machine_readable_pass(self) -> None:

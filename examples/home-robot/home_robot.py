@@ -6,6 +6,7 @@ import json
 import sys
 
 from kinegrant.capability import CapabilityIssuer
+from kinegrant.compliance import ObligationCompliance
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
 from kinegrant.models import ActionRequest, PolicyRule
@@ -61,13 +62,19 @@ def run() -> dict:
         trusted_executors={executor.kid},
         expected_capability_ids={verified["capability_id"]},
     )
+    compliance = ObligationCompliance().evaluate(
+        capability,
+        [receipt],
+        trusted_executors={executor.kid},
+    )
     trace = {
         "scenario": "home-robot-delivery",
         "decision": decision.to_dict(),
         "capability_id": verified["capability_id"],
         "receipt_id": receipt["payload"]["receipt_id"],
         "chain_valid": chain_ok,
-        "passed": decision.allowed and chain_ok,
+        "obligation_compliant": compliance.compliant,
+        "passed": decision.allowed and chain_ok and compliance.compliant,
     }
     print(json.dumps(trace, indent=2, sort_keys=True))
     return trace

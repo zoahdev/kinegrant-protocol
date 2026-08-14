@@ -14,6 +14,7 @@ from typing import Any, Callable
 
 from .adapters.odrl import KGP_ODRL_PROFILE, odrl_to_rules
 from .capability import CapabilityIssuer
+from .compliance import ObligationCompliance
 from .crypto import Ed25519KeyPair
 from .gate import ActionGate, InMemoryReplayStore
 from .models import ActionRequest, PolicyRule, parse_time
@@ -33,6 +34,7 @@ RED_TEAM_CASES: tuple[dict[str, str], ...] = (
     {"id": "RT-008", "category": "delegation", "name": "Delegate outside allowlist is rejected"},
     {"id": "RT-009", "category": "adapter", "name": "Unknown ODRL constraint fails closed"},
     {"id": "RT-010", "category": "sequence", "name": "Forbidden combination is denied"},
+    {"id": "RT-011", "category": "obligation", "name": "Suppressed receipt obligation is detected"},
 )
 
 
@@ -55,6 +57,7 @@ class RedTeamSuite:
             ("open", "close"),
             subjects=("urn:kinegrant:redteam:agent:*",),
             purposes=("delivery",),
+            obligations=("emitActionReceipt",),
         )
         deny = PolicyRule(
             "urn:kinegrant:redteam:policy:deny-close",
@@ -99,6 +102,7 @@ class RedTeamSuite:
             self._probe_delegation,
             self._probe_adapter,
             self._probe_sequence,
+            self._probe_obligation,
         ]
         outcomes = []
         for case, probe in zip(RED_TEAM_CASES, probes):
@@ -254,6 +258,20 @@ class RedTeamSuite:
         )
         verdict = self.sequence.evaluate(train, self.journal)
         return (not verdict.allowed, verdict.reason)
+
+    def _probe_obligation(self) -> tuple[bool, str]:
+        capability = self._capability()
+        self.gate.authorize(capability, self.request)
+        executor = Ed25519KeyPair.generate()
+        verdict = ObligationCompliance().evaluate(
+            capability,
+            [],
+            trusted_executors={executor.kid},
+        )
+        if verdict.compliant:
+            return False, "compliance accepted a suppressed receipt"
+        detail = verdict.reason or "missing receipt"
+        return True, detail
 
 
 def main(argv: list[str] | None = None) -> int:

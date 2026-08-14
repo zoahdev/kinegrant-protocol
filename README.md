@@ -142,6 +142,11 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   `failure_reason` records why an attempted action failed. Plain receipts stay
   byte-identical `0.1`; the Python, JavaScript, and Go verifiers all accept
   both versions (see `spec/schemas/receipt-1.0.schema.json`).
+- Obligations are enforced after execution: `ObligationCompliance` checks that
+  every capability obligation has a verifiable fulfillment (a signed receipt
+  for `emitActionReceipt`), and the red-team suite probes suppressed-receipt
+  evasion. The home-robot and camera-consent deployment traces include the
+  compliance verdict.
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.

@@ -21,9 +21,29 @@ transports. This is the `kinegrant-bridge-demo` scenario; deployment adds
 device attestation (L4) and a signed revocation bundle for maintenance
 windows.
 
+## 4. Obligation enforcement
+
+When a policy rule carries an obligation (e.g. `emitActionReceipt`), the
+deployment MUST be able to demonstrate that the obligation was fulfilled.
+`kinegrant.compliance.ObligationCompliance` is the fail-closed auditor for
+this step:
+
+- the executor must provide a signed receipt for the exact capability;
+- the receipt chain must verify under the caller-supplied executor trust set;
+- a receipt 1.0 must report the obligation as `satisfied`; a `0.1` receipt is
+  itself the fulfillment of `emitActionReceipt`;
+- unknown obligations, missing receipts, receipts for other capabilities, and
+  unverified executors all fail compliance.
+
+The runnable home-robot and camera-consent traces now run this check after
+every allowed action and include `obligation_compliant` in their machine-
+readable output.
+
 ## Acceptance for deployment
 
 - pass the conformance level that matches the deployment (L1-L4);
 - pin the wire format version and run `check_compatibility`;
 - publish receipt checkpoints for external audit;
+- verify every capability obligation with `ObligationCompliance` and retain
+  the verdict;
 - keep unauthenticated discovery restriction-only.
