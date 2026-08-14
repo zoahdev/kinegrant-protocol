@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.15.0 - v2.15 first item (unreleased)
+## 2.15.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.15.0 on the
+  stable 1.0 wire format, adding ODRL mapping of verified policy bundles
+  to the browser verifier.
 
 - Browser verifier maps verified policy bundles to ODRL (`policyBundleToOdrl`: kgp-v0.2 profile, permissions/prohibitions, constraints, duties); the HTML page and Node CLI (`bundle-odrl` command) expose it, cross-tested against the Python `bundle_to_odrl` output.
 
