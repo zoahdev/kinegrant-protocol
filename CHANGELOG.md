@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added KGP-RFC-0002 (versioned ODRL profile `kgp-v0.2`) draft and CI smoke
+  tests for every released CLI.
 - Added the standards-outreach package (`docs/STANDARDS-OUTREACH.md`) and
   synced v1.0.0 assets and metadata to the static mirror repositories.
 - Released **v1.0.0**: stable wire format `1.0` accepted (KGP-RFC-0001),

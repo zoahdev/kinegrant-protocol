@@ -48,8 +48,9 @@ standards can reference.
 
 ## Suggested first engagements
 
-1. ODRL community: submit the `kgp-v0.2` profile as a discussion/notes
-   contribution with interop fixtures.
+1. ODRL community: submit the `kgp-v0.2` profile (KGP-RFC-0002,
+   `docs/rfcs/0002-odrl-kgp-profile.md`) as a discussion/notes contribution
+   with interop fixtures.
 2. WoT: propose KineGrant as a Thing-behavior profile in the discovery
    discussion.
 3. IEEE: position the action vocabulary and MyTerms bridge as input to
