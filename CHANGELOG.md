@@ -4,6 +4,10 @@
 
 ## 1.0.1 — 2026-08-15
 
+- `Gatekeeper` now accepts a `revocation_list` and rejects revoked
+  capabilities at a dedicated `revocation` stage before the gate; the
+  conformance `gatekeeper_boundary` mark covers revocation denial, and the
+  micro-benchmarks gained an `audit_summary` metric (10-receipt chain).
 - Added the receipt audit interface (`kinegrant.audit.ReceiptAuditor`) and
   `kinegrant-audit` CLI: verified-chain queries by capability/agent/target/
   action/purpose/result/time, machine-readable summaries, and obligation

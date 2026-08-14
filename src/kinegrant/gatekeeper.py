@@ -22,9 +22,11 @@ from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
 from .compliance import ObligationCompliance, ObligationComplianceVerdict
+from .crypto import verify_envelope
 from .gate import ActionGate, VerifiedCapability
 from .models import ActionRequest, utc_now
 from .receipt import ReceiptLog
+from .revocation import RevocationList
 from .sequence import ActionJournal, JournalEntry, SequencePolicy
 
 
@@ -62,12 +64,14 @@ class Gatekeeper:
         receipt_log: ReceiptLog,
         compliance: ObligationCompliance | None = None,
         trusted_executors: set[str] | None = None,
+        revocation_list: RevocationList | None = None,
     ) -> None:
         self.gate = gate
         self.sequence = sequence
         self.journal = journal
         self.receipt_log = receipt_log
         self.compliance = compliance or ObligationCompliance()
+        self.revocation_list = revocation_list
         self.trusted_executors = set(trusted_executors or ())
         if not self.trusted_executors:
             self.trusted_executors = {receipt_log.executor_key.kid}
@@ -96,6 +100,20 @@ class Gatekeeper:
                 "sequence",
                 f"forbidden_combination:{sequence_verdict.reason}",
             )
+
+        if self.revocation_list is not None:
+            try:
+                payload = verify_envelope(capability)
+            except (TypeError, ValueError) as exc:
+                return GatekeeperOutcome(
+                    False,
+                    "revocation",
+                    f"invalid capability envelope: {exc}",
+                )
+            if self.revocation_list.is_revoked(payload.get("capability_id")) or (
+                self.revocation_list.is_revoked(payload.get("root_capability_id"))
+            ):
+                return GatekeeperOutcome(False, "revocation", "capability revoked")
 
         try:
             verified = self.gate.authorize(

@@ -416,12 +416,31 @@ class ConformanceRunner:
             enter,
             lambda verified: actuator_calls.append(verified["capability_id"]),
         )
+        revocation_list = RevocationList()
+        revocation_list.revoke(open_capability["payload"]["capability_id"])
+        revoked_gatekeeper = Gatekeeper(
+            gate=ActionGate(
+                trusted_issuers={self.authority.kid},
+                replay_store=InMemoryReplayStore(),
+            ),
+            sequence=SequencePolicy([]),
+            journal=ActionJournal(),
+            receipt_log=ReceiptLog(Ed25519KeyPair.generate()),
+            revocation_list=revocation_list,
+        )
+        revoked = revoked_gatekeeper.execute(
+            open_capability,
+            self.request,
+            lambda verified: actuator_calls.append(verified["capability_id"]),
+        )
         boundary_ok = (
             first.allowed
             and not replay.allowed
             and replay.stage == "gate"
             and not sequence_denied.allowed
             and sequence_denied.stage == "sequence"
+            and not revoked.allowed
+            and revoked.stage == "revocation"
             and len(actuator_calls) == 1
             and len(boundary_journal.entries) == 1
         )
@@ -430,7 +449,7 @@ class ConformanceRunner:
                 "L2",
                 "gatekeeper_boundary",
                 boundary_ok,
-                "open+replay denied+sequence denied",
+                "open+replay denied+sequence denied+revocation denied",
             )
         )
         return tuple(marks)

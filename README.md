@@ -152,12 +152,12 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   suite L1-L4 includes `obligation_compliance` and `gatekeeper_boundary`
   marks (19/19), and the
   micro-benchmarks include obligation compliance throughput.
-- One-call deployment boundary: `Gatekeeper` composes sequence check, gate
-  verification and one-time consumption, actuator execution, signed receipt,
-  obligation compliance, and the action journal into a single `execute()`
-  call with a machine-readable outcome; every stage fails closed. All three
-  runnable demos and both deployment traces use `Gatekeeper`, and the
-  micro-benchmarks include its throughput.
+- One-call deployment boundary: `Gatekeeper` composes sequence check,
+  revocation check, gate verification and one-time consumption, actuator
+  execution, signed receipt, obligation compliance, and the action journal
+  into a single `execute()` call with a machine-readable outcome; every stage
+  fails closed. All three runnable demos and both deployment traces use
+  `Gatekeeper`, and the micro-benchmarks include its throughput.
 - Receipt audit interface: `ReceiptAuditor` verifies the receipt chain,
   filters receipts by capability/agent/target/action/purpose/result/time,
   produces a machine-readable summary, and checks obligation compliance;
