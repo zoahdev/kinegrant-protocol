@@ -22,7 +22,9 @@ jobs:
       - uses: actions/checkout@v7
       - name: Build locked-by-default ESP32-C3 firmware
         working-directory: proof/esp32-c3/firmware
+        shell: bash
         run: |
+          . /opt/esp/idf/export.sh
           idf.py set-target esp32c3
           idf.py build
       - name: Publish unsigned build artifacts
