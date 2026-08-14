@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from kinegrant.capability import CapabilityIssuer
 from kinegrant.audit import ReceiptAuditor
@@ -21,6 +22,7 @@ from kinegrant.revocation import (
     build_revocation_bundle,
     sign_revocation_bundle,
 )
+from challenge.reproduce import create_reproduction
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "verify" / "verify_policy_bundle.mjs"
@@ -401,6 +403,21 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             verified = self._run("audit-csv", str(csv_path))
             self.assertEqual(verified.returncode, 0, verified.stderr)
             self.assertIn("AUDIT CSV VALID", verified.stdout)
+
+    def test_browser_verifier_verifies_python_reproduction_report(self) -> None:
+        commit = "a" * 40
+
+        def fake_git(args: list[str]) -> str:
+            return commit if args == ["rev-parse", "HEAD"] else ""
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            with patch("challenge.reproduce._git", side_effect=fake_git):
+                create_reproduction(output, source_commit=commit)
+            report_path = output / "reproduction-report.json"
+            verified = self._run("reproduction-report", str(report_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("REPRODUCTION REPORT VALID", verified.stdout)
 
 
 if __name__ == "__main__":

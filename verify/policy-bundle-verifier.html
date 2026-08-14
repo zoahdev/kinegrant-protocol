@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链、MPT 证据、撤销包、策略分发报告、收据证据包与审计 CSV。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV 与复现报告。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -104,6 +104,13 @@
     </div>
   </div>
   <p><button id="verify-csv">验证审计 CSV</button></p>
+  <div class="row">
+    <div class="col">
+      <label>外部复现报告 JSON（challenge/reproduce 生成）</label>
+      <textarea id="reproduction" placeholder='{ "schema_version": "0.1", "report_id": "urn:kinegrant:reproduction:...", "verification": { "required_cases": 22, "passed_cases": 22 }, "overall_result": "PASS", ... }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-reproduction">验证复现报告</button></p>
   <pre id="output">等待操作…</pre>
 
   <script type="module">
@@ -118,6 +125,7 @@
       verifyReceiptEvidencePacket,
       verifyRevocationBundle,
       verifyAuditCsv,
+      verifyReproductionReport,
     } from "./policy-bundle-verifier.js";
 
     const bundleInput = document.getElementById("bundle");
@@ -135,6 +143,7 @@
     const distributionBundleInput = document.getElementById("distribution-bundle");
     const evidencePacketInput = document.getElementById("evidence-packet");
     const auditCsvInput = document.getElementById("audit-csv");
+    const reproductionInput = document.getElementById("reproduction");
     const output = document.getElementById("output");
 
     function showOk(text) {
@@ -272,6 +281,18 @@
       try {
         const result = verifyAuditCsv(auditCsvInput.value);
         showOk(`AUDIT CSV VALID (${result.rows} rows)`);
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-reproduction").addEventListener("click", () => {
+      try {
+        const report = parseJson(reproductionInput.value, "复现报告");
+        const result = verifyReproductionReport(report);
+        showOk(
+          `REPRODUCTION REPORT VALID (${result.passed_cases}/${result.required_cases})`
+        );
       } catch (error) {
         showErr("INVALID: " + error.message);
       }

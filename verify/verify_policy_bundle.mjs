@@ -10,6 +10,7 @@ import {
   verifyReceiptChain,
   verifyRevocationBundle,
   verifyAuditCsv,
+  verifyReproductionReport,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -80,6 +81,13 @@ try {
     const text = readFileSync(csvPath, "utf8");
     const result = verifyAuditCsv(text);
     console.log(`AUDIT CSV VALID (${result.rows} rows)`);
+  } else if (command === "reproduction-report") {
+    const [reportPath] = args;
+    const report = load(reportPath);
+    const result = verifyReproductionReport(report);
+    console.log(
+      `REPRODUCTION REPORT VALID (${result.passed_cases}/${result.required_cases})`
+    );
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
@@ -90,7 +98,8 @@ try {
       "revocation <bundle.json> <authorities.json> | " +
       "distribution-report <report.json> <bundle.json> <authorities.json> | " +
       "evidence-packet <packet.json> | " +
-      "audit-csv <file.csv>"
+      "audit-csv <file.csv> | " +
+      "reproduction-report <report.json>"
     );
   }
 } catch (error) {

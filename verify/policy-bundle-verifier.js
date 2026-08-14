@@ -812,6 +812,131 @@ export function verifyAuditCsv(text) {
   };
 }
 
+export function verifyReproductionReport(report) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("reproduction report must be an object");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported reproduction report version");
+  }
+  if (
+    typeof report.report_id !== "string" ||
+    !/^urn:kinegrant:reproduction:[0-9a-f-]{36}$/.test(report.report_id)
+  ) {
+    throw new Error("report_id is invalid");
+  }
+  if (
+    typeof report.generated_at !== "string" ||
+    Number.isNaN(Date.parse(report.generated_at))
+  ) {
+    throw new Error("generated_at is invalid");
+  }
+  if (report.protocol !== "KGP-001 Experimental Open Draft 0.1") {
+    throw new Error("protocol is invalid");
+  }
+  if (
+    typeof report.reference_implementation !== "string" ||
+    !/^\d+\.\d+\.\d+$/.test(report.reference_implementation)
+  ) {
+    throw new Error("reference_implementation is invalid");
+  }
+  const source = report.source;
+  if (typeof source !== "object" || source === null) {
+    throw new Error("source is invalid");
+  }
+  if (
+    source.commit !== null &&
+    (typeof source.commit !== "string" ||
+      !/^[0-9a-f]{40,64}$/.test(source.commit))
+  ) {
+    throw new Error("source commit is invalid");
+  }
+  if (
+    source.working_tree_dirty !== null &&
+    typeof source.working_tree_dirty !== "boolean"
+  ) {
+    throw new Error("working_tree_dirty is invalid");
+  }
+  const environment = report.environment;
+  if (typeof environment !== "object" || environment === null) {
+    throw new Error("environment is invalid");
+  }
+  for (const field of ["python_version", "python_implementation", "platform"]) {
+    if (typeof environment[field] !== "string" || environment[field].length === 0) {
+      throw new Error(`environment ${field} is invalid`);
+    }
+  }
+  if (!Array.isArray(report.materials) || report.materials.length !== 7) {
+    throw new Error("materials must contain 7 items");
+  }
+  for (const material of report.materials) {
+    if (typeof material !== "object" || material === null) {
+      throw new Error("material must be an object");
+    }
+    if (typeof material.path !== "string" || material.path.length === 0) {
+      throw new Error("material path is invalid");
+    }
+    if (!/^sha256:[0-9a-f]{64}$/.test(material.sha256 || "")) {
+      throw new Error("material sha256 is invalid");
+    }
+  }
+  if (!Array.isArray(report.artifacts) || report.artifacts.length !== 2) {
+    throw new Error("artifacts must contain 2 items");
+  }
+  const allowedArtifacts = new Set([
+    "machine-permission-test.evidence.json",
+    "sample-receipt-v0.1.json",
+  ]);
+  for (const artifact of report.artifacts) {
+    if (typeof artifact !== "object" || artifact === null) {
+      throw new Error("artifact must be an object");
+    }
+    if (!allowedArtifacts.has(artifact.path)) {
+      throw new Error("artifact path is invalid");
+    }
+    if (artifact.media_type !== "application/json") {
+      throw new Error("artifact media_type is invalid");
+    }
+    if (!Number.isInteger(artifact.bytes) || artifact.bytes < 1) {
+      throw new Error("artifact bytes is invalid");
+    }
+    if (!/^sha256:[0-9a-f]{64}$/.test(artifact.sha256 || "")) {
+      throw new Error("artifact sha256 is invalid");
+    }
+  }
+  const verification = report.verification;
+  if (typeof verification !== "object" || verification === null) {
+    throw new Error("verification is invalid");
+  }
+  if (
+    typeof verification.verifier !== "string" ||
+    verification.verifier.length === 0
+  ) {
+    throw new Error("verifier is invalid");
+  }
+  if (verification.required_cases !== 22) {
+    throw new Error("required_cases must be 22");
+  }
+  if (
+    !Number.isInteger(verification.passed_cases) ||
+    verification.passed_cases < 0 ||
+    verification.passed_cases > 22
+  ) {
+    throw new Error("passed_cases is invalid");
+  }
+  const expectedResult = verification.passed_cases === 22 ? "PASS" : "FAIL";
+  if (report.overall_result !== expectedResult) {
+    throw new Error("overall_result is inconsistent");
+  }
+  if (!Array.isArray(report.limitations) || report.limitations.length === 0) {
+    throw new Error("limitations must be non-empty");
+  }
+  return {
+    passed_cases: verification.passed_cases,
+    required_cases: verification.required_cases,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -824,5 +949,6 @@ if (typeof globalThis !== "undefined") {
     verifyPolicyDistributionReport,
     verifyReceiptEvidencePacket,
     verifyAuditCsv,
+    verifyReproductionReport,
   };
 }
