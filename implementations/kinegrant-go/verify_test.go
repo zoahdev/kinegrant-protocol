@@ -63,7 +63,7 @@ func TestEnvelopeRoundTrip(t *testing.T) {
 	}
 }
 
-func policyBundle(t *testing.T, privateKey ed25519.PrivateKey, kid string, version int, purposes []string) map[string]any {
+func policyBundle(t *testing.T, privateKey ed25519.PrivateKey, kid string, version int, purposes []any) map[string]any {
 	t.Helper()
 	now := time.Now().UTC()
 	rules := []any{
