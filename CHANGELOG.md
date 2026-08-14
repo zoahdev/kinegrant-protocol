@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added offline release-packet verification (`scripts/verify_release.py`) and
+  machine-readable micro-benchmarks (`benchmarks/bench.py`) with CI smoke.
 - Added ready-to-send standards submissions (W3C ODRL, IEEE) and GitHub issue
   templates for bugs, features, and RFC proposals.
 - Added KGP-RFC-0002 (versioned ODRL profile `kgp-v0.2`) draft and CI smoke

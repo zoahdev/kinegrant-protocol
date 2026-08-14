@@ -188,6 +188,10 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   scoped capabilities. Reference implementation version is now `1.0.0`.
   Standards-outreach materials are in
   [docs/STANDARDS-OUTREACH.md](docs/STANDARDS-OUTREACH.md).
+- Release packets can be verified offline with
+  `python scripts/verify_release.py <packet-dir>` (checksums, conformance
+  report, and MPT evidence), and `python benchmarks/bench.py` reports
+  machine-readable throughput for policy, issuance, gating, receipts, and JCS.
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies
