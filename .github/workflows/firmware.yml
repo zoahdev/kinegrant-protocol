@@ -1,0 +1,40 @@
+name: ESP32-C3 Firmware
+
+on:
+  push:
+    paths:
+      - "proof/esp32-c3/firmware/**"
+      - ".github/workflows/firmware.yml"
+  pull_request:
+    paths:
+      - "proof/esp32-c3/firmware/**"
+      - ".github/workflows/firmware.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.5.3
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build locked-by-default ESP32-C3 firmware
+        working-directory: proof/esp32-c3/firmware
+        shell: bash
+        run: |
+          . /opt/esp/idf/export.sh
+          idf.py set-target esp32c3
+          idf.py build
+      - name: Publish unsigned build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: kinegrant-esp32c3-firmware-${{ github.sha }}
+          path: |
+            proof/esp32-c3/firmware/build/kinegrant_esp32c3_paper_barrier.bin
+            proof/esp32-c3/firmware/build/bootloader/bootloader.bin
+            proof/esp32-c3/firmware/build/partition_table/partition-table.bin
+            proof/esp32-c3/firmware/build/flasher_args.json
+          if-no-files-found: error
+          retention-days: 30

@@ -99,6 +99,11 @@ namespace. Creating a fresh in-memory `DeviceCommandIssuer` for every request,
 or a separate store during key rotation, would discard the one-command bridge
 invariant and is not a valid deployment.
 
+The buildable locked-by-default ESP-IDF implementation is in
+[`firmware/`](firmware/). Its CI build is a software verification only. Until an
+exact board is provisioned, wired, flashed, and run through every acceptance
+case, the public physical result remains `NOT_RUN`.
+
 Espressif documents both the ESP32-C3 hardware RNG conditions and the NVS API.
 The firmware implementation must follow those constraints rather than treating
 `esp_random()` as unconditionally strong:
