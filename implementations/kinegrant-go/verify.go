@@ -1,0 +1,379 @@
+// Package kinegrant implements an independent KGP-001 verifier in Go.
+// It uses only the Go standard library (crypto/ed25519, crypto/sha256,
+// encoding/json, encoding/base64).
+package kinegrant
+
+import (
+	"bytes"
+	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+)
+
+var domain = []byte("KINEGRANT-SIGNED-ENVELOPE-V1\x00")
+
+var capabilityFields = map[string]bool{
+	"type": true, "version": true, "issuer": true, "agent": true,
+	"target": true, "action": true, "purpose": true,
+	"request_digest": true, "policy_digest": true,
+	"matched_policy_ids": true, "obligations": true,
+	"issued_at": true, "not_before": true, "expires_at": true,
+	"nonce": true, "capability_id": true,
+}
+
+var sha256Re = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+
+func jsonString(value string) ([]byte, error) {
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(value); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
+}
+
+// CanonicalJSON returns the RFC 8785 JCS subset used by KineGrant wire
+// objects (ASCII strings and integers; U+2028/U+2029 escaping is pending).
+func CanonicalJSON(value any) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := writeCanonical(&buf, value); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func writeCanonical(buf *bytes.Buffer, value any) error {
+	switch v := value.(type) {
+	case nil:
+		buf.WriteString("null")
+	case bool:
+		if v {
+			buf.WriteString("true")
+		} else {
+			buf.WriteString("false")
+		}
+	case string:
+		encoded, err := jsonString(v)
+		if err != nil {
+			return err
+		}
+		buf.Write(encoded)
+	case float64:
+		if v != v || v > 1e308 || v < -1e308 {
+			return errors.New("non-finite number")
+		}
+		encoded, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		buf.Write(encoded)
+	case int:
+		fmt.Fprintf(buf, "%d", v)
+	case []any:
+		buf.WriteByte('[')
+		for i, item := range v {
+			if i > 0 {
+				buf.WriteByte(',')
+			}
+			if err := writeCanonical(buf, item); err != nil {
+				return err
+			}
+		}
+		buf.WriteByte(']')
+	case map[string]any:
+		keys := make([]string, 0, len(v))
+		for key := range v {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		buf.WriteByte('{')
+		for i, key := range keys {
+			if i > 0 {
+				buf.WriteByte(',')
+			}
+			encoded, err := jsonString(key)
+			if err != nil {
+				return err
+			}
+			buf.Write(encoded)
+			buf.WriteByte(':')
+			if err := writeCanonical(buf, v[key]); err != nil {
+				return err
+			}
+		}
+		buf.WriteByte('}')
+	default:
+		return fmt.Errorf("cannot canonicalize %T", value)
+	}
+	return nil
+}
+
+func b64urlDecode(value string) ([]byte, error) {
+	if value == "" {
+		return nil, errors.New("empty base64url")
+	}
+	return base64.RawURLEncoding.DecodeString(value)
+}
+
+func publicKeyFromKid(kid string) (ed25519.PublicKey, error) {
+	const prefix = "kinegrant:key:ed25519:"
+	if !strings.HasPrefix(kid, prefix) {
+		return nil, errors.New("unsupported key identifier")
+	}
+	raw, err := b64urlDecode(strings.TrimPrefix(kid, prefix))
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) != ed25519.PublicKeySize {
+		return nil, errors.New("invalid Ed25519 public key length")
+	}
+	return ed25519.PublicKey(raw), nil
+}
+
+// VerifyEnvelope verifies the KineGrant signed-envelope format.
+func VerifyEnvelope(envelope map[string]any) (map[string]any, error) {
+	alg, _ := envelope["alg"].(string)
+	if alg != "EdDSA" {
+		return nil, errors.New("unsupported signature algorithm")
+	}
+	kid, _ := envelope["kid"].(string)
+	signature, _ := envelope["signature"].(string)
+	payload, ok := envelope["payload"].(map[string]any)
+	if kid == "" || signature == "" || !ok {
+		return nil, errors.New("malformed signed envelope")
+	}
+	protected := map[string]any{"alg": alg, "kid": kid, "payload": payload}
+	canonical, err := CanonicalJSON(protected)
+	if err != nil {
+		return nil, err
+	}
+	data := append(append([]byte{}, domain...), canonical...)
+	rawSignature, err := b64urlDecode(signature)
+	if err != nil {
+		return nil, err
+	}
+	if len(rawSignature) != ed25519.SignatureSize {
+		return nil, errors.New("invalid Ed25519 signature length")
+	}
+	publicKey, err := publicKeyFromKid(kid)
+	if err != nil {
+		return nil, err
+	}
+	if !ed25519.Verify(publicKey, data, rawSignature) {
+		return nil, errors.New("invalid signature")
+	}
+	return payload, nil
+}
+
+func sha256Hex(value []byte) string {
+	sum := sha256.Sum256(value)
+	return hex.EncodeToString(sum[:])
+}
+
+func contentID(prefix string, value any) (string, error) {
+	canonical, err := CanonicalJSON(value)
+	if err != nil {
+		return "", err
+	}
+	return prefix + ":" + sha256Hex(canonical), nil
+}
+
+func digestObject(value any) (string, error) {
+	canonical, err := CanonicalJSON(value)
+	if err != nil {
+		return "", err
+	}
+	return "sha256:" + sha256Hex(canonical), nil
+}
+
+func parseTime(value string) (time.Time, error) {
+	return time.Parse(time.RFC3339, value)
+}
+
+func stringField(payload map[string]any, name string) (string, error) {
+	value, _ := payload[name].(string)
+	if value == "" {
+		return "", fmt.Errorf("missing %s", name)
+	}
+	return value, nil
+}
+
+// VerifyCapability verifies a v0.1 capability against a request.
+func VerifyCapability(envelope map[string]any, request map[string]any, trustedIssuers map[string]bool) (map[string]any, error) {
+	payload, err := VerifyEnvelope(envelope)
+	if err != nil {
+		return nil, err
+	}
+	if len(payload) != len(capabilityFields) {
+		return nil, errors.New("capability fields do not match the v0.1 schema")
+	}
+	for field := range payload {
+		if !capabilityFields[field] {
+			return nil, errors.New("capability fields do not match the v0.1 schema")
+		}
+	}
+	if payload["type"] != "kinegrant:PhysicalActionCapability" {
+		return nil, errors.New("wrong capability type")
+	}
+	if payload["version"] != "0.1" {
+		return nil, errors.New("unsupported capability version")
+	}
+	if payload["issuer"] != envelope["kid"] {
+		return nil, errors.New("capability issuer does not match signing key")
+	}
+	issuer, _ := payload["issuer"].(string)
+	if !trustedIssuers[issuer] {
+		return nil, errors.New("untrusted capability issuer")
+	}
+	requestDigest, err := digestObject(request)
+	if err != nil {
+		return nil, err
+	}
+	if payload["request_digest"] != requestDigest {
+		return nil, errors.New("capability does not authorize this request")
+	}
+	for _, field := range []string{"agent", "target", "action", "purpose"} {
+		if payload[field] != request[field] {
+			return nil, fmt.Errorf("capability %s mismatch", field)
+		}
+	}
+	issuedAtValue, err := stringField(payload, "issued_at")
+	if err != nil {
+		return nil, err
+	}
+	notBeforeValue, err := stringField(payload, "not_before")
+	if err != nil {
+		return nil, err
+	}
+	expiresAtValue, err := stringField(payload, "expires_at")
+	if err != nil {
+		return nil, err
+	}
+	issuedAt, err := parseTime(issuedAtValue)
+	if err != nil {
+		return nil, errors.New("invalid capability time window")
+	}
+	notBefore, err := parseTime(notBeforeValue)
+	if err != nil {
+		return nil, errors.New("invalid capability time window")
+	}
+	expiresAt, err := parseTime(expiresAtValue)
+	if err != nil {
+		return nil, errors.New("invalid capability time window")
+	}
+	if notBefore.Before(issuedAt) || !expiresAt.After(notBefore) {
+		return nil, errors.New("invalid capability time window")
+	}
+	if expiresAt.Sub(notBefore) > 300*time.Second {
+		return nil, errors.New("capability lifetime exceeds protocol maximum")
+	}
+	now := time.Now()
+	if now.Before(notBefore) {
+		return nil, errors.New("capability is not active yet")
+	}
+	if !now.Before(expiresAt) {
+		return nil, errors.New("capability has expired")
+	}
+	nonce, _ := payload["nonce"].(string)
+	if len(nonce) < 20 {
+		return nil, errors.New("capability nonce is invalid")
+	}
+	matched, ok := payload["matched_policy_ids"].([]any)
+	if !ok || len(matched) == 0 {
+		return nil, errors.New("capability has no matching policy")
+	}
+	obligations, ok := payload["obligations"].([]any)
+	if !ok {
+		return nil, errors.New("capability obligations are invalid")
+	}
+	for _, obligation := range obligations {
+		if obligation != "emitActionReceipt" {
+			return nil, errors.New("capability obligations are invalid")
+		}
+	}
+	policyDigest, _ := payload["policy_digest"].(string)
+	if !sha256Re.MatchString(policyDigest) {
+		return nil, errors.New("capability policy digest is invalid")
+	}
+	unsigned := make(map[string]any, len(payload))
+	for key, value := range payload {
+		if key != "capability_id" {
+			unsigned[key] = value
+		}
+	}
+	expectedID, err := contentID("kinegrant:cap", unsigned)
+	if err != nil {
+		return nil, err
+	}
+	if payload["capability_id"] != expectedID {
+		return nil, errors.New("capability identifier is inconsistent")
+	}
+	return payload, nil
+}
+
+// VerifyReceiptChain verifies a KGP receipt hash chain.
+func VerifyReceiptChain(entries []map[string]any, trustedExecutors map[string]bool) error {
+	var previous any
+	seen := make(map[string]bool)
+	for _, envelope := range entries {
+		payload, err := VerifyEnvelope(envelope)
+		if err != nil {
+			return err
+		}
+		if payload["type"] != "kinegrant:PhysicalActionReceipt" {
+			return errors.New("wrong receipt type")
+		}
+		if payload["version"] != "0.1" {
+			return errors.New("unsupported receipt version")
+		}
+		if payload["executor"] != envelope["kid"] {
+			return errors.New("receipt executor does not match signing key")
+		}
+		executor, _ := payload["executor"].(string)
+		if trustedExecutors != nil && !trustedExecutors[executor] {
+			return errors.New("untrusted executor")
+		}
+		capabilityID, _ := payload["capability_id"].(string)
+		if capabilityID == "" || seen[capabilityID] {
+			return errors.New("duplicate terminal receipt")
+		}
+		seen[capabilityID] = true
+		unsigned := make(map[string]any, len(payload))
+		for key, value := range payload {
+			if key != "receipt_id" {
+				unsigned[key] = value
+			}
+		}
+		expectedID, err := contentID("kinegrant:receipt", unsigned)
+		if err != nil {
+			return err
+		}
+		if payload["receipt_id"] != expectedID {
+			return errors.New("receipt identifier is inconsistent")
+		}
+		var expected any
+		if previous == nil {
+			expected = nil
+		} else {
+			canonical, err := CanonicalJSON(previous)
+			if err != nil {
+				return err
+			}
+			expected = "sha256:" + sha256Hex(canonical)
+		}
+		if payload["previous_receipt_hash"] != expected {
+			return errors.New("receipt chain is inconsistent")
+		}
+		previous = envelope
+	}
+	return nil
+}

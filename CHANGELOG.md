@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added the second independent implementation (`kinegrant-go`, standard
+  library only), the first stable wire-format RFC draft, and the conformance
+  certification-program draft.
 - Added the first independent implementation: `kinegrant-js`, a dependency-free
   JavaScript verifier for JCS, Ed25519 envelopes, v0.1 capabilities, and
   receipt chains, cross-tested against the Python reference implementation in
