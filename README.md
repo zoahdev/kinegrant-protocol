@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
-[Website](https://kinegrant.com) · [KGP-001](spec/KGP-001.md) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md)
+[Website](https://kinegrant.com) · [Technical whitepaper](docs/whitepaper/KineGrant-KGP-001-Whitepaper-v0.1.pdf) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md)
 
 > **KGP-001 Experimental Open Draft 0.1**
 >
@@ -89,6 +89,10 @@ the output with
 Download the checksum-addressed packet and reference evidence from the
 [`mpt-v0.1` release](https://github.com/zoahdev/kinegrant-protocol/releases/tag/mpt-v0.1).
 
+Independent implementers can generate a provenance-bound packet with one
+cross-platform command and verify it without trusting hosted output. See
+[REPRODUCING.md](REPRODUCING.md).
+
 ## Repository map
 
 | Path | Purpose |
@@ -98,8 +102,11 @@ Download the checksum-addressed packet and reference evidence from the
 | `spec/STANDARD-MAPPING.md` | Boundaries with existing standards |
 | `spec/schemas/` | Strict Draft 2020-12 schemas for all core objects |
 | `challenge/` | Reproducible Machine Permission Test instructions |
+| `REPRODUCING.md` | External reproduction and evidence-submission guide |
 | `src/kinegrant/` | Python reference implementation |
 | `tests/` | Executable security and interoperability checks |
+| `CITATION.cff` | Citation metadata for exact releases and commits |
+| `codemeta.json` | Machine-readable software and subject metadata |
 | `SECURITY.md` | Vulnerability reporting policy |
 | `CONTRIBUTING.md` | Open contribution and RFC process |
 

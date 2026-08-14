@@ -12,6 +12,16 @@ kinegrant-mpt --output machine-permission-test.evidence.json
 python challenge/verify_evidence.py machine-permission-test.evidence.json
 ```
 
+To generate a self-checking external reproduction packet that also binds the
+source commit, environment, generator, verifiers, Schemas, and evidence bytes:
+
+```bash
+python challenge/reproduce.py --output-dir reproduction-output
+python challenge/verify_reproduction.py reproduction-output/reproduction-report.json
+```
+
+See [REPRODUCING.md](../REPRODUCING.md) for clean-room steps and reporting.
+
 For publishable evidence, pass the exact tested Git commit with
 `--source-commit`. Evidence always includes a SHA-256 digest of the runner and
 the Python/runtime platform, even when no repository commit is available.

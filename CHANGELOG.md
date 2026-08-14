@@ -7,6 +7,11 @@
   commit and runner-digest provenance, and CI execution across Python 3.11–3.13.
 - Published the checksum-addressed `mpt-v0.1` Challenge release while keeping
   reference implementation `v0.1.1` as the latest implementation release.
+- Added a one-command external reproduction packet, strict report Schema,
+  independent digest verifier, source-commit binding, generated report checksum,
+  downloadable CI evidence artifact, and structured result-submission form.
+- Added citation and CodeMeta records for release-accurate scholarly and
+  machine-readable discovery.
 
 ## 0.1.1 — 2026-08-10
 

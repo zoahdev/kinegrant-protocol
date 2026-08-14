@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kinegrant.com/schemas/reproduction-report-v0.1.json",
+  "title": "KineGrant External Reproduction Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "report_id", "generated_at", "protocol", "reference_implementation", "source", "environment", "materials", "artifacts", "verification", "overall_result", "limitations"],
+  "properties": {
+    "schema_version": {"const": "0.1"},
+    "report_id": {"type": "string", "pattern": "^urn:kinegrant:reproduction:[0-9a-f-]{36}$"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "protocol": {"const": "KGP-001 Experimental Open Draft 0.1"},
+    "reference_implementation": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["commit", "working_tree_dirty"],
+      "properties": {
+        "commit": {
+          "oneOf": [
+            {"type": "null"},
+            {"type": "string", "pattern": "^[0-9a-f]{40,64}$"}
+          ]
+        },
+        "working_tree_dirty": {"type": ["boolean", "null"]}
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["python_version", "python_implementation", "platform"],
+      "properties": {
+        "python_version": {"type": "string", "minLength": 1},
+        "python_implementation": {"type": "string", "minLength": 1},
+        "platform": {"type": "string", "minLength": 1}
+      }
+    },
+    "materials": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/digestedPath"}
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "media_type", "bytes", "sha256"],
+        "properties": {
+          "path": {"const": "machine-permission-test.evidence.json"},
+          "media_type": {"const": "application/json"},
+          "bytes": {"type": "integer", "minimum": 1},
+          "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verifier", "required_cases", "passed_cases"],
+      "properties": {
+        "verifier": {"const": "challenge/verify_reproduction.py"},
+        "required_cases": {"const": 9},
+        "passed_cases": {"type": "integer", "minimum": 0, "maximum": 9}
+      }
+    },
+    "overall_result": {"enum": ["PASS", "FAIL"]},
+    "limitations": {
+      "type": "array",
+      "minItems": 3,
+      "items": {"type": "string", "minLength": 1}
+    }
+  },
+  "$defs": {
+    "digestedPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "pattern": "^(?![A-Za-z]:)(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+        "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

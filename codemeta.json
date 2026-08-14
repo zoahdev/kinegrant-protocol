@@ -1,0 +1,30 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "KineGrant Protocol",
+  "alternateName": "KGP-001",
+  "description": "Experimental authorization and accountability infrastructure for physical AI, with short-lived single-use capabilities, local action gates, replay protection, and signed receipts.",
+  "version": "0.1.1",
+  "dateCreated": "2026-08-10",
+  "dateModified": "2026-08-11",
+  "codeRepository": "https://github.com/zoahdev/kinegrant-protocol",
+  "issueTracker": "https://github.com/zoahdev/kinegrant-protocol/issues",
+  "url": "https://kinegrant.com",
+  "license": "https://spdx.org/licenses/Apache-2.0",
+  "programmingLanguage": "Python",
+  "runtimePlatform": "Python 3.11 or newer",
+  "author": {
+    "@type": "Person",
+    "name": "Zoah"
+  },
+  "keywords": [
+    "physical AI authorization",
+    "machine authorization",
+    "robotics security",
+    "capability-based security",
+    "single-use capability",
+    "replay protection",
+    "signed receipt",
+    "KGP-001"
+  ]
+}

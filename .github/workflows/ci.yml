@@ -14,8 +14,8 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -28,12 +28,22 @@ jobs:
         run: kinegrant-demo > /tmp/kinegrant-demo.json && python -m json.tool /tmp/kinegrant-demo.json >/dev/null
       - name: Machine Permission Test
         run: kinegrant-mpt --source-commit "$GITHUB_SHA" --output /tmp/kinegrant-mpt.json >/dev/null && python challenge/verify_evidence.py /tmp/kinegrant-mpt.json
+      - name: External reproduction packet
+        run: python challenge/reproduce.py --source-commit "$GITHUB_SHA" --output-dir "$RUNNER_TEMP/kinegrant-reproduction" && python challenge/verify_reproduction.py "$RUNNER_TEMP/kinegrant-reproduction/reproduction-report.json"
+      - name: Publish independently verifiable reproduction packet
+        if: matrix.python-version == '3.12'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: kinegrant-reproduction-${{ github.sha }}-python-3.12
+          path: ${{ runner.temp }}/kinegrant-reproduction/
+          if-no-files-found: error
+          retention-days: 30
 
   package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
       - run: python -m pip install build
