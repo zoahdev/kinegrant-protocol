@@ -7,7 +7,7 @@ from typing import Any, Iterable, Mapping
 from .canonical import content_id, digest
 from .crypto import Ed25519KeyPair, verify_envelope
 from .gate import VerifiedCapability
-from .models import isoformat, parse_time, utc_now
+from .models import ActionRequest, isoformat, parse_time, utc_now
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -29,6 +29,7 @@ class ReceiptLog:
         evidence_hash: str | None = None,
         started_at: datetime | None = None,
         finished_at: datetime | None = None,
+        request: ActionRequest | None = None,
     ) -> dict[str, Any]:
         if not isinstance(capability_payload, VerifiedCapability):
             raise TypeError("receipt input must be a capability consumed by ActionGate")
@@ -48,6 +49,16 @@ class ReceiptLog:
         if started < not_before or started >= expires_at:
             raise ValueError("action must start while the capability is active")
 
+        action = capability_payload.get("action")
+        purpose = capability_payload.get("purpose")
+        if action is None or purpose is None:
+            # v0.2 capabilities carry scope lists; the exact executed values
+            # must come from the verified request.
+            if request is None:
+                raise ValueError("v0.2 capabilities require the ActionRequest for a receipt")
+            action = request.action
+            purpose = request.purpose
+
         previous_hash = digest(self._entries[-1]) if self._entries else None
         body = {
             "type": "kinegrant:PhysicalActionReceipt",
@@ -57,14 +68,21 @@ class ReceiptLog:
             "request_digest": capability_payload["request_digest"],
             "agent": capability_payload["agent"],
             "target": capability_payload["target"],
-            "action": capability_payload["action"],
-            "purpose": capability_payload["purpose"],
+            "action": action,
+            "purpose": purpose,
             "result": result,
             "started_at": isoformat(started),
             "finished_at": isoformat(finished),
             "evidence_hash": evidence_hash,
             "previous_receipt_hash": previous_hash,
         }
+        # v0.2 capabilities carry authorization context that must survive into
+        # the receipt so an auditor can see the exact constraints and approval
+        # tier under which the action was authorized. v0.1 receipts stay
+        # byte-identical to earlier releases.
+        for field in ("approval_tier", "constraints", "parent_capability_id"):
+            if field in capability_payload:
+                body[field] = capability_payload[field]
         body["receipt_id"] = content_id("kinegrant:receipt", body)
         envelope = self.executor_key.sign_envelope(body)
         self._entries.append(envelope)

@@ -72,6 +72,10 @@ Progress on main:
   can verify attenuation against a supplied parent.
 - Approval tiers: `min_approval_tier` policy constraint, decision-level
   `required_approval_tier`, and tier binding in scoped capabilities.
+- Receipt evidence chain: v0.2 authorization context (approval tier,
+  physical constraints, parent capability id) is recorded in signed receipts.
+- Versioned ODRL profile (`kgp-v0.2`) and IEEE 7012 bridge metadata with
+  fail-closed constraint mapping and interop tests.
 
 Exit criterion: independent implementations produce byte-identical decisions and
 verify each other's capabilities and receipts.

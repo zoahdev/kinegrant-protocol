@@ -18,6 +18,12 @@
 - Added approval tiers: `min_approval_tier` policy constraints,
   decision-level `required_approval_tier`, and tier binding in v0.2
   capabilities with a published v0.2 capability schema.
+- Receipts now record the v0.2 authorization context (approval tier,
+  physical constraints, parent capability id); v0.1 receipts remain
+  byte-identical.
+- Added a versioned KineGrant ODRL profile (`kgp-v0.2`) that maps
+  force/velocity/zone/approval constraints with strict validation, plus
+  profile/version metadata in the IEEE 7012 bridge and interop tests.
 - Published the nine-case KineGrant Machine Permission Test v0.1.
 - Added machine-readable PASS/FAIL evidence, an independent verifier, source
   commit and runner-digest provenance, and CI execution across Python 3.11–3.13.

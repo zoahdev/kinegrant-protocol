@@ -5,7 +5,7 @@ from typing import Any, Mapping
 from ..models import PolicyRule
 from ..policy import SUPPORTED_CONSTRAINTS
 
-DOCUMENT_FIELDS = {"id", "subject", "issuer", "target", "terms"}
+DOCUMENT_FIELDS = {"id", "subject", "issuer", "target", "terms", "profile", "version"}
 TERM_FIELDS = {"action", "effect", "target", "agents", "purposes", "constraints", "obligations"}
 
 
@@ -72,7 +72,12 @@ def myterms_to_rules(document: Mapping[str, Any]) -> list[PolicyRule]:
                 purposes=_as_tuple(term.get("purposes")),
                 constraints=dict(constraints),
                 obligations=_as_tuple(term.get("obligations"), ()),
-                source={"standard": "IEEE 7012-2025 bridge", "rights_subject": subject},
+                source={
+                    "standard": "IEEE 7012-2025 bridge",
+                    "rights_subject": subject,
+                    "profile": document.get("profile"),
+                    "version": document.get("version"),
+                },
             )
         )
     return rules

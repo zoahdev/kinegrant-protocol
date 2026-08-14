@@ -28,7 +28,18 @@
         "finished_at": {"type": "string", "format": "date-time"},
         "evidence_hash": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
         "previous_receipt_hash": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/digest"}]},
-        "receipt_id": {"type": "string", "pattern": "^kinegrant:receipt:[0-9a-f]{64}$"}
+        "receipt_id": {"type": "string", "pattern": "^kinegrant:receipt:[0-9a-f]{64}$"},
+        "approval_tier": {"type": "integer", "minimum": 0, "maximum": 2},
+        "constraints": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_force_newtons": {"type": "number", "minimum": 0},
+            "max_velocity_mps": {"type": "number", "minimum": 0},
+            "allowed_zones": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+          }
+        },
+        "parent_capability_id": {"type": ["string", "null"], "minLength": 1}
       }
     }
   },
