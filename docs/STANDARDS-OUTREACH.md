@@ -28,7 +28,7 @@ standards can reference.
   crash-persistent consumption;
 - privacy-minimized, hash-chained, signed receipts;
 - fail-closed adapters (unknown restrictions are rejected, never widened);
-- reproducible evidence: MPT v0.2 (14/14) and conformance L1-L4 (20/20);
+- reproducible evidence: MPT v0.3 (17/17) and conformance L1-L4 (20/20);
 - three independent implementations cross-verified on the stable wire format;
 - neutral governance, RFC process, no tokens, no vendor lock-in.
 

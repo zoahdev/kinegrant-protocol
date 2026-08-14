@@ -18,11 +18,18 @@ from uuid import uuid4
 from . import __version__
 from .attenuation import verify_attenuation
 from .capability import CapabilityIssuer
+from .compliance import ObligationCompliance
 from .crypto import Ed25519KeyPair
+from .distribution import RevocationDistributor
 from .gate import ActionGate, SQLiteReplayStore, VerifiedCapability
 from .models import ActionRequest, PolicyRule, parse_time
 from .policy import PolicyEngine
 from .receipt import ReceiptLog, verify_receipt_chain
+from .revocation import (
+    RevocationList,
+    build_revocation_bundle,
+    sign_revocation_bundle,
+)
 from .sequence import ActionJournal, ForbiddenCombination, SequencePolicy
 
 CaseResult = dict[str, Any]
@@ -696,6 +703,141 @@ def _forbidden_combination() -> CaseResult:
     )
 
 
+def _receipt_obligation_results() -> CaseResult:
+    request, authority, capability = _fixture("mpt-015")
+    verified = ActionGate(trusted_issuers={authority.kid}).authorize(
+        capability,
+        request,
+    )
+    executor = Ed25519KeyPair.generate()
+    receipt = ReceiptLog(executor).append(
+        verified,
+        result="succeeded",
+        obligation_results=[
+            {"obligation": "emitActionReceipt", "status": "satisfied"}
+        ],
+    )
+    chain_ok = verify_receipt_chain(
+        [receipt],
+        trusted_executors={executor.kid},
+    )
+    version = receipt["payload"]["version"]
+    status = receipt["payload"]["obligation_results"][0]["status"]
+    passed = chain_ok and version == "1.0" and status == "satisfied"
+    return _result(
+        "MPT-015",
+        "Receipt 1.0 records obligation satisfaction",
+        "RECEIPT 1.0 with satisfied obligation and valid chain",
+        f"version={version}, status={status}, chain_valid={chain_ok}",
+        passed,
+        {
+            "receipt_version": version,
+            "obligation_status": status,
+            "chain_valid": chain_ok,
+        },
+    )
+
+
+def _obligation_evasion() -> CaseResult:
+    label = "mpt-016"
+    request = ActionRequest(
+        f"urn:kinegrant:mpt:request:{label}",
+        "urn:kinegrant:mpt:agent:1",
+        "urn:kinegrant:mpt:target:1",
+        "open",
+        "permission-test",
+    )
+    rule = PolicyRule(
+        f"urn:kinegrant:mpt:policy:{label}",
+        "urn:kinegrant:mpt:policy-issuer:trusted",
+        request.target,
+        "allow",
+        (request.action,),
+        subjects=(request.agent,),
+        purposes=(request.purpose,),
+        obligations=("logAuditEvent",),
+    )
+    decision = PolicyEngine(
+        [rule],
+        trusted_policy_issuers={rule.issuer},
+    ).evaluate(request)
+    authority = Ed25519KeyPair.generate()
+    capability = CapabilityIssuer(authority).issue(
+        request,
+        decision,
+        ttl_seconds=10,
+    )
+    verified = ActionGate(trusted_issuers={authority.kid}).authorize(
+        capability,
+        request,
+    )
+    executor = Ed25519KeyPair.generate()
+    plain_receipt = ReceiptLog(executor).append(
+        verified,
+        result="succeeded",
+    )
+    verdict = ObligationCompliance().evaluate(
+        capability,
+        [plain_receipt],
+        trusted_executors={executor.kid},
+    )
+    detected = not verdict.compliant and "audit-log commitment" in (
+        verdict.reason or ""
+    )
+    return _result(
+        "MPT-016",
+        "Obligation compliance detects suppressed commitment",
+        "NON-COMPLIANT with audit-log commitment missing",
+        f"{'COMPLIANT' if verdict.compliant else 'NON-COMPLIANT'} "
+        f"({verdict.reason})",
+        detected,
+        {
+            "receipt_version": plain_receipt["payload"]["version"],
+            "compliant": verdict.compliant,
+            "reason": verdict.reason,
+        },
+    )
+
+
+def _revocation_distribution() -> CaseResult:
+    authority = Ed25519KeyPair.generate()
+    capability_id = "kinegrant:cap:" + "f" * 64
+    revocation_list = RevocationList()
+    revocation_list.revoke(capability_id, reason="mpt revocation")
+    bundle = sign_revocation_bundle(
+        build_revocation_bundle(revocation_list, issuer=authority.kid),
+        authority,
+    )
+    gate_a = RevocationList()
+    gate_b = RevocationList()
+    report = RevocationDistributor(
+        trusted_authorities={authority.kid}
+    ).distribute(
+        bundle,
+        {"gate-a": gate_a, "gate-b": gate_b},
+    )
+    passed = (
+        report["overall_result"] == "PASS"
+        and report["summary"]["added_total"] == 2
+        and gate_a.is_revoked(capability_id)
+        and gate_b.is_revoked(capability_id)
+    )
+    return _result(
+        "MPT-017",
+        "Fleet revocation distribution applies to all gates",
+        "PASS fleet report with both gates revoked",
+        f"{report['overall_result']} "
+        f"added={report['summary']['added_total']}",
+        passed,
+        {
+            "bundle_id": report["bundle_id"],
+            "added_total": report["summary"]["added_total"],
+            "gate_a_revoked": gate_a.is_revoked(capability_id),
+            "gate_b_revoked": gate_b.is_revoked(capability_id),
+        },
+    )
+
+
 CASES: tuple[tuple[str, Callable[[], CaseResult]], ...] = (
     ("MPT-001", _no_grant),
     ("MPT-002", _valid_once),
@@ -711,6 +853,9 @@ CASES: tuple[tuple[str, Callable[[], CaseResult]], ...] = (
     ("MPT-012", _delegation),
     ("MPT-013", _approval_tiers),
     ("MPT-014", _forbidden_combination),
+    ("MPT-015", _receipt_obligation_results),
+    ("MPT-016", _obligation_evasion),
+    ("MPT-017", _revocation_distribution),
 )
 
 
@@ -735,7 +880,7 @@ def run_machine_permission_test(*, source_commit: str | None = None) -> dict[str
     passed = sum(case["passed"] for case in results)
     failed = len(results) - passed
     return {
-        "schema_version": "0.2",
+    "schema_version": "0.3",
         "run_id": f"urn:kinegrant:mpt:run:{uuid4()}",
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "protocol": "KGP-001 Experimental Open Draft 0.1",

@@ -4,6 +4,11 @@
 
 ## 1.4.0 — 2026-08-15
 
+- Machine Permission Test upgraded to **v0.3 (17/17)**: three new reproducible
+  cases — MPT-015 receipt 1.0 obligation satisfaction, MPT-016 obligation
+  compliance detects suppressed commitments, MPT-017 fleet revocation
+  distribution; the evidence schema and independent verifier now require 17
+  cases.
 - Milestone release: reference implementation version 1.4.0 on the stable
   1.0 wire format, adding cached policy evaluation across every runnable demo
   and deployment trace, and fleet revocation distribution status integrated

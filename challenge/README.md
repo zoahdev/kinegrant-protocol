@@ -1,4 +1,4 @@
-# KineGrant Machine Permission Test v0.2
+# KineGrant Machine Permission Test v0.3
 
 This is a reproducible software test of the KGP-001 permission boundary. It checks that no action is authorized without a capability, a valid capability executes once, replay and request mutation fail, issuer and expiry checks fail closed, concurrent consumption has one winner, replay remains blocked after restart, and receipt tampering or an untrusted executor is rejected.
 
@@ -63,3 +63,6 @@ trusted key ID; an embedded key and valid signature are not a trust decision.
 | MPT-012 | Cross-agent delegation binds the delegate request; the principal agent is DENIED. |
 | MPT-013 | Approval tiers propagate from policy decision through capability to signed receipt. |
 | MPT-014 | Forbidden combinations deny matching requests after a dangerous set is observed. |
+| MPT-015 | Receipt 1.0 records obligation satisfaction with a valid chain. |
+| MPT-016 | Obligation compliance detects a suppressed audit-log commitment. |
+| MPT-017 | Fleet revocation distribution applies a signed bundle to all gates. |

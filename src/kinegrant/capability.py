@@ -7,6 +7,7 @@ from typing import Any
 from .canonical import content_id
 from .crypto import Ed25519KeyPair
 from .models import ActionRequest, Decision, isoformat, utc_now
+from .obligations import KNOWN_OBLIGATIONS
 from .attenuation import attenuate_capability
 
 
@@ -39,7 +40,7 @@ class CapabilityIssuer:
             raise ValueError("allowed decision has no matching policy")
         if not 1 <= ttl_seconds <= 300:
             raise ValueError("capability TTL must be between 1 and 300 seconds")
-        unknown_obligations = set(decision.obligations) - {"emitActionReceipt"}
+        unknown_obligations = set(decision.obligations) - KNOWN_OBLIGATIONS
         if unknown_obligations:
             raise PermissionError("unsupported policy obligation")
 
