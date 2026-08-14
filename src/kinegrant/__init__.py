@@ -23,6 +23,7 @@ from .identity import (
 from .models import ActionRequest, Decision, PolicyRule
 from .policy import PolicyEngine
 from .receipt import ReceiptLog, verify_receipt_chain
+from .revocation import RevocationEntry, RevocationList
 from .sequence import (
     ActionJournal,
     ForbiddenCombination,
@@ -54,6 +55,8 @@ __all__ = [
     "PolicyEngine",
     "PolicyRule",
     "ReceiptLog",
+    "RevocationEntry",
+    "RevocationList",
     "SQLiteReplayStore",
     "SequencePolicy",
     "SequenceVerdict",

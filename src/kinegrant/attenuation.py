@@ -31,6 +31,15 @@ MAX_TTL_SECONDS = 300
 _CONSTRAINT_KEYS = {"max_force_newtons", "max_velocity_mps", "allowed_zones"}
 
 
+def _capability_id(body: dict[str, Any]) -> str:
+    unsigned = {
+        key: value
+        for key, value in body.items()
+        if key not in ("capability_id", "root_capability_id")
+    }
+    return content_id("kinegrant:cap", unsigned)
+
+
 def _matches(value: str, patterns: list[str]) -> bool:
     return any(fnmatchcase(value, pattern) for pattern in patterns)
 
@@ -55,6 +64,8 @@ def _require_parent(parent: dict[str, Any]) -> None:
             "max_delegation_depth",
             "delegate_agent",
             "delegation_depth",
+            "root_capability_id",
+            "delegate_allowlist",
         ):
             if field not in parent:
                 raise ValueError(f"parent capability is missing {field}")
@@ -258,6 +269,15 @@ def attenuate_capability(
         child_max_depth = 0
         child_request_digest = delegate_request.digest
 
+    parent_allowlist = parent.get("delegate_allowlist")
+    if parent_allowlist is not None and not isinstance(parent_allowlist, list):
+        raise ValueError("parent delegate_allowlist must be a list or null")
+    if delegate_agent is not None and parent_allowlist:
+        if not any(_matches(delegate_agent, [pattern]) for pattern in parent_allowlist):
+            raise ValueError(
+                f"delegate agent {delegate_agent!r} is not in the parent allowlist"
+            )
+
     approval_tier = parent.get("approval_tier", 0)
     if not isinstance(approval_tier, int) or isinstance(approval_tier, bool) or not 0 <= approval_tier <= 2:
         raise ValueError("parent approval_tier must be an integer between 0 and 2")
@@ -285,8 +305,10 @@ def attenuate_capability(
         "max_delegation_depth": child_max_depth,
         "delegate_agent": child_delegate,
         "delegation_depth": child_depth,
+        "root_capability_id": parent.get("root_capability_id") or parent["capability_id"],
+        "delegate_allowlist": parent_allowlist,
     }
-    body["capability_id"] = content_id("kinegrant:cap", body)
+    body["capability_id"] = _capability_id(body)
     return body
 
 
@@ -302,6 +324,12 @@ def verify_attenuation(
         if child.get("version") != VERSION:
             return False
         if child.get("parent_capability_id") != parent.get("capability_id"):
+            return False
+        if child.get("root_capability_id") != (
+            parent.get("root_capability_id") or parent.get("capability_id")
+        ):
+            return False
+        if child.get("delegate_allowlist") != parent.get("delegate_allowlist"):
             return False
         if child.get("issuer") != parent.get("issuer"):
             return False
@@ -371,6 +399,11 @@ def verify_attenuation(
             if child_allowed is not False:
                 return False
             if child_max_depth != 0:
+                return False
+            parent_allowlist = parent.get("delegate_allowlist")
+            if parent_allowlist is not None and not isinstance(parent_allowlist, list):
+                return False
+            if parent_allowlist and not _matches(child_delegate, parent_allowlist):
                 return False
         if child_max_depth > parent_max_depth:
             return False

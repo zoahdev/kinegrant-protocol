@@ -10,6 +10,16 @@ from .models import ActionRequest, Decision, isoformat, utc_now
 from .attenuation import attenuate_capability
 
 
+def _capability_content_id(body: dict[str, Any]) -> str:
+    """Content id excludes self-referential chain fields."""
+    unsigned = {
+        key: value
+        for key, value in body.items()
+        if key not in ("capability_id", "root_capability_id")
+    }
+    return content_id("kinegrant:cap", unsigned)
+
+
 class CapabilityIssuer:
     def __init__(self, key_pair: Ed25519KeyPair) -> None:
         self.key_pair = key_pair
@@ -66,6 +76,7 @@ class CapabilityIssuer:
         approval_tier: int = 0,
         delegation_allowed: bool = False,
         max_delegation_depth: int = 0,
+        delegate_allowlist: list[str] | None = None,
     ) -> dict[str, Any]:
         """Issue a v0.2 capability with a narrowed-but-still-scoped grant."""
         if not decision.allowed:
@@ -84,6 +95,11 @@ class CapabilityIssuer:
             or not 0 <= max_delegation_depth <= 3
         ):
             raise ValueError("max_delegation_depth must be an integer between 0 and 3")
+        if delegate_allowlist is not None and (
+            not isinstance(delegate_allowlist, list)
+            or any(not isinstance(item, str) or not item for item in delegate_allowlist)
+        ):
+            raise ValueError("delegate_allowlist must be a list of non-empty strings or None")
         scope_actions = list(actions or (request.action,))
         scope_purposes = list(purposes or (request.purpose,))
         scope_target = target or request.target
@@ -118,8 +134,10 @@ class CapabilityIssuer:
             "max_delegation_depth": max_delegation_depth,
             "delegate_agent": None,
             "delegation_depth": 0,
+            "delegate_allowlist": delegate_allowlist,
         }
-        body["capability_id"] = content_id("kinegrant:cap", body)
+        body["capability_id"] = _capability_content_id(body)
+        body["root_capability_id"] = body["capability_id"]
         return self.key_pair.sign_envelope(body)
 
     def issue_attenuated(

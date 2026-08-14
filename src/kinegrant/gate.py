@@ -14,6 +14,7 @@ from typing import Any, Mapping, Protocol
 from .canonical import content_id
 from .crypto import verify_envelope
 from .models import ActionRequest, parse_time, utc_now
+from .revocation import RevocationList
 
 
 class ReplayStore(Protocol):
@@ -103,6 +104,7 @@ CAPABILITY_FIELDS_V2 = (
 ) | {
     "actions", "purposes", "parent_capability_id", "constraints", "approval_tier",
     "delegation_allowed", "max_delegation_depth", "delegate_agent", "delegation_depth",
+    "root_capability_id", "delegate_allowlist",
 }
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -115,10 +117,12 @@ class ActionGate:
         *,
         trusted_issuers: set[str] | None = None,
         replay_store: ReplayStore | None = None,
+        revocation_list: RevocationList | None = None,
     ) -> None:
         # An omitted trust store means trust nobody, not trust everybody.
         self.trusted_issuers = set(trusted_issuers or ())
         self.replay_store = replay_store or InMemoryReplayStore()
+        self.revocation_list = revocation_list
 
     def authorize(
         self,
@@ -218,8 +222,14 @@ class ActionGate:
         capability_id = payload.get("capability_id")
         if not isinstance(capability_id, str):
             raise PermissionError("capability has no identifier")
+        if self.revocation_list is not None and (
+            self.revocation_list.is_revoked(capability_id)
+            or self.revocation_list.is_revoked(payload.get("root_capability_id"))
+        ):
+            raise PermissionError("capability revoked")
         unsigned_id_body = dict(payload)
         del unsigned_id_body["capability_id"]
+        unsigned_id_body.pop("root_capability_id", None)
         if capability_id != content_id("kinegrant:cap", unsigned_id_body):
             raise PermissionError("capability identifier is inconsistent")
         if not self.replay_store.consume_once(capability_id, expires_at):
@@ -271,6 +281,15 @@ class ActionGate:
             not isinstance(delegate_agent, str) or not delegate_agent
         ):
             raise PermissionError("capability delegate_agent must be a non-empty string or null")
+        root_id = payload.get("root_capability_id")
+        if not isinstance(root_id, str) or not root_id:
+            raise PermissionError("capability root_capability_id must be a non-empty string")
+        allowlist = payload.get("delegate_allowlist")
+        if allowlist is not None and (
+            not isinstance(allowlist, list)
+            or any(not isinstance(item, str) or not item for item in allowlist)
+        ):
+            raise PermissionError("capability delegate_allowlist must be a list or null")
         actions = payload.get("actions")
         purposes = payload.get("purposes")
         if not isinstance(actions, list) or not actions or any(

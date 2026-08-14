@@ -138,7 +138,10 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   signed receipt so audits see exactly what was authorized.
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
-  re-delegate.
+  re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.
+- Offline revocation: `RevocationList` plus `root_capability_id` lets the gate
+  reject a revoked capability, and revoking the root revokes the whole
+  delegation chain.
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies

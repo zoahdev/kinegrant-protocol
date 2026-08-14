@@ -44,6 +44,8 @@ Delegation is opt-in and bounded:
   `max_delegation_depth` (1-3);
 - a delegated child binds one specific `delegate_agent` and its own
   `delegate_request` digest; the principal remains the capability `agent`;
+- a root capability may carry a `delegate_allowlist` (glob patterns); a
+  delegate outside the list is rejected at issuance and by the verifier;
 - the delegate cannot re-delegate (`delegation_allowed: false`,
   `max_delegation_depth: 0` on the child);
 - the gate requires the executing request's agent to equal `delegate_agent`
@@ -56,8 +58,16 @@ capabilities. When `parent_capability=` is supplied, the gate additionally
 verifies the child is a valid attenuation of that parent before consuming it.
 Consumption stays atomic and single-use for every version.
 
+## Revocation
+
+`RevocationList` is an offline, checksummed bundle of revoked capability ids.
+Every v0.2 capability carries `root_capability_id`, so revoking the root of a
+delegation chain revokes every descendant even when the gate never sees the
+intermediate children. The gate rejects a capability whose own id or root id
+is revoked before consuming it. Distribution and authentication of the list
+are deployment-specific (signed file, device update, registry).
+
 ## Open work
 
-- revocation of a delegated capability before expiry;
-- fleet-level delegation sets and sub-agent allowlists;
+- revocation distribution channels and rotation;
 - evidence that the delegate is the exact enrolled device.
