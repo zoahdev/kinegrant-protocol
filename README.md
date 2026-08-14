@@ -163,7 +163,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   filters receipts by capability/agent/target/action/purpose/result/time,
   produces a machine-readable summary, and checks obligation compliance;
   it also exports CSV and self-verifying evidence packets, and
-  `kinegrant-audit` exposes it as a deployable CLI (`--self-test` for CI).
+  `kinegrant-audit` exposes it as a deployable CLI (`--self-test` for CI);
+  the CLI can also verify and include a fleet revocation distribution report
+  (`--distribution-report --revocation-bundle --revocation-authorities`).
 - Fleet revocation distribution: `RevocationDistributor` verifies one signed
   revocation bundle under the caller-supplied authorities and applies it to
   many gates idempotently, with per-gate acknowledgements in a machine-

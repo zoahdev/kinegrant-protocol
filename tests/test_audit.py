@@ -5,17 +5,25 @@ import hashlib
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from datetime import timedelta
+from io import StringIO
 from pathlib import Path
 
 from kinegrant.audit import ReceiptAuditor, main
 from kinegrant.canonical import canonical_json
 from kinegrant.capability import CapabilityIssuer
 from kinegrant.crypto import Ed25519KeyPair
+from kinegrant.distribution import RevocationDistributor
 from kinegrant.gate import ActionGate, InMemoryReplayStore
 from kinegrant.models import ActionRequest, PolicyRule, utc_now
 from kinegrant.policy import PolicyEngine
 from kinegrant.receipt import ReceiptLog
+from kinegrant.revocation import (
+    RevocationList,
+    build_revocation_bundle,
+    sign_revocation_bundle,
+)
 
 
 class ReceiptAuditorTests(unittest.TestCase):
@@ -207,6 +215,127 @@ class ReceiptAuditorTests(unittest.TestCase):
             packet = json.loads(packet_path.read_text(encoding="utf-8"))
             self.assertEqual(packet["type"], "kinegrant:ReceiptEvidencePacket")
             self.assertEqual(len(packet["receipts"]), 3)
+
+    def test_cli_includes_verified_distribution_report(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        revocation_list = RevocationList()
+        revocation_list.revoke("kinegrant:cap:" + "f" * 64)
+        bundle = sign_revocation_bundle(
+            build_revocation_bundle(revocation_list, issuer=authority.kid),
+            authority,
+        )
+        distribution_report = RevocationDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(
+            bundle,
+            {"gate-1": RevocationList()},
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            receipts_path = base / "receipts.json"
+            executors_path = base / "executors.json"
+            distribution_path = base / "distribution.json"
+            bundle_path = base / "bundle.json"
+            authorities_path = base / "authorities.json"
+            receipts_path.write_text(
+                json.dumps(list(self.log.entries)),
+                encoding="utf-8",
+            )
+            executors_path.write_text(
+                json.dumps([self.executor.kid]),
+                encoding="utf-8",
+            )
+            distribution_path.write_text(
+                json.dumps(distribution_report),
+                encoding="utf-8",
+            )
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        str(receipts_path),
+                        str(executors_path),
+                        "--distribution-report",
+                        str(distribution_path),
+                        "--revocation-bundle",
+                        str(bundle_path),
+                        "--revocation-authorities",
+                        str(authorities_path),
+                    ]
+                )
+            self.assertEqual(exit_code, 0)
+            parsed = json.loads(output.getvalue())
+            self.assertTrue(
+                parsed["revocation_distribution"]["verified"]
+            )
+            self.assertEqual(
+                parsed["revocation_distribution"]["bundle_id"],
+                bundle["payload"]["bundle_id"],
+            )
+
+    def test_cli_rejects_tampered_distribution_report(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        revocation_list = RevocationList()
+        revocation_list.revoke("kinegrant:cap:" + "f" * 64)
+        bundle = sign_revocation_bundle(
+            build_revocation_bundle(revocation_list, issuer=authority.kid),
+            authority,
+        )
+        distribution_report = RevocationDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(
+            bundle,
+            {"gate-1": RevocationList()},
+        )
+        distribution_report["summary"]["added_total"] += 1
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            receipts_path = base / "receipts.json"
+            executors_path = base / "executors.json"
+            distribution_path = base / "distribution.json"
+            bundle_path = base / "bundle.json"
+            authorities_path = base / "authorities.json"
+            receipts_path.write_text(
+                json.dumps(list(self.log.entries)),
+                encoding="utf-8",
+            )
+            executors_path.write_text(
+                json.dumps([self.executor.kid]),
+                encoding="utf-8",
+            )
+            distribution_path.write_text(
+                json.dumps(distribution_report),
+                encoding="utf-8",
+            )
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            output = StringIO()
+            with redirect_stdout(output):
+                exit_code = main(
+                    [
+                        str(receipts_path),
+                        str(executors_path),
+                        "--distribution-report",
+                        str(distribution_path),
+                        "--revocation-bundle",
+                        str(bundle_path),
+                        "--revocation-authorities",
+                        str(authorities_path),
+                    ]
+                )
+            self.assertEqual(exit_code, 1)
+            parsed = json.loads(output.getvalue())
+            self.assertFalse(
+                parsed["revocation_distribution"]["verified"]
+            )
 
 
 if __name__ == "__main__":

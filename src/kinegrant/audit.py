@@ -24,6 +24,7 @@ from .capability import CapabilityIssuer
 from .canonical import canonical_json
 from .compliance import ObligationCompliance, ObligationComplianceVerdict
 from .crypto import Ed25519KeyPair, verify_envelope
+from .distribution import verify_distribution_report
 from .gate import ActionGate, InMemoryReplayStore
 from .models import ActionRequest, PolicyRule, parse_time
 from .policy import PolicyEngine
@@ -325,7 +326,9 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "usage: kinegrant-audit <receipts.json> <executors.json> "
             "[--capability-id ID] [--agent ID] [--action ACTION] "
-            "[--result RESULT] [--csv FILE] [--packet FILE]",
+            "[--result RESULT] [--csv FILE] [--packet FILE] "
+            "[--distribution-report FILE --revocation-bundle FILE "
+            "--revocation-authorities FILE]",
             file=sys.stderr,
         )
         return 2
@@ -363,5 +366,48 @@ def main(argv: list[str] | None = None) -> int:
             encoding="utf-8",
         )
         report["packet"] = str(target)
+    distribution_report_path = flag("--distribution-report")
+    if distribution_report_path:
+        bundle_path = flag("--revocation-bundle")
+        authorities_path = flag("--revocation-authorities")
+        if not bundle_path or not authorities_path:
+            print(
+                "--distribution-report requires --revocation-bundle and "
+                "--revocation-authorities",
+                file=sys.stderr,
+            )
+            return 2
+        distribution_report = json.loads(
+            Path(distribution_report_path).read_text(encoding="utf-8")
+        )
+        bundle = json.loads(Path(bundle_path).read_text(encoding="utf-8"))
+        authorities = json.loads(Path(authorities_path).read_text(encoding="utf-8"))
+        try:
+            verified = verify_distribution_report(
+                distribution_report,
+                bundle,
+                trusted_authorities=set(authorities),
+            )
+        except ValueError as exc:
+            print(
+                json.dumps(
+                    {
+                        "type": "kinegrant:ReceiptAuditSummary",
+                        "revocation_distribution": {
+                            "verified": False,
+                            "reason": str(exc),
+                        },
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+            return 1
+        report["revocation_distribution"] = {
+            "verified": True,
+            "bundle_id": verified["bundle_id"],
+            "bundle_version": verified["bundle_version"],
+            "summary": verified["summary"],
+        }
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0
