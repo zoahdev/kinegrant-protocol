@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.8.0 — 2026-08-15
+
+- Milestone release: reference implementation version 1.8.0 on the stable
+  1.0 wire format, adding the security review kit generator
+  (`scripts/security_review_kit.py`) for third-party audits.
+
 ## 1.7.0 — 2026-08-15
 
 - Added the security review kit generator (`scripts/security_review_kit.py`):

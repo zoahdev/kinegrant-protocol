@@ -223,6 +223,11 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
 - the conformance report cross-checks generated capabilities and receipt
   chains with the independent JavaScript and Go verifiers.
 
+## v1.8 — audit readiness (complete with v1.8.0)
+
+- the security review kit generator runs every evidence suite and emits an
+  auditor-ready machine-readable checklist.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
