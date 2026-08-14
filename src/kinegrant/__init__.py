@@ -4,6 +4,7 @@ __version__ = "0.1.1"
 
 from .capability import CapabilityIssuer
 from .attenuation import attenuate_capability, verify_attenuation
+from .checkpoint import build_receipt_checkpoint, verify_receipt_checkpoint
 from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
 from .discovery import DiscoveryResolution, ThingActions, ThingRegistry
 from .gate import ActionGate, InMemoryReplayStore, SQLiteReplayStore, VerifiedCapability
@@ -37,6 +38,13 @@ from .sequence import (
     SequencePolicy,
     SequenceVerdict,
 )
+from .sensor_evidence import (
+    SensorReading,
+    build_sensor_commitment,
+    evidence_hash_for_commitment,
+    verify_sensor_commitment,
+)
+from .trust import TrustedClock, TrustedClockError
 from .vocabulary import (
     ACTION_TERMS,
     ActionSpec,
@@ -65,8 +73,11 @@ __all__ = [
     "ReceiptLog",
     "RevocationEntry",
     "RevocationList",
+    "SensorReading",
     "ThingActions",
     "ThingRegistry",
+    "TrustedClock",
+    "TrustedClockError",
     "SQLiteReplayStore",
     "SequencePolicy",
     "SequenceVerdict",
@@ -77,7 +88,10 @@ __all__ = [
     "approval_tier_from_risk",
     "attenuate_capability",
     "build_revocation_bundle",
+    "build_receipt_checkpoint",
+    "build_sensor_commitment",
     "known_action",
+    "evidence_hash_for_commitment",
     "is_agent_id",
     "is_kinegrant_identifier",
     "is_policy_id",
@@ -93,6 +107,8 @@ __all__ = [
     "validate_actions",
     "verify_envelope",
     "verify_attenuation",
+    "verify_receipt_checkpoint",
     "verify_revocation_bundle",
+    "verify_sensor_commitment",
     "verify_receipt_chain",
 ]
