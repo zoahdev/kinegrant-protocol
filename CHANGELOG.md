@@ -4,6 +4,9 @@
 
 ## 1.8.0 — 2026-08-15
 
+- The security review kit generator now supports `--packet-dir` (checksummed
+  kit packet with reproduce commands) and `--verify-packet` (offline
+  re-validation), so the kit can be shipped as a release asset.
 - Milestone release: reference implementation version 1.8.0 on the stable
   1.0 wire format, adding the security review kit generator
   (`scripts/security_review_kit.py`) for third-party audits.

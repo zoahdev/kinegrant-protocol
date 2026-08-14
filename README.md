@@ -191,7 +191,8 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   generates a machine-readable audit package that actually runs the
   conformance, MPT, red-team, benchmark, and unit-test suites, records the
   exact commands and artifacts for an external auditor, and emits a
-  checklist backed by those results.
+  checklist backed by those results; `--packet-dir` emits a checksummed kit
+  packet and `--verify-packet` re-validates it offline.
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.

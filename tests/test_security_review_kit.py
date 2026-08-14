@@ -5,6 +5,8 @@ import os
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +45,50 @@ class SecurityReviewKitTests(unittest.TestCase):
         self.assertGreaterEqual(len(kit["checklist"]), 6)
         self.assertGreaterEqual(len(kit["commands"]), 6)
         self.assertIn("releases", kit["artifacts"])
+
+    def test_packet_build_and_verify(self) -> None:
+        sys.path.insert(0, str(ROOT / "scripts"))
+        try:
+            import security_review_kit as kit
+        finally:
+            sys.path.pop(0)
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            output = base / "kit.json"
+            packet_dir = base / "packet"
+            stdout = StringIO()
+            with redirect_stdout(stdout):
+                exit_code = kit.main(
+                    [
+                        "--output",
+                        str(output),
+                        "--packet-dir",
+                        str(packet_dir),
+                        "--source-commit",
+                        "e" * 40,
+                    ]
+                )
+            self.assertEqual(exit_code, 0)
+            self.assertTrue((packet_dir / "security-review-kit.json").is_file())
+            self.assertTrue((packet_dir / "SHA256SUMS.txt").is_file())
+            self.assertTrue(
+                list(packet_dir.glob("SecurityReviewKit-v*.zip"))
+            )
+            verify_out = StringIO()
+            with redirect_stdout(verify_out):
+                verify_code = kit.main(["--verify-packet", str(packet_dir)])
+            self.assertEqual(verify_code, 0)
+            self.assertIn("VERIFIED", verify_out.getvalue())
+
+            tampered = packet_dir / "security-review-kit.json"
+            tampered.write_text(
+                tampered.read_text(encoding="utf-8").replace('"PASS"', '"FAIL"', 1),
+                encoding="utf-8",
+            )
+            verify_out2 = StringIO()
+            with redirect_stdout(verify_out2):
+                tampered_code = kit.main(["--verify-packet", str(packet_dir)])
+            self.assertEqual(tampered_code, 1)
 
 
 if __name__ == "__main__":
