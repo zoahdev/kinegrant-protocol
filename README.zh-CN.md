@@ -94,6 +94,7 @@ python -m unittest discover -s tests -v
 - 义务在事后强制执行：`ObligationCompliance` 检查每项能力义务都有可验证的履行证据（`emitActionReceipt` 必须有签名收据，`logAuditEvent` 必须有审计日志承诺），红队套件新增“隐瞒收据”探针；家庭机器人与摄像头同意两个部署案例都输出合规结论。
 - 三个可运行演示（`kinegrant-robot-demo`、`kinegrant-bridge-demo`、`kinegrant-ros2-demo`）都会在放行后执行义务合规检查并输出 `obligation_compliance_ok`；性能基准也包含合规检查吞吐。
 - 一致性认证套件 L1-L4 新增“义务履行”考核项（共 18/18 项）；已知义务词表可扩展：`emitActionReceipt`（发签名收据）与 `logAuditEvent`（写审计日志）当前均受支持。
+- 一体化执行门 `Gatekeeper`：序列检查 → 门禁验证与一次性消费 → 执行器 → 签名收据 → 义务合规 → 动作日志，一条 `execute()` 调用跑完整条授权边界，每步失败即拒绝并返回机器可读结果。
 - 跨主体委派是 opt-in 且有界：一份能力最多授权一个特定被委托人并在收窄范围内使用，被委托人永远不能再次转委。根能力可以用 fleet 级 `delegate_allowlist` 限制被委托人。
 - 离线撤销：`RevocationList` 加 `root_capability_id` 让门禁拒绝已撤销的能力，撤销根即撤销整条委派链。签名、版本化的 `RevocationBundle` 提供可认证的分发。参见 [spec/REVOCATION.md](spec/REVOCATION.md)。
 - WoT 风格发现：带认证的 `ThingRegistry` 将 Thing Description 映射到动作与策略指针；未认证发现永远不能携带授权指针。参见 [spec/DISCOVERY.md](spec/DISCOVERY.md)。

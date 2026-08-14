@@ -41,6 +41,23 @@ The runnable home-robot and camera-consent traces now run this check after
 every allowed action and include `obligation_compliant` in their machine-
 readable output.
 
+## 5. Gatekeeper (one-call deployment boundary)
+
+`kinegrant.gatekeeper.Gatekeeper` composes the whole boundary in one
+`execute()` call, in the exact deployment order:
+
+1. sequence check against the action journal (forbidden combinations);
+2. gate verification and atomic one-time consumption;
+3. actuator execution (only after consumption);
+4. signed receipt append, including failure receipts when the actuator fails;
+5. obligation compliance against the full receipt chain;
+6. action-journal record on a fully compliant success.
+
+Every stage fails closed and the outcome is machine-readable
+(`allowed`, `stage`, `reason`, `capability_id`, `receipt_id`,
+`obligation_compliant`, `journal_recorded`). Deployments should use
+`Gatekeeper` instead of hand-composing these steps.
+
 ## Acceptance for deployment
 
 - pass the conformance level that matches the deployment (L1-L4);

@@ -151,6 +151,10 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   `kinegrant-ros2-demo`) report `obligation_compliance_ok`, the conformance
   suite L1-L4 includes an `obligation_compliance` mark (18/18), and the
   micro-benchmarks include obligation compliance throughput.
+- One-call deployment boundary: `Gatekeeper` composes sequence check, gate
+  verification and one-time consumption, actuator execution, signed receipt,
+  obligation compliance, and the action journal into a single `execute()`
+  call with a machine-readable outcome; every stage fails closed.
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.
