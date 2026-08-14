@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.2.0 - v2.2 first item (unreleased)
+## 2.2.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.2.0 on the stable
+  1.0 wire format, adding ODRL mapping for signed policy bundles and the
+  stability policy (docs/STABILITY.md).
 
 - Added `bundle_to_odrl`: verifies a signed policy bundle (signature, authority, time window, rules digest) and serializes its rules into an ODRL document using the versioned `kgp-v0.2` profile, so `odrl_to_rules` round-trips the policy faithfully.
 - Added `docs/STABILITY.md` (stability levels, deprecation process, security support) and updated COMPATIBILITY.md and GOVERNANCE.md with the policy-bundle compatibility and stability policy.
