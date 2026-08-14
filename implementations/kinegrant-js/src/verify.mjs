@@ -18,6 +18,7 @@ const CAPABILITY_FIELDS_V2 = new Set([
 ]);
 CAPABILITY_FIELDS_V2.delete("action");
 CAPABILITY_FIELDS_V2.delete("purpose");
+const OBLIGATION_STATUSES = new Set(["satisfied", "pending", "failed"]);
 
 function b64urlDecode(value) {
   if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error("invalid base64url");
@@ -274,7 +275,10 @@ export function verifyReceiptChain(entries, trustedExecutors) {
     if (payload.type !== "kinegrant:PhysicalActionReceipt") {
       throw new Error("wrong receipt type");
     }
-    if (payload.version !== "0.1") throw new Error("unsupported receipt version");
+    if (payload.version !== "0.1" && payload.version !== "1.0") {
+      throw new Error("unsupported receipt version");
+    }
+    if (payload.version === "1.0") validateReceiptV10(payload);
     if (payload.executor !== envelope.kid) {
       throw new Error("receipt executor does not match signing key");
     }
@@ -297,4 +301,52 @@ export function verifyReceiptChain(entries, trustedExecutors) {
     previous = envelope;
   }
   return true;
+}
+
+function validateReceiptV10(payload) {
+  const hasObligations = Object.prototype.hasOwnProperty.call(
+    payload, "obligation_results",
+  );
+  const hasFailureReason = Object.prototype.hasOwnProperty.call(
+    payload, "failure_reason",
+  );
+  if (!hasObligations && !hasFailureReason) {
+    throw new Error("receipt 1.0 requires an additive extension");
+  }
+  if (hasFailureReason) {
+    const reason = payload.failure_reason;
+    if (typeof reason !== "string" || reason.length === 0) {
+      throw new Error("receipt failure_reason is invalid");
+    }
+  }
+  if (hasObligations) {
+    const results = payload.obligation_results;
+    if (!Array.isArray(results) || results.length === 0) {
+      throw new Error("receipt obligation_results are invalid");
+    }
+    for (const item of results) {
+      if (typeof item !== "object" || item === null) {
+        throw new Error("receipt obligation result must be an object");
+      }
+      const allowed = new Set(["obligation", "status", "failure_reason"]);
+      if (Object.keys(item).some((key) => !allowed.has(key))) {
+        throw new Error("receipt obligation result has unknown fields");
+      }
+      if (item.obligation !== "emitActionReceipt") {
+        throw new Error("receipt obligation is unknown");
+      }
+      if (!OBLIGATION_STATUSES.has(item.status)) {
+        throw new Error("receipt obligation status is invalid");
+      }
+      const reason = item.failure_reason;
+      if (reason !== undefined && reason !== null &&
+          (typeof reason !== "string" || reason.length === 0)) {
+        throw new Error("receipt obligation failure_reason is invalid");
+      }
+      if (item.status === "failed" &&
+          (typeof reason !== "string" || reason.length === 0)) {
+        throw new Error("a failed obligation requires a failure_reason");
+      }
+    }
+  }
 }

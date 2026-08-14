@@ -45,6 +45,10 @@ var capabilityFieldsV2 = map[string]bool{
 	"root_capability_id": true, "delegate_allowlist": true,
 }
 
+var obligationStatuses = map[string]bool{
+	"satisfied": true, "pending": true, "failed": true,
+}
+
 func jsonString(value string) ([]byte, error) {
 	var buf bytes.Buffer
 	encoder := json.NewEncoder(&buf)
@@ -553,7 +557,13 @@ func VerifyReceiptChain(entries []map[string]any, trustedExecutors map[string]bo
 		if payload["type"] != "kinegrant:PhysicalActionReceipt" {
 			return errors.New("wrong receipt type")
 		}
-		if payload["version"] != "0.1" {
+		switch payload["version"] {
+		case "0.1":
+		case "1.0":
+			if err := validateReceiptV10(payload); err != nil {
+				return err
+			}
+		default:
 			return errors.New("unsupported receipt version")
 		}
 		if payload["executor"] != envelope["kid"] {
@@ -595,6 +605,53 @@ func VerifyReceiptChain(entries []map[string]any, trustedExecutors map[string]bo
 			return errors.New("receipt chain is inconsistent")
 		}
 		previous = envelope
+	}
+	return nil
+}
+
+func validateReceiptV10(payload map[string]any) error {
+	_, hasObligations := payload["obligation_results"]
+	_, hasFailureReason := payload["failure_reason"]
+	if !hasObligations && !hasFailureReason {
+		return errors.New("receipt 1.0 requires an additive extension")
+	}
+	if hasFailureReason {
+		reason, _ := payload["failure_reason"].(string)
+		if reason == "" {
+			return errors.New("receipt failure_reason is invalid")
+		}
+	}
+	if hasObligations {
+		results, ok := payload["obligation_results"].([]any)
+		if !ok || len(results) == 0 {
+			return errors.New("receipt obligation_results are invalid")
+		}
+		for _, raw := range results {
+			item, ok := raw.(map[string]any)
+			if !ok {
+				return errors.New("receipt obligation result must be an object")
+			}
+			for field := range item {
+				if field != "obligation" && field != "status" && field != "failure_reason" {
+					return errors.New("receipt obligation result has unknown fields")
+				}
+			}
+			if item["obligation"] != "emitActionReceipt" {
+				return errors.New("receipt obligation is unknown")
+			}
+			status, _ := item["status"].(string)
+			if !obligationStatuses[status] {
+				return errors.New("receipt obligation status is invalid")
+			}
+			reason, _ := item["failure_reason"].(string)
+			hasReason := item["failure_reason"] != nil
+			if hasReason && reason == "" {
+				return errors.New("receipt obligation failure_reason is invalid")
+			}
+			if status == "failed" && (reason == "" || !hasReason) {
+				return errors.New("a failed obligation requires a failure_reason")
+			}
+		}
 	}
 	return nil
 }

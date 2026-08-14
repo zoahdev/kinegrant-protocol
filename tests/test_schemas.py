@@ -47,6 +47,26 @@ class SchemaTests(unittest.TestCase):
             self.assertFalse(schema.get("additionalProperties", True), path.name)
             Draft202012Validator.check_schema(schema)
 
+    def test_receipt_10_schema_accepts_additive_extensions(self) -> None:
+        request = ActionRequest("schema:r2", "robot:1", "door:1", "open", "delivery")
+        rule = PolicyRule(
+            "schema:p2", "owner:1", "door:1", "allow", ("open",),
+            subjects=("robot:1",), purposes=("delivery",),
+            obligations=("emitActionReceipt",),
+        )
+        decision = PolicyEngine([rule], trusted_policy_issuers={"owner:1"}).evaluate(request)
+        authority = Ed25519KeyPair.generate()
+        capability = CapabilityIssuer(authority).issue(request, decision)
+        claims = ActionGate(trusted_issuers={authority.kid}).authorize(capability, request)
+        receipt = ReceiptLog(Ed25519KeyPair.generate()).append(
+            claims,
+            result="succeeded",
+            obligation_results=[
+                {"obligation": "emitActionReceipt", "status": "satisfied"}
+            ],
+        )
+        validate("receipt-1.0.schema.json", receipt)
+
 
 if __name__ == "__main__":
     unittest.main()

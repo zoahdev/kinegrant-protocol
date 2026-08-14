@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added additive receipt version `1.0`: optional `obligation_results`
+  (obligation execution status with failure reasons) and `failure_reason`
+  (why an attempted action failed), validated and verified by the Python
+  reference implementation and the independent JavaScript and Go verifiers,
+  with a published `receipt-1.0` schema. Plain receipts stay byte-identical
+  `0.1`.
 - Added the cross-system ROS 2 + MCP action-gate demo (`kinegrant-ros2-demo`)
   and the MCP tool-call adapter (`kinegrant.adapters.mcp`): one shared policy,
   gate, signed receipt log, and sequence policy govern a ROS 2-style stack and
