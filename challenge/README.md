@@ -1,4 +1,4 @@
-# KineGrant Machine Permission Test v0.3
+# KineGrant Machine Permission Test v0.4
 
 This is a reproducible software test of the KGP-001 permission boundary. It checks that no action is authorized without a capability, a valid capability executes once, replay and request mutation fail, issuer and expiry checks fail closed, concurrent consumption has one winner, replay remains blocked after restart, and receipt tampering or an untrusted executor is rejected.
 
@@ -66,3 +66,6 @@ trusted key ID; an embedded key and valid signature are not a trust decision.
 | MPT-015 | Receipt 1.0 records obligation satisfaction with a valid chain. |
 | MPT-016 | Obligation compliance detects a suppressed audit-log commitment. |
 | MPT-017 | Fleet revocation distribution applies a signed bundle to all gates. |
+| MPT-018 | A signed policy bundle is accepted and its rules are enforced. |
+| MPT-019 | Policy bundle tampering, wrong authority, and wrong policy are rejected. |
+| MPT-020 | Policy version rollback and fail-closed with no current version. |
