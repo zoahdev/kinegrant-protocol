@@ -4,6 +4,10 @@
 
 ## 1.3.0 — 2026-08-15
 
+- `kinegrant-audit` now accepts `--distribution-report`,
+  `--revocation-bundle`, and `--revocation-authorities` to verify and include
+  a fleet revocation distribution status in the audit report; unverifiable
+  reports exit non-zero.
 - All runnable demos (`kinegrant-robot-demo`, `kinegrant-bridge-demo`,
   `kinegrant-ros2-demo`) and both deployment traces (home-robot,
   camera-consent) now evaluate policy through `CachedPolicyEngine`.

@@ -107,6 +107,11 @@ exact bundle id and version, its summary must match the per-gate
 acknowledgements, and the bundle must verify under the caller-supplied
 authorities. Any inconsistency is rejected (fail-closed).
 
+`kinegrant-audit --distribution-report report.json --revocation-bundle
+bundle.json --revocation-authorities authorities.json` folds a verified
+fleet revocation status into the audit report; a tampered or unverifiable
+report makes the command exit non-zero.
+
 ## Acceptance for deployment
 
 - pass the conformance level that matches the deployment (L1-L4);
