@@ -2,7 +2,10 @@
 
 ## Unreleased
 
-## 2.4.0 - v2.4 first item (unreleased)
+## 2.4.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.4.0 on the stable
+  1.0 wire format, adding the executable policy-bundle lifecycle example.
 
 - Added an executable policy-bundle lifecycle example (`examples/policy-bundle`): publish -> enforce -> ODRL round trip -> fleet distribution -> upgrade (no downgrade) -> static analysis -> bounded coverage -> revocation rollback -> fail-closed, with a machine-readable `kinegrant:PolicyBundleLifecycleDemo` trace and a single `passed` verdict.
 
