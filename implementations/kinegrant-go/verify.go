@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"path"
 )
 
 var domain = []byte("KINEGRANT-SIGNED-ENVELOPE-V1\x00")
@@ -30,6 +31,19 @@ var capabilityFields = map[string]bool{
 }
 
 var sha256Re = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
+
+var capabilityFieldsV2 = map[string]bool{
+	"type": true, "version": true, "issuer": true, "agent": true,
+	"target": true, "actions": true, "purposes": true,
+	"request_digest": true, "policy_digest": true,
+	"matched_policy_ids": true, "obligations": true,
+	"issued_at": true, "not_before": true, "expires_at": true,
+	"nonce": true, "capability_id": true,
+	"parent_capability_id": true, "constraints": true, "approval_tier": true,
+	"delegation_allowed": true, "max_delegation_depth": true,
+	"delegate_agent": true, "delegation_depth": true,
+	"root_capability_id": true, "delegate_allowlist": true,
+}
 
 func jsonString(value string) ([]byte, error) {
 	var buf bytes.Buffer
@@ -213,6 +227,13 @@ func VerifyCapability(envelope map[string]any, request map[string]any, trustedIs
 	if err != nil {
 		return nil, err
 	}
+	switch payload["version"] {
+	case "0.2", "1.0":
+		return verifyCapabilityV2(payload, envelope, request, trustedIssuers)
+	case "0.1":
+	default:
+		return nil, errors.New("unsupported capability version")
+	}
 	if len(payload) != len(capabilityFields) {
 		return nil, errors.New("capability fields do not match the v0.1 schema")
 	}
@@ -318,6 +339,206 @@ func VerifyCapability(envelope map[string]any, request map[string]any, trustedIs
 		return nil, errors.New("capability identifier is inconsistent")
 	}
 	return payload, nil
+}
+
+func globMatch(pattern, value string) bool {
+	matched, err := path.Match(pattern, value)
+	return err == nil && matched
+}
+
+func verifyCapabilityV2(payload map[string]any, envelope map[string]any, request map[string]any, trustedIssuers map[string]bool) (map[string]any, error) {
+	if len(payload) != len(capabilityFieldsV2) {
+		return nil, errors.New("capability fields do not match the scoped schema")
+	}
+	for field := range payload {
+		if !capabilityFieldsV2[field] {
+			return nil, errors.New("capability fields do not match the scoped schema")
+		}
+	}
+	if payload["type"] != "kinegrant:PhysicalActionCapability" {
+		return nil, errors.New("wrong capability type")
+	}
+	if payload["issuer"] != envelope["kid"] {
+		return nil, errors.New("capability issuer does not match signing key")
+	}
+	issuer, _ := payload["issuer"].(string)
+	if !trustedIssuers[issuer] {
+		return nil, errors.New("untrusted capability issuer")
+	}
+	requestDigest, err := digestObject(request)
+	if err != nil {
+		return nil, err
+	}
+	if payload["request_digest"] != requestDigest {
+		return nil, errors.New("capability does not authorize this request")
+	}
+	if payload["agent"] != request["agent"] {
+		return nil, errors.New("capability agent mismatch")
+	}
+	targetPattern, _ := payload["target"].(string)
+	requestTarget, _ := request["target"].(string)
+	if !globMatch(targetPattern, requestTarget) {
+		return nil, errors.New("capability target scope mismatch")
+	}
+	actions, ok := payload["actions"].([]any)
+	if !ok || !containsString(actions, request["action"]) {
+		return nil, errors.New("capability action scope mismatch")
+	}
+	purposes, ok := payload["purposes"].([]any)
+	if !ok || !containsString(purposes, request["purpose"]) {
+		return nil, errors.New("capability purpose scope mismatch")
+	}
+	if parentID, present := payload["parent_capability_id"]; present && parentID != nil {
+		if _, ok := parentID.(string); !ok {
+			return nil, errors.New("capability parent id must be a string or null")
+		}
+	}
+	constraints, ok := payload["constraints"].(map[string]any)
+	if !ok {
+		return nil, errors.New("capability constraints must be an object")
+	}
+	for _, name := range []string{"max_force_newtons", "max_velocity_mps"} {
+		if value, present := constraints[name]; present {
+			number, ok := value.(float64)
+			if !ok || number < 0 {
+				return nil, fmt.Errorf("capability %s must be a non-negative number", name)
+			}
+		}
+	}
+	if zones, present := constraints["allowed_zones"]; present {
+		zoneList, ok := zones.([]any)
+		if !ok || len(zoneList) == 0 {
+			return nil, errors.New("capability allowed_zones must be a non-empty list")
+		}
+		for _, zone := range zoneList {
+			if _, ok := zone.(string); !ok {
+				return nil, errors.New("capability allowed_zones must contain strings")
+			}
+		}
+	}
+	tier, ok := payload["approval_tier"].(float64)
+	if !ok || tier != float64(int(tier)) || tier < 0 || tier > 2 {
+		return nil, errors.New("capability approval_tier must be an integer between 0 and 2")
+	}
+	if _, ok := payload["delegation_allowed"].(bool); !ok {
+		return nil, errors.New("capability delegation_allowed must be a boolean")
+	}
+	maxDepth, ok := payload["max_delegation_depth"].(float64)
+	if !ok || maxDepth < 0 || maxDepth > 3 {
+		return nil, errors.New("capability max_delegation_depth must be between 0 and 3")
+	}
+	depth, ok := payload["delegation_depth"].(float64)
+	if !ok || depth < 0 || depth > 3 {
+		return nil, errors.New("capability delegation_depth must be between 0 and 3")
+	}
+	if delegate, present := payload["delegate_agent"]; present && delegate != nil {
+		if _, ok := delegate.(string); !ok {
+			return nil, errors.New("capability delegate_agent must be a non-empty string or null")
+		}
+	}
+	rootID, _ := payload["root_capability_id"].(string)
+	if rootID == "" {
+		return nil, errors.New("capability root_capability_id must be a non-empty string")
+	}
+	if allowlist, present := payload["delegate_allowlist"]; present && allowlist != nil {
+		items, ok := allowlist.([]any)
+		if !ok {
+			return nil, errors.New("capability delegate_allowlist must be a list or null")
+		}
+		for _, item := range items {
+			if _, ok := item.(string); !ok {
+				return nil, errors.New("capability delegate_allowlist must contain strings")
+			}
+		}
+	}
+	if err := validateCommonCapability(payload); err != nil {
+		return nil, err
+	}
+	return payload, nil
+}
+
+func containsString(items []any, value any) bool {
+	for _, item := range items {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}
+
+func validateCommonCapability(payload map[string]any) error {
+	issuedAtValue, err := stringField(payload, "issued_at")
+	if err != nil {
+		return err
+	}
+	notBeforeValue, err := stringField(payload, "not_before")
+	if err != nil {
+		return err
+	}
+	expiresAtValue, err := stringField(payload, "expires_at")
+	if err != nil {
+		return err
+	}
+	issuedAt, err := parseTime(issuedAtValue)
+	if err != nil {
+		return errors.New("invalid capability time window")
+	}
+	notBefore, err := parseTime(notBeforeValue)
+	if err != nil {
+		return errors.New("invalid capability time window")
+	}
+	expiresAt, err := parseTime(expiresAtValue)
+	if err != nil {
+		return errors.New("invalid capability time window")
+	}
+	if notBefore.Before(issuedAt) || !expiresAt.After(notBefore) {
+		return errors.New("invalid capability time window")
+	}
+	if expiresAt.Sub(notBefore) > 300*time.Second {
+		return errors.New("capability lifetime exceeds protocol maximum")
+	}
+	now := time.Now()
+	if now.Before(notBefore) {
+		return errors.New("capability is not active yet")
+	}
+	if !now.Before(expiresAt) {
+		return errors.New("capability has expired")
+	}
+	nonce, _ := payload["nonce"].(string)
+	if len(nonce) < 20 {
+		return errors.New("capability nonce is invalid")
+	}
+	matched, ok := payload["matched_policy_ids"].([]any)
+	if !ok || len(matched) == 0 {
+		return errors.New("capability has no matching policy")
+	}
+	obligations, ok := payload["obligations"].([]any)
+	if !ok {
+		return errors.New("capability obligations are invalid")
+	}
+	for _, obligation := range obligations {
+		if obligation != "emitActionReceipt" {
+			return errors.New("capability obligations are invalid")
+		}
+	}
+	policyDigest, _ := payload["policy_digest"].(string)
+	if !sha256Re.MatchString(policyDigest) {
+		return errors.New("capability policy digest is invalid")
+	}
+	unsigned := make(map[string]any, len(payload))
+	for key, value := range payload {
+		if key != "capability_id" && key != "root_capability_id" {
+			unsigned[key] = value
+		}
+	}
+	expectedID, err := contentID("kinegrant:cap", unsigned)
+	if err != nil {
+		return err
+	}
+	if payload["capability_id"] != expectedID {
+		return errors.New("capability identifier is inconsistent")
+	}
+	return nil
 }
 
 // VerifyReceiptChain verifies a KGP receipt hash chain.

@@ -125,6 +125,35 @@ class JavaScriptInteropTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("RECEIPT CHAIN VALID", result.stdout)
 
+    def test_javascript_verifies_python_scoped_capability(self) -> None:
+        capability = self.issuer.issue_scoped(
+            self.request,
+            self.decision,
+            ttl_seconds=300,
+            target="urn:kinegrant:interop:target:*",
+            actions=["open"],
+            purposes=["delivery"],
+            wire_version="1.0",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            envelope_path = base / "capability.json"
+            request_path = base / "request.json"
+            issuers_path = base / "issuers.json"
+            envelope_path.write_text(json.dumps(capability), encoding="utf-8")
+            request_path.write_text(json.dumps(self.request.to_dict()), encoding="utf-8")
+            issuers_path.write_text(
+                json.dumps([self.authority.kid]), encoding="utf-8"
+            )
+            result = self._run(
+                "verify-capability",
+                str(envelope_path),
+                str(request_path),
+                str(issuers_path),
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("CAPABILITY VALID", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
