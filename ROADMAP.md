@@ -188,6 +188,15 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
 - receipt-audit exports: CSV and self-verifying evidence packets;
 - conformance suite at 20/20 including the `revocation_distribution` mark.
 
+## v1.3 — performance and verifiability (complete with v1.3.0)
+
+- bounded policy-decision cache (`CachedPolicyEngine`) with LRU decisions,
+  hit/miss statistics, and automatic invalidation on policy change;
+- verifiable fleet revocation distribution reports
+  (`verify_distribution_report`): bundle binding, count integrity, trusted
+  authorities;
+- benchmark metrics for cached policy evaluation and fleet distribution.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
