@@ -19,6 +19,7 @@ from typing import Any, Callable
 
 from ..adapters.matter import matter_command_request
 from ..adapters.ros2 import ros_action_request
+from ..cache import CachedPolicyEngine
 from ..capability import CapabilityIssuer
 from ..crypto import Ed25519KeyPair
 from ..gate import ActionGate, VerifiedCapability
@@ -128,9 +129,11 @@ class RobotDemo:
     def __init__(self) -> None:
         self.authority = Ed25519KeyPair.generate()
         self.issuer = CapabilityIssuer(self.authority)
-        self.engine = PolicyEngine(
-            default_policy(self.authority.kid),
-            trusted_policy_issuers={self.authority.kid},
+        self.engine = CachedPolicyEngine(
+            PolicyEngine(
+                default_policy(self.authority.kid),
+                trusted_policy_issuers={self.authority.kid},
+            )
         )
         self.gate = ActionGate(trusted_issuers={self.authority.kid})
         self.journal = ActionJournal()

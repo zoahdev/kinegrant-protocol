@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
+from kinegrant.cache import CachedPolicyEngine
 from kinegrant.capability import CapabilityIssuer
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
@@ -36,9 +37,11 @@ def run() -> dict:
         "deny",
         ("train_on_data",),
     )
-    engine = PolicyEngine(
-        [allow_record, deny_training],
-        trusted_policy_issuers={authority.kid},
+    engine = CachedPolicyEngine(
+        PolicyEngine(
+            [allow_record, deny_training],
+            trusted_policy_issuers={authority.kid},
+        )
     )
     journal = ActionJournal()
     sequence = SequencePolicy(

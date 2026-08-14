@@ -19,6 +19,7 @@ from typing import Any
 
 from ..adapters.mcp import mcp_tool_request
 from ..adapters.ros2 import ros_action_request
+from ..cache import CachedPolicyEngine
 from ..capability import CapabilityIssuer
 from ..crypto import Ed25519KeyPair
 from ..gate import ActionGate
@@ -78,9 +79,11 @@ class Ros2McpDemo:
         self.untrusted = Ed25519KeyPair.generate()
         self.issuer = CapabilityIssuer(self.authority)
         self.untrusted_issuer = CapabilityIssuer(self.untrusted)
-        self.engine = PolicyEngine(
-            _policy(self.authority.kid),
-            trusted_policy_issuers={self.authority.kid},
+        self.engine = CachedPolicyEngine(
+            PolicyEngine(
+                _policy(self.authority.kid),
+                trusted_policy_issuers={self.authority.kid},
+            )
         )
         self.gate = ActionGate(trusted_issuers={self.authority.kid})
         self.log = ReceiptLog(self.authority)
