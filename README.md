@@ -272,6 +272,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   [policy-bundle lifecycle example](examples/policy-bundle/README.md) walks
   publish -> enforce -> ODRL -> fleet distribution -> audit -> revocation
   rollback in one runnable trace.
+- A standalone, offline [browser policy-bundle verifier](verify/policy-bundle-verifier.html)
+  verifies signed bundles and current-version selection entirely in the
+  browser (zero dependencies; host `verify/` anywhere and link the page).
 - Stable wire format: the reference implementation issues and verifies `1.0`
   capabilities (frozen scoped shape), with `capability-1.0` schema and
   KGP-RFC-0001 accepted, and the JavaScript and Go verifiers accept `0.2`/`1.0`

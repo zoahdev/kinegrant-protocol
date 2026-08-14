@@ -110,6 +110,15 @@ aggregate allowed/denied/exception/shadowed totals. `overall_result` is PASS
 only when every bundle verifies and has no error findings or coverage
 exceptions.
 
+## Browser verification
+
+`verify/policy-bundle-verifier.js` is a zero-dependency, offline verifier that
+runs in any modern browser (WebCrypto Ed25519 + SHA-256, RFC 8785 JCS subset).
+`verify/policy-bundle-verifier.html` is a standalone page: paste a signed
+bundle and trusted authorities, verify locally, and select the current policy
+version from a list of payloads with a revocation set. `verify/verify_policy_bundle.mjs`
+exposes the same logic as a Node CLI for CI cross-checks.
+
 ## Non-goals
 
 - No ledger, token, or consensus mechanism is required or implied.
