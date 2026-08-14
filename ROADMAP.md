@@ -65,6 +65,8 @@ Progress on main:
 - Machine-readable `kg.action.*` vocabulary with risk tiers and
   data-sensitivity metadata, a strict Draft 2020-12 schema, and an optional
   fail-closed `require_known_actions` policy mode.
+- Physical constraints (`max_force_newtons`, `max_velocity_mps`,
+  `allowed_zones`) enforced fail-closed against request context.
 
 Exit criterion: independent implementations produce byte-identical decisions and
 verify each other's capabilities and receipts.

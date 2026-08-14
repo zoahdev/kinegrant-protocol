@@ -122,6 +122,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   `retain`, and `train_on_data`, with risk tiers and data-sensitivity
   metadata. Enable `PolicyEngine(require_known_actions=True)` to fail closed on
   unknown action terms.
+- Physical constraints are enforced by policy rules: `max_force_newtons`,
+  `max_velocity_mps`, and `allowed_zones`. A rule that declares a physical
+  limit denies requests that omit or exceed the corresponding context value.
 
 ## Repository map
 

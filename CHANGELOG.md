@@ -8,6 +8,9 @@
 - Added the machine-readable `kg.action.*` physical action vocabulary with
   risk tiers, data-sensitivity metadata, a strict Draft 2020-12 schema, and an
   optional fail-closed `require_known_actions` policy mode.
+- Added fail-closed physical constraints to policy rules: `max_force_newtons`,
+  `max_velocity_mps`, and `allowed_zones`, validated against request context
+  and published in the PolicyRule schema.
 - Published the nine-case KineGrant Machine Permission Test v0.1.
 - Added machine-readable PASS/FAIL evidence, an independent verifier, source
   commit and runner-digest provenance, and CI execution across Python 3.11–3.13.

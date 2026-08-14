@@ -21,7 +21,15 @@
         "not_after": {"type": "string", "format": "date-time"},
         "required_context": {"type": "object"},
         "requires_human_present": {"type": "boolean"},
-        "max_risk_tier": {"type": "integer", "minimum": 0}
+        "max_risk_tier": {"type": "integer", "minimum": 0},
+        "max_force_newtons": {"type": "number", "minimum": 0},
+        "max_velocity_mps": {"type": "number", "minimum": 0},
+        "allowed_zones": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
       }
     },
     "obligations": {"type": "array", "items": {"enum": ["emitActionReceipt"]}, "uniqueItems": true},
