@@ -1,6 +1,6 @@
 # KineGrant Conformance Levels
 
-> Status: draft for community review
+> Status: accepted (v1.0.0)
 
 `kinegrant-conformance` runs the reference implementation through four
 executable levels and emits a machine-readable report with the marks earned:

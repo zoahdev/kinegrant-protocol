@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Released **v1.0.0**: stable wire format `1.0` accepted (KGP-RFC-0001),
+  reference implementation version 1.0.0, interim steering committee record,
+  and certification-program draft adopted. See the v1.0.0 GitHub release.
 - JavaScript and Go verifiers now accept `0.2`/`1.0` scoped capabilities,
   giving three-way stable-format interoperability in CI.
 - Added stable wire format `1.0`: reference implementation issues and verifies

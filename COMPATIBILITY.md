@@ -1,6 +1,6 @@
 # Wire-Format Compatibility Policy
 
-> Status: draft for community review
+> Status: accepted (KGP-RFC-0001)
 
 Wire objects carry an explicit `version`. The reference implementation
 supports `0.1` (exact action triple), `0.2` (scoped capabilities), and `1.0`
