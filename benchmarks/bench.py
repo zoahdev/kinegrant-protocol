@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from kinegrant.audit import ReceiptAuditor
 from kinegrant.capability import CapabilityIssuer
 from kinegrant.compliance import ObligationCompliance
 from kinegrant.crypto import Ed25519KeyPair
@@ -103,6 +104,29 @@ def run(iterations: int = 2000) -> dict:
             receipt_log=ReceiptLog(executor),
         ).execute(capability, request, lambda verified: None)
 
+    audit_log = ReceiptLog(executor)
+    for index in range(10):
+        audit_request = ActionRequest(
+            f"urn:kinegrant:bench:audit:{index}",
+            "urn:kinegrant:bench:agent:1",
+            "urn:kinegrant:bench:target:door-7",
+            "open",
+            "delivery",
+        )
+        audit_decision = engine.evaluate(audit_request)
+        audit_capability = issuer.issue(audit_request, audit_decision, ttl_seconds=300)
+        audit_verified = ActionGate(
+            trusted_issuers={authority.kid},
+            replay_store=InMemoryReplayStore(),
+        ).authorize(audit_capability, audit_request)
+        audit_log.append(audit_verified, result="succeeded")
+
+    def audit_summary() -> None:
+        ReceiptAuditor(
+            audit_log.entries,
+            trusted_executors={executor.kid},
+        ).summary()
+
     from kinegrant.canonical import canonical_json
 
     def jcs_digest() -> None:
@@ -122,6 +146,9 @@ def run(iterations: int = 2000) -> dict:
             ),
             "gatekeeper_execute": round(
                 _measure(gatekeeper_execute, max(1, iterations // 10)), 1
+            ),
+            "audit_summary": round(
+                _measure(audit_summary, max(1, iterations // 10)), 1
             ),
             "jcs_digest": round(_measure(jcs_digest, iterations), 1),
         },

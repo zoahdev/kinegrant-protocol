@@ -9,6 +9,7 @@ from kinegrant.gatekeeper import Gatekeeper
 from kinegrant.models import ActionRequest, PolicyRule
 from kinegrant.policy import PolicyEngine
 from kinegrant.receipt import ReceiptLog, verify_receipt_chain
+from kinegrant.revocation import RevocationList
 from kinegrant.sequence import ActionJournal, ForbiddenCombination, SequencePolicy
 
 
@@ -199,6 +200,31 @@ class GatekeeperTests(unittest.TestCase):
         self.assertIn("receipt_id", data)
         self.assertIn("obligation_compliant", data)
         self.assertIn("journal_recorded", data)
+
+    def test_revoked_capability_denied_at_revocation_stage(self) -> None:
+        gatekeeper, capability, calls = self.build()
+        revocation_list = RevocationList()
+        revocation_list.revoke(capability["payload"]["capability_id"])
+        gk = Gatekeeper(
+            gate=ActionGate(
+                trusted_issuers={self.authority.kid},
+                replay_store=InMemoryReplayStore(),
+            ),
+            sequence=SequencePolicy([]),
+            journal=ActionJournal(),
+            receipt_log=ReceiptLog(self.executor),
+            revocation_list=revocation_list,
+        )
+        outcome = gk.execute(
+            capability,
+            self.request,
+            lambda verified: calls.append(verified["capability_id"]),
+        )
+        self.assertFalse(outcome.allowed)
+        self.assertEqual(outcome.stage, "revocation")
+        self.assertIn("revoked", outcome.reason or "")
+        self.assertEqual(calls, [])
+        self.assertEqual(len(gk.receipt_log.entries), 0)
 
 
 if __name__ == "__main__":

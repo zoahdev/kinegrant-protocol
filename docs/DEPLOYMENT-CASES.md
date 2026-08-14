@@ -47,11 +47,12 @@ readable output.
 `execute()` call, in the exact deployment order:
 
 1. sequence check against the action journal (forbidden combinations);
-2. gate verification and atomic one-time consumption;
-3. actuator execution (only after consumption);
-4. signed receipt append, including failure receipts when the actuator fails;
-5. obligation compliance against the full receipt chain;
-6. action-journal record on a fully compliant success.
+2. revocation check against the deployment's revocation list;
+3. gate verification and atomic one-time consumption;
+4. actuator execution (only after consumption);
+5. signed receipt append, including failure receipts when the actuator fails;
+6. obligation compliance against the full receipt chain;
+7. action-journal record on a fully compliant success.
 
 Every stage fails closed and the outcome is machine-readable
 (`allowed`, `stage`, `reason`, `capability_id`, `receipt_id`,
