@@ -4,6 +4,7 @@ __version__ = "0.1.1"
 
 from .capability import CapabilityIssuer
 from .attenuation import attenuate_capability, verify_attenuation
+from .attestation import build_device_attestation, verify_device_attestation
 from .checkpoint import build_receipt_checkpoint, verify_receipt_checkpoint
 from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
 from .discovery import DiscoveryResolution, ThingActions, ThingRegistry
@@ -21,6 +22,13 @@ from .identity import (
     random_policy_id,
     random_target_id,
     target_id,
+)
+from .keys import (
+    BackedKeyPair,
+    SigningBackend,
+    SoftwareEd25519Backend,
+    SoftwareMLDSA65Backend,
+    key_id_from_backend,
 )
 from .models import ActionRequest, Decision, PolicyRule
 from .policy import PolicyEngine
@@ -61,6 +69,7 @@ __all__ = [
     "ActionJournal",
     "ActionRequest",
     "ActionSpec",
+    "BackedKeyPair",
     "CapabilityIssuer",
     "Decision",
     "DiscoveryResolution",
@@ -79,6 +88,9 @@ __all__ = [
     "TrustedClock",
     "TrustedClockError",
     "SQLiteReplayStore",
+    "SigningBackend",
+    "SoftwareEd25519Backend",
+    "SoftwareMLDSA65Backend",
     "SequencePolicy",
     "SequenceVerdict",
     "VerifiedCapability",
@@ -88,6 +100,7 @@ __all__ = [
     "approval_tier_from_risk",
     "attenuate_capability",
     "build_revocation_bundle",
+    "build_device_attestation",
     "build_receipt_checkpoint",
     "build_sensor_commitment",
     "known_action",
@@ -107,6 +120,7 @@ __all__ = [
     "validate_actions",
     "verify_envelope",
     "verify_attenuation",
+    "verify_device_attestation",
     "verify_receipt_checkpoint",
     "verify_revocation_bundle",
     "verify_sensor_commitment",

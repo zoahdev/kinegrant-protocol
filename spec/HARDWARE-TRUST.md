@@ -28,6 +28,22 @@ without exposing the receipts. `verify_receipt_checkpoint` checks the
 signature, trust anchor, and content-addressed id, and returns the chain
 digest for external comparison.
 
+## Signing backends
+
+`SigningBackend` is the narrow interface a secure element exposes: sign bytes
+and reveal the public key id. `BackedKeyPair` adapts any backend to the
+KineGrant envelope format, so capabilities and attestations can be signed by a
+hardware key without changing the wire format. Private key material never
+crosses the interface; the software backends are for tests only.
+
+## Device attestation
+
+`build_device_attestation` binds a device id to its firmware digest, a
+persistent boot counter, and an ordered measured-boot chain, signed by the
+device key. `verify_device_attestation` checks the signature, trust anchor,
+field constraints, and content-addressed id. Attestations are claims about
+software state; secure-boot enforcement is deployment hardware work.
+
 Hardware-specific pieces (secure-element key storage, measured boot, signed
 gate firmware) remain deployment work and are intentionally not simulated as
 software claims of hardware security.
