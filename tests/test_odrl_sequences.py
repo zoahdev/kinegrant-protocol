@@ -67,18 +67,19 @@ class OdrlObligationTests(unittest.TestCase):
                 "duty": [
                     {"action": "emitActionReceipt"},
                     {"action": "logAuditEvent"},
+                    {"action": "preserveEvidence"},
                 ],
             }
         )
         rules = odrl_to_rules(doc)
         self.assertEqual(
             rules[0].obligations,
-            ("emitActionReceipt", "logAuditEvent"),
+            ("emitActionReceipt", "logAuditEvent", "preserveEvidence"),
         )
         round_trip = odrl_to_rules(rules_to_odrl(rules, policy_uid="urn:kgp:odrl:audit", assigner="trusted-issuer"))
         self.assertEqual(
             round_trip[0].obligations,
-            ("emitActionReceipt", "logAuditEvent"),
+            ("emitActionReceipt", "logAuditEvent", "preserveEvidence"),
         )
 
     def test_unknown_duty_fails_closed(self) -> None:

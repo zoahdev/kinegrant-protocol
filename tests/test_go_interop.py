@@ -146,14 +146,14 @@ class GoInteropTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("CAPABILITY VALID", result.stdout)
 
-    def test_go_accepts_both_known_obligations(self) -> None:
+    def test_go_accepts_all_known_obligations(self) -> None:
         rule = PolicyRule(
             policy_id="interop-go-rule-obligations",
             issuer=self.authority.kid,
             target="urn:kinegrant:interop-go:target:*",
             effect="allow",
             actions=("open",),
-            obligations=("emitActionReceipt", "logAuditEvent"),
+            obligations=("emitActionReceipt", "logAuditEvent", "preserveEvidence"),
         )
         decision = PolicyEngine(
             [rule], trusted_policy_issuers={self.authority.kid}
@@ -169,7 +169,7 @@ class GoInteropTests(unittest.TestCase):
         )
         self.assertEqual(
             sorted(capability["payload"]["obligations"]),
-            ["emitActionReceipt", "logAuditEvent"],
+            ["emitActionReceipt", "logAuditEvent", "preserveEvidence"],
         )
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
