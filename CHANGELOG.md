@@ -4,6 +4,10 @@
 
 ## 1.7.0 — 2026-08-15
 
+- Added the security review kit generator (`scripts/security_review_kit.py`):
+  it runs the conformance, MPT, red-team, benchmark, and unit-test suites,
+  records reproduce commands and artifacts, and emits a checklist backed by
+  those results; CI-smoked and covered by tests.
 - Milestone release: reference implementation version 1.7.0 on the stable
   1.0 wire format, adding independent JavaScript/Go cross-verification to
   the conformance report.

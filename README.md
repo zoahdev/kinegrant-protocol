@@ -187,6 +187,11 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   actuator runs only after the boundary admits, receipts follow gate
   consumption, the journal records only fully compliant successes, replay
   cannot double-execute, and every denial carries a stage.
+- Security review kit: `python scripts/security_review_kit.py --output kit.json`
+  generates a machine-readable audit package that actually runs the
+  conformance, MPT, red-team, benchmark, and unit-test suites, records the
+  exact commands and artifacts for an external auditor, and emits a
+  checklist backed by those results.
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.
