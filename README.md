@@ -189,7 +189,10 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   current-version rollback in the conformance report; `bundle_to_odrl`
   maps verified bundles to ODRL through the versioned `kgp-v0.2` profile, and
   `analyze_policy_bundle` emits conservative conflict/coverage findings
-  (`kinegrant-policy-bundle --analyze`, fail-closed exit codes).
+  (`kinegrant-policy-bundle --analyze`, fail-closed exit codes);
+  `policy_bundle_coverage` runs a bounded request-space check
+  (`--coverage`) reporting default denies, per-rule applicability, and
+  shadowed allows.
 - Fleet policy distribution: `PolicyDistributor` verifies one signed policy
   bundle under the caller's trusted authorities and applies it to many
   registries idempotently (never auto-downgrading), with per-registry

@@ -36,6 +36,7 @@ from typing import Any, Iterable, Mapping
 from .canonical import content_id, digest
 from .crypto import verify_envelope
 from .models import PolicyRule, isoformat, parse_time, utc_now
+from .policy import PolicyEngine
 
 _BUNDLE_TYPE = "kinegrant:PolicyBundle"
 _SCHEMA_VERSION = "0.1"
@@ -400,6 +401,68 @@ def analyze_policy_bundle(
             "info": info,
         },
         "findings": findings,
+    }
+
+
+def policy_bundle_coverage(
+    bundle: Mapping[str, Any],
+    *,
+    trusted_authorities: set[str] | None = None,
+    expected_policy_id: str | None = None,
+    now: datetime | None = None,
+    agents: Iterable[str] = ("urn:kinegrant:coverage:agent:1",),
+    targets: Iterable[str] = ("urn:kinegrant:coverage:target:1",),
+    actions: Iterable[str] = ("open",),
+    purposes: Iterable[str] = ("delivery",),
+    max_requests: int = 200,
+) -> dict[str, Any]:
+    """Run a bounded request-space coverage check over a verified bundle.
+
+    The bundle must pass signature, authority, time-window, and digest checks
+    (fail-closed). The policy engine evaluates the Cartesian request space and
+    the report records allowed/denied/exceptions, per-rule applicability, and
+    allow rules that never win (shadowed by deny-overrides).
+    """
+    payload = verify_policy_bundle(
+        bundle,
+        trusted_authorities=trusted_authorities,
+        expected_policy_id=expected_policy_id,
+        now=now,
+    )
+    rules = rules_from_bundle(
+        bundle,
+        trusted_authorities=trusted_authorities,
+        expected_policy_id=expected_policy_id,
+        now=now,
+    )
+    engine = PolicyEngine(rules, trusted_policy_issuers={payload["issuer"]})
+    from .modelcheck import bounded_model_check
+
+    check = bounded_model_check(
+        engine,
+        agents=agents,
+        targets=targets,
+        actions=actions,
+        purposes=purposes,
+        max_requests=max_requests,
+    )
+    return {
+        "type": "kinegrant:PolicyBundleCoverage",
+        "schema_version": "0.1",
+        "policy_id": payload["policy_id"],
+        "bundle_id": payload["bundle_id"],
+        "bundle_version": payload["version"],
+        "overall_result": check["overall_result"],
+        "summary": {
+            "space_size": check["space_size"],
+            "evaluated": check["evaluated"],
+            "allowed": check["allowed"],
+            "denied": check["denied"],
+            "exceptions": check["exceptions"],
+            "shadowed_allows": len(check["shadowed_allows"]),
+        },
+        "shadowed_allows": check["shadowed_allows"],
+        "rule_stats": check["rules"],
     }
 
 
@@ -857,6 +920,11 @@ def _self_test() -> int:
         trusted_authorities={authority.kid},
     )
     checks.append(analysis["overall_result"] == "PASS")
+    coverage = policy_bundle_coverage(
+        v2,
+        trusted_authorities={authority.kid},
+    )
+    checks.append(coverage["overall_result"] == "PASS")
     return 0 if all(checks) else 1
 
 
@@ -968,6 +1036,28 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0 if report["overall_result"] == "PASS" else 1
+    if "--coverage" in args:
+        bundle_path = args[args.index("--coverage") + 1]
+        authorities_path = args[args.index("--authorities") + 1]
+        bundle = json.loads(Path(bundle_path).read_text(encoding="utf-8"))
+        authorities = json.loads(Path(authorities_path).read_text(encoding="utf-8"))
+        kwargs: dict[str, Any] = {}
+        for flag in ("agents", "targets", "actions", "purposes"):
+            if f"--{flag}" in args:
+                kwargs[flag] = tuple(
+                    args[args.index(f"--{flag}") + 1].split(",")
+                )
+        if "--max-requests" in args:
+            kwargs["max_requests"] = int(
+                args[args.index("--max-requests") + 1]
+            )
+        report = policy_bundle_coverage(
+            bundle,
+            trusted_authorities=set(authorities),
+            **kwargs,
+        )
+        print(json.dumps(report, indent=2, sort_keys=True))
+        return 0 if report["overall_result"] == "PASS" else 1
     print(
         "usage: kinegrant-policy-bundle --verify <bundle.json> --authorities <ids.json> "
         "[--policy-id <id>] | --activate <bundle.json> --authorities <ids.json> "
@@ -977,6 +1067,9 @@ def main(argv: list[str] | None = None) -> int:
         "[--out <states.json>] | "
         "--verify-report <report.json> --bundle <bundle.json> --authorities <ids.json> | "
         "--analyze <bundle.json> --authorities <ids.json> | "
+        "--coverage <bundle.json> --authorities <ids.json> "
+        "[--agents a,b] [--targets t] [--actions act] [--purposes p] "
+        "[--max-requests N] | "
         "--self-test",
         file=sys.stderr,
     )

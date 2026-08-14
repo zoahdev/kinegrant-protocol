@@ -18,6 +18,7 @@ from kinegrant.policy_bundle import (
     build_policy_bundle,
     bundle_to_odrl,
     main,
+    policy_bundle_coverage,
     rules_from_bundle,
     sign_policy_bundle,
     verify_policy_distribution_report,
@@ -630,6 +631,156 @@ class PolicyBundleTests(unittest.TestCase):
                         str(conflict_path),
                         "--authorities",
                         str(authorities_path),
+                    ]
+                ),
+                1,
+            )
+
+    def test_coverage_clean_bundle_passes(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:coverage"
+        bundle = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        report = policy_bundle_coverage(
+            bundle,
+            trusted_authorities={authority.kid},
+            targets=("urn:space:test:door-1",),
+        )
+        self.assertEqual(report["overall_result"], "PASS")
+        self.assertEqual(report["summary"]["allowed"], 1)
+        self.assertEqual(report["summary"]["denied"], 0)
+
+    def test_coverage_reports_deny_default(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:coverage-deny-default"
+        bundle = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        report = policy_bundle_coverage(
+            bundle,
+            trusted_authorities={authority.kid},
+            actions=("open", "record"),
+            targets=("urn:space:test:door-1",),
+        )
+        self.assertEqual(report["summary"]["allowed"], 1)
+        self.assertEqual(report["summary"]["denied"], 1)
+
+    def test_coverage_detects_shadowed_allow(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:coverage-shadow"
+        bundle = authority.publish(
+            policy_id,
+            [
+                PolicyRule(
+                    policy_id + "-allow",
+                    authority.kid,
+                    "urn:space:test:door-1",
+                    "allow",
+                    ("open",),
+                    purposes=("delivery",),
+                ),
+                PolicyRule(
+                    policy_id + "-deny",
+                    authority.kid,
+                    "urn:space:test:door-1",
+                    "deny",
+                    ("open",),
+                ),
+            ],
+            ttl_seconds=3600,
+        )
+        report = policy_bundle_coverage(
+            bundle,
+            trusted_authorities={authority.kid},
+            targets=("urn:space:test:door-1",),
+        )
+        self.assertEqual(report["overall_result"], "FAIL")
+        self.assertIn(policy_id + "-allow", report["shadowed_allows"])
+
+    def test_coverage_rejects_tampered(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        bundle = authority.publish(
+            "urn:kinegrant:policy:coverage",
+            make_rules(authority.kid, "urn:kinegrant:policy:coverage"),
+            ttl_seconds=3600,
+        )
+        tampered = dict(bundle)
+        tampered["payload"] = dict(bundle["payload"])
+        tampered["payload"]["rules"] = []
+        with self.assertRaises(ValueError):
+            policy_bundle_coverage(
+                tampered,
+                trusted_authorities={authority.kid},
+            )
+
+    def test_cli_coverage_exit_codes(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:coverage-cli"
+        clean = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        shadowed = authority.publish(
+            policy_id,
+            [
+                PolicyRule(
+                    policy_id + "-allow",
+                    authority.kid,
+                    "urn:space:test:door-1",
+                    "allow",
+                    ("open",),
+                ),
+                PolicyRule(
+                    policy_id + "-deny",
+                    authority.kid,
+                    "urn:space:test:door-1",
+                    "deny",
+                    ("open",),
+                ),
+            ],
+            ttl_seconds=3600,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            clean_path = root / "clean.json"
+            shadow_path = root / "shadow.json"
+            authorities_path = root / "authorities.json"
+            clean_path.write_text(json.dumps(clean), encoding="utf-8")
+            shadow_path.write_text(json.dumps(shadowed), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                main(
+                    [
+                        "--coverage",
+                        str(clean_path),
+                        "--authorities",
+                        str(authorities_path),
+                        "--targets",
+                        "urn:space:test:door-1",
+                        "--max-requests",
+                        "10",
+                    ]
+                ),
+                0,
+            )
+            self.assertEqual(
+                main(
+                    [
+                        "--coverage",
+                        str(shadow_path),
+                        "--authorities",
+                        str(authorities_path),
+                        "--targets",
+                        "urn:space:test:door-1",
                     ]
                 ),
                 1,
