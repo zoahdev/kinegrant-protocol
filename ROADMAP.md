@@ -380,9 +380,9 @@ Exit criterion: an ODRL consumer can see the ODRL representation of a verified b
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: a user can validate an action list against the canonical vocabulary in the browser. Released as v2.16.0 (2026-08-15).
+Exit criterion: a user can validate an action list against the canonical vocabulary in the browser. Released as v2.17.0 (2026-08-15). Released as v2.16.0 (2026-08-15).
 
-## v2.17 - browser obligation verification
+## v2.17 - browser obligation verification (complete with v2.17.0)
 
 - browser verifier validates the known obligation vocabulary (fail-closed on unknown obligations) (complete via PR #118);
 - RFC-0003 acceptance vote (community/steering action);
