@@ -125,6 +125,12 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Physical constraints are enforced by policy rules: `max_force_newtons`,
   `max_velocity_mps`, and `allowed_zones`. A rule that declares a physical
   limit denies requests that omit or exceed the corresponding context value.
+- Scoped v0.2 capabilities support attenuation: a trusted issuer can derive a
+  strictly narrower child (target, actions, purposes, lifetime, physical
+  limits) that the action gate can verify against its parent. See
+  [spec/ATTENUATION.md](spec/ATTENUATION.md).
+- Approval tiers: policy decisions carry `required_approval_tier` (automatic /
+  operator approval / human present), and scoped capabilities bind the tier.
 
 ## Repository map
 

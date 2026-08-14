@@ -4,6 +4,7 @@ from collections.abc import Iterator, Mapping as MappingABC
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from fnmatch import fnmatchcase
 from pathlib import Path
 import sqlite3
 import re
@@ -97,6 +98,11 @@ CAPABILITY_FIELDS = {
     "request_digest", "policy_digest", "matched_policy_ids", "obligations",
     "issued_at", "not_before", "expires_at", "nonce", "capability_id",
 }
+CAPABILITY_FIELDS_V2 = (
+    CAPABILITY_FIELDS - {"action", "purpose"}
+) | {
+    "actions", "purposes", "parent_capability_id", "constraints", "approval_tier",
+}
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
@@ -119,14 +125,21 @@ class ActionGate:
         request: ActionRequest,
         *,
         now: datetime | None = None,
+        parent_capability: Mapping[str, Any] | None = None,
     ) -> VerifiedCapability:
         payload = verify_envelope(capability)
-        if set(payload) != CAPABILITY_FIELDS:
-            raise PermissionError("capability fields do not match the v0.1 schema")
+        version = payload.get("version")
+        if version == "0.1":
+            if set(payload) != CAPABILITY_FIELDS:
+                raise PermissionError("capability fields do not match the v0.1 schema")
+        elif version == "0.2":
+            if set(payload) != CAPABILITY_FIELDS_V2:
+                raise PermissionError("capability fields do not match the v0.2 schema")
+            self._validate_v2_fields(payload)
+        else:
+            raise PermissionError("unsupported capability version")
         if payload.get("type") != "kinegrant:PhysicalActionCapability":
             raise PermissionError("wrong capability type")
-        if payload.get("version") != "0.1":
-            raise PermissionError("unsupported capability version")
         if payload.get("issuer") != capability.get("kid"):
             raise PermissionError("capability issuer does not match signing key")
         if payload.get("issuer") not in self.trusted_issuers:
@@ -134,9 +147,34 @@ class ActionGate:
         if payload.get("request_digest") != request.digest:
             raise PermissionError("capability does not authorize this request")
 
-        for field in ("agent", "target", "action", "purpose"):
-            if payload.get(field) != getattr(request, field):
-                raise PermissionError(f"capability {field} mismatch")
+        if payload.get("agent") != request.agent:
+            raise PermissionError("capability agent mismatch")
+        if version == "0.1":
+            if payload.get("target") != request.target:
+                raise PermissionError("capability target mismatch")
+            if payload.get("action") != request.action:
+                raise PermissionError("capability action mismatch")
+            if payload.get("purpose") != request.purpose:
+                raise PermissionError("capability purpose mismatch")
+        else:
+            if not fnmatchcase(request.target, payload.get("target", "")):
+                raise PermissionError("capability target scope mismatch")
+            if request.action not in payload.get("actions", []):
+                raise PermissionError("capability action scope mismatch")
+            if request.purpose not in payload.get("purposes", []):
+                raise PermissionError("capability purpose scope mismatch")
+
+        if parent_capability is not None:
+            if version != "0.2":
+                raise PermissionError("only v0.2 capabilities can present a parent")
+            from .attenuation import verify_attenuation
+
+            try:
+                parent_payload = verify_envelope(parent_capability)
+            except (TypeError, ValueError) as exc:
+                raise PermissionError("parent capability is not a valid signed envelope") from exc
+            if not verify_attenuation(payload, parent_payload):
+                raise PermissionError("capability is not a valid attenuation of its parent")
 
         current = now or utc_now()
         if current.tzinfo is None:
@@ -180,3 +218,43 @@ class ActionGate:
         if not self.replay_store.consume_once(capability_id, expires_at):
             raise PermissionError("capability replay detected")
         return VerifiedCapability(dict(payload), current)
+
+    @staticmethod
+    def _validate_v2_fields(payload: dict[str, Any]) -> None:
+        parent_id = payload.get("parent_capability_id")
+        if parent_id is not None and (not isinstance(parent_id, str) or not parent_id):
+            raise PermissionError("v0.2 capability parent id must be a string or null")
+        constraints = payload.get("constraints")
+        if not isinstance(constraints, dict):
+            raise PermissionError("v0.2 capability constraints must be an object")
+        unknown = set(constraints) - {"max_force_newtons", "max_velocity_mps", "allowed_zones"}
+        if unknown:
+            raise PermissionError(f"unknown capability constraints: {', '.join(sorted(unknown))}")
+        for name in ("max_force_newtons", "max_velocity_mps"):
+            value = constraints.get(name)
+            if value is not None and (
+                not isinstance(value, (int, float))
+                or isinstance(value, bool)
+                or value < 0
+            ):
+                raise PermissionError(f"capability {name} must be a non-negative number")
+        zones = constraints.get("allowed_zones")
+        if zones is not None and (
+            not isinstance(zones, list)
+            or not zones
+            or any(not isinstance(zone, str) or not zone for zone in zones)
+        ):
+            raise PermissionError("capability allowed_zones must be a non-empty list")
+        tier = payload.get("approval_tier")
+        if not isinstance(tier, int) or isinstance(tier, bool) or not 0 <= tier <= 2:
+            raise PermissionError("capability approval_tier must be an integer between 0 and 2")
+        actions = payload.get("actions")
+        purposes = payload.get("purposes")
+        if not isinstance(actions, list) or not actions or any(
+            not isinstance(action, str) or not action for action in actions
+        ):
+            raise PermissionError("v0.2 capability actions must be a non-empty list")
+        if not isinstance(purposes, list) or not purposes or any(
+            not isinstance(purpose, str) or not purpose for purpose in purposes
+        ):
+            raise PermissionError("v0.2 capability purposes must be a non-empty list")

@@ -118,6 +118,7 @@ class Decision:
     policy_digest: str
     matched_policy_ids: tuple[str, ...] = ()
     obligations: tuple[str, ...] = ()
+    required_approval_tier: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -127,4 +128,5 @@ class Decision:
             "policy_digest": self.policy_digest,
             "matched_policy_ids": list(self.matched_policy_ids),
             "obligations": list(self.obligations),
+            "required_approval_tier": self.required_approval_tier,
         }

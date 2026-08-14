@@ -7,6 +7,7 @@ from typing import Any
 from .canonical import content_id
 from .crypto import Ed25519KeyPair
 from .models import ActionRequest, Decision, isoformat, utc_now
+from .attenuation import attenuate_capability
 
 
 class CapabilityIssuer:
@@ -51,4 +52,88 @@ class CapabilityIssuer:
             "nonce": secrets.token_urlsafe(18),
         }
         body["capability_id"] = content_id("kinegrant:cap", body)
+        return self.key_pair.sign_envelope(body)
+
+    def issue_scoped(
+        self,
+        request: ActionRequest,
+        decision: Decision,
+        *,
+        ttl_seconds: int = 30,
+        actions: tuple[str, ...] | list[str] | None = None,
+        purposes: tuple[str, ...] | list[str] | None = None,
+        target: str | None = None,
+        approval_tier: int = 0,
+    ) -> dict[str, Any]:
+        """Issue a v0.2 capability with a narrowed-but-still-scoped grant."""
+        if not decision.allowed:
+            raise PermissionError("cannot issue a capability for a denied request")
+        if decision.request_digest != request.digest:
+            raise ValueError("decision does not belong to this request")
+        if not 1 <= ttl_seconds <= 300:
+            raise ValueError("capability TTL must be between 1 and 300 seconds")
+        if not isinstance(approval_tier, int) or isinstance(approval_tier, bool) or not 0 <= approval_tier <= 2:
+            raise ValueError("approval_tier must be an integer between 0 and 2")
+        scope_actions = list(actions or (request.action,))
+        scope_purposes = list(purposes or (request.purpose,))
+        scope_target = target or request.target
+        if not scope_actions or any(not isinstance(action, str) or not action for action in scope_actions):
+            raise ValueError("actions must be a non-empty list of non-empty strings")
+        if not scope_purposes or any(not isinstance(purpose, str) or not purpose for purpose in scope_purposes):
+            raise ValueError("purposes must be a non-empty list of non-empty strings")
+        if not isinstance(scope_target, str) or not scope_target.strip():
+            raise ValueError("target must be a non-empty string")
+
+        issued_at = utc_now()
+        body = {
+            "type": "kinegrant:PhysicalActionCapability",
+            "version": "0.2",
+            "issuer": self.key_pair.kid,
+            "agent": request.agent,
+            "target": scope_target,
+            "actions": scope_actions,
+            "purposes": scope_purposes,
+            "request_digest": request.digest,
+            "policy_digest": decision.policy_digest,
+            "matched_policy_ids": list(decision.matched_policy_ids),
+            "obligations": list(decision.obligations),
+            "issued_at": isoformat(issued_at),
+            "not_before": isoformat(issued_at),
+            "expires_at": isoformat(issued_at + timedelta(seconds=ttl_seconds)),
+            "nonce": secrets.token_urlsafe(18),
+            "parent_capability_id": None,
+            "constraints": {},
+            "approval_tier": approval_tier,
+        }
+        body["capability_id"] = content_id("kinegrant:cap", body)
+        return self.key_pair.sign_envelope(body)
+
+    def issue_attenuated(
+        self,
+        parent_envelope: dict[str, Any],
+        *,
+        target: str | None = None,
+        actions: list[str] | None = None,
+        purposes: list[str] | None = None,
+        ttl_seconds: int | None = None,
+        max_force_newtons: int | float | None = None,
+        max_velocity_mps: int | float | None = None,
+        allowed_zones: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Sign a strictly narrower child of an already-issued capability."""
+        from .crypto import verify_envelope
+
+        parent_payload = verify_envelope(parent_envelope)
+        if parent_payload.get("issuer") != self.key_pair.kid:
+            raise ValueError("parent capability was not issued by this key")
+        body = attenuate_capability(
+            parent_payload,
+            target=target,
+            actions=actions,
+            purposes=purposes,
+            ttl_seconds=ttl_seconds,
+            max_force_newtons=max_force_newtons,
+            max_velocity_mps=max_velocity_mps,
+            allowed_zones=allowed_zones,
+        )
         return self.key_pair.sign_envelope(body)

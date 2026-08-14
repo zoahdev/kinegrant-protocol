@@ -29,7 +29,8 @@
           "minItems": 1,
           "items": {"type": "string", "minLength": 1},
           "uniqueItems": true
-        }
+        },
+        "min_approval_tier": {"type": "integer", "minimum": 0, "maximum": 2}
       }
     },
     "obligations": {"type": "array", "items": {"enum": ["emitActionReceipt"]}, "uniqueItems": true},

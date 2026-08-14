@@ -11,7 +11,8 @@
     "request_digest": {"$ref": "#/$defs/digest"},
     "policy_digest": {"$ref": "#/$defs/digest"},
     "matched_policy_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
-    "obligations": {"type": "array", "items": {"enum": ["emitActionReceipt"]}, "uniqueItems": true}
+    "obligations": {"type": "array", "items": {"enum": ["emitActionReceipt"]}, "uniqueItems": true},
+    "required_approval_tier": {"type": "integer", "minimum": 0, "maximum": 2}
   },
   "$defs": {
     "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}

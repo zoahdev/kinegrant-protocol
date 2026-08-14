@@ -67,6 +67,11 @@ Progress on main:
   fail-closed `require_known_actions` policy mode.
 - Physical constraints (`max_force_newtons`, `max_velocity_mps`,
   `allowed_zones`) enforced fail-closed against request context.
+- Scoped v0.2 capabilities with same-agent attenuation: child capabilities can
+  only narrow target/actions/purposes/lifetime/physical limits, and the gate
+  can verify attenuation against a supplied parent.
+- Approval tiers: `min_approval_tier` policy constraint, decision-level
+  `required_approval_tier`, and tier binding in scoped capabilities.
 
 Exit criterion: independent implementations produce byte-identical decisions and
 verify each other's capabilities and receipts.

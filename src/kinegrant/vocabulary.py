@@ -170,6 +170,22 @@ def validate_actions(actions: Iterable[str], *, context: str = "actions") -> Non
         )
 
 
+def approval_tier_from_risk(risk_tier: int) -> int:
+    """Map an action risk tier to the minimum approval tier.
+
+    0 = automatic, 1 = operator approval required, 2 = human present required.
+    Risk tiers 1-2 are automatic, tier 3 requires operator approval, and
+    tiers 4-5 require a human present.
+    """
+    if not isinstance(risk_tier, int) or isinstance(risk_tier, bool) or not 1 <= risk_tier <= 5:
+        raise ValueError("risk_tier must be an integer between 1 and 5")
+    if risk_tier <= 2:
+        return 0
+    if risk_tier == 3:
+        return 1
+    return 2
+
+
 def registry() -> dict[str, dict[str, object]]:
     """Return the vocabulary as a schema-valid JSON object."""
     return {

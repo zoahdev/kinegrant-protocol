@@ -3,12 +3,21 @@
 __version__ = "0.1.1"
 
 from .capability import CapabilityIssuer
+from .attenuation import attenuate_capability, verify_attenuation
 from .crypto import Ed25519KeyPair, verify_envelope
 from .gate import ActionGate, InMemoryReplayStore, SQLiteReplayStore, VerifiedCapability
 from .models import ActionRequest, Decision, PolicyRule
 from .policy import PolicyEngine
 from .receipt import ReceiptLog, verify_receipt_chain
-from .vocabulary import ACTION_TERMS, ActionSpec, action_spec, known_action, registry, validate_actions
+from .vocabulary import (
+    ACTION_TERMS,
+    ActionSpec,
+    action_spec,
+    approval_tier_from_risk,
+    known_action,
+    registry,
+    validate_actions,
+)
 
 __all__ = [
     "ACTION_TERMS",
@@ -25,9 +34,12 @@ __all__ = [
     "SQLiteReplayStore",
     "VerifiedCapability",
     "action_spec",
+    "approval_tier_from_risk",
+    "attenuate_capability",
     "known_action",
     "registry",
     "validate_actions",
     "verify_envelope",
+    "verify_attenuation",
     "verify_receipt_chain",
 ]

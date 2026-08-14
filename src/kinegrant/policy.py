@@ -17,6 +17,7 @@ SUPPORTED_CONSTRAINTS = {
     "max_force_newtons",
     "max_velocity_mps",
     "allowed_zones",
+    "min_approval_tier",
 }
 
 
@@ -48,6 +49,13 @@ def _validate_rule(rule: PolicyRule, require_known_actions: bool = False) -> Non
             or any(not isinstance(item, str) or not item.strip() for item in allowed_zones)
         ):
             raise ValueError("allowed_zones must be a non-empty list of non-empty strings")
+    min_approval = rule.constraints.get("min_approval_tier")
+    if min_approval is not None and (
+        not isinstance(min_approval, int)
+        or isinstance(min_approval, bool)
+        or not 0 <= min_approval <= 2
+    ):
+        raise ValueError("min_approval_tier must be an integer between 0 and 2")
     if require_known_actions:
         validate_actions(rule.actions, context=f"actions in policy rule {rule.policy_id}")
 
@@ -225,6 +233,10 @@ class PolicyEngine:
             )
 
         obligations = tuple(sorted({item for rule in allows for item in rule.obligations}))
+        approval_tier = max(
+            rule.constraints.get("min_approval_tier", 0)
+            for rule in allows
+        )
         return Decision(
             allowed=True,
             reason="explicit_allow",
@@ -232,4 +244,5 @@ class PolicyEngine:
             policy_digest=policy_digest,
             matched_policy_ids=matched,
             obligations=obligations,
+            required_approval_tier=approval_tier,
         )
