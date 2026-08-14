@@ -14,6 +14,7 @@ from typing import Any, Mapping, Protocol
 from .canonical import content_id
 from .crypto import verify_envelope
 from .models import ActionRequest, parse_time, utc_now
+from .obligations import KNOWN_OBLIGATIONS
 from .revocation import RevocationList
 
 
@@ -213,7 +214,7 @@ class ActionGate:
         if any(not isinstance(item, str) or not item for item in payload["matched_policy_ids"]):
             raise PermissionError("capability matching policies are invalid")
         if not isinstance(payload.get("obligations"), list) or any(
-            item not in {"emitActionReceipt"} for item in payload.get("obligations", [])
+            item not in KNOWN_OBLIGATIONS for item in payload.get("obligations", [])
         ):
             raise PermissionError("capability obligations are invalid")
         if _DIGEST_RE.fullmatch(str(payload.get("policy_digest", ""))) is None:

@@ -49,6 +49,10 @@ var obligationStatuses = map[string]bool{
 	"satisfied": true, "pending": true, "failed": true,
 }
 
+var knownObligations = map[string]bool{
+	"emitActionReceipt": true, "logAuditEvent": true,
+}
+
 func jsonString(value string) ([]byte, error) {
 	var buf bytes.Buffer
 	encoder := json.NewEncoder(&buf)
@@ -321,7 +325,7 @@ func VerifyCapability(envelope map[string]any, request map[string]any, trustedIs
 		return nil, errors.New("capability obligations are invalid")
 	}
 	for _, obligation := range obligations {
-		if obligation != "emitActionReceipt" {
+		if !knownObligations[obligation] {
 			return nil, errors.New("capability obligations are invalid")
 		}
 	}
@@ -521,7 +525,7 @@ func validateCommonCapability(payload map[string]any) error {
 		return errors.New("capability obligations are invalid")
 	}
 	for _, obligation := range obligations {
-		if obligation != "emitActionReceipt" {
+		if !knownObligations[obligation] {
 			return errors.New("capability obligations are invalid")
 		}
 	}
@@ -636,7 +640,8 @@ func validateReceiptV10(payload map[string]any) error {
 					return errors.New("receipt obligation result has unknown fields")
 				}
 			}
-			if item["obligation"] != "emitActionReceipt" {
+			obligation, _ := item["obligation"].(string)
+			if !knownObligations[obligation] {
 				return errors.New("receipt obligation is unknown")
 			}
 			status, _ := item["status"].(string)

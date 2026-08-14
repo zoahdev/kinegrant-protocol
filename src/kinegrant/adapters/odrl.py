@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Iterable, Mapping
 
 from ..models import PolicyRule
+from ..obligations import KNOWN_OBLIGATIONS
 from ..sequence import ForbiddenCombination, SequencePolicy
 
 POLICY_FIELDS = {
@@ -15,7 +16,6 @@ DUTY_FIELDS = {"action"}
 COMBINATION_FIELDS = {"uid", "patterns", "windowSeconds", "trigger"}
 PATTERN_FIELDS = {"action", "target"}
 KGP_ODRL_PROFILE = "https://kinegrant.com/profiles/odrl/kgp-v0.2"
-KNOWN_OBLIGATIONS = {"emitActionReceipt"}
 
 
 def _reject_unknown_fields(value: Mapping[str, Any], allowed: set[str], label: str) -> None:

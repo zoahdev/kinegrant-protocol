@@ -19,6 +19,7 @@ const CAPABILITY_FIELDS_V2 = new Set([
 CAPABILITY_FIELDS_V2.delete("action");
 CAPABILITY_FIELDS_V2.delete("purpose");
 const OBLIGATION_STATUSES = new Set(["satisfied", "pending", "failed"]);
+const KNOWN_OBLIGATIONS = new Set(["emitActionReceipt", "logAuditEvent"]);
 
 function b64urlDecode(value) {
   if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error("invalid base64url");
@@ -130,7 +131,7 @@ function verifyCapabilityV1(payload, envelope, request, trustedIssuers) {
     throw new Error("capability has no matching policy");
   }
   if (!Array.isArray(payload.obligations) ||
-      payload.obligations.some((item) => item !== "emitActionReceipt")) {
+      payload.obligations.some((item) => !KNOWN_OBLIGATIONS.has(item))) {
     throw new Error("capability obligations are invalid");
   }
   if (!/^sha256:[0-9a-f]{64}$/.test(payload.policy_digest || "")) {
@@ -253,7 +254,7 @@ function validateCommon(payload, request, envelope) {
     throw new Error("capability has no matching policy");
   }
   if (!Array.isArray(payload.obligations) ||
-      payload.obligations.some((item) => item !== "emitActionReceipt")) {
+      payload.obligations.some((item) => !KNOWN_OBLIGATIONS.has(item))) {
     throw new Error("capability obligations are invalid");
   }
   if (!/^sha256:[0-9a-f]{64}$/.test(payload.policy_digest || "")) {
@@ -332,7 +333,7 @@ function validateReceiptV10(payload) {
       if (Object.keys(item).some((key) => !allowed.has(key))) {
         throw new Error("receipt obligation result has unknown fields");
       }
-      if (item.obligation !== "emitActionReceipt") {
+      if (!KNOWN_OBLIGATIONS.has(item.obligation)) {
         throw new Error("receipt obligation is unknown");
       }
       if (!OBLIGATION_STATUSES.has(item.status)) {

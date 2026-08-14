@@ -180,6 +180,50 @@ class JavaScriptInteropTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("CAPABILITY VALID", result.stdout)
 
+    def test_javascript_accepts_both_known_obligations(self) -> None:
+        rule = PolicyRule(
+            policy_id="interop-rule-obligations",
+            issuer=self.authority.kid,
+            target="urn:kinegrant:interop:target:*",
+            effect="allow",
+            actions=("open",),
+            obligations=("emitActionReceipt", "logAuditEvent"),
+        )
+        decision = PolicyEngine(
+            [rule], trusted_policy_issuers={self.authority.kid}
+        ).evaluate(self.request)
+        capability = self.issuer.issue_scoped(
+            self.request,
+            decision,
+            ttl_seconds=300,
+            target="urn:kinegrant:interop:target:*",
+            actions=["open"],
+            purposes=["delivery"],
+            wire_version="1.0",
+        )
+        self.assertEqual(
+            sorted(capability["payload"]["obligations"]),
+            ["emitActionReceipt", "logAuditEvent"],
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            envelope_path = base / "capability.json"
+            request_path = base / "request.json"
+            issuers_path = base / "issuers.json"
+            envelope_path.write_text(json.dumps(capability), encoding="utf-8")
+            request_path.write_text(json.dumps(self.request.to_dict()), encoding="utf-8")
+            issuers_path.write_text(
+                json.dumps([self.authority.kid]), encoding="utf-8"
+            )
+            result = self._run(
+                "verify-capability",
+                str(envelope_path),
+                str(request_path),
+                str(issuers_path),
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("CAPABILITY VALID", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

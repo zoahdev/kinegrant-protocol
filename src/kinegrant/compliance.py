@@ -8,7 +8,9 @@ obligation as ``satisfied``.
 
 The check is fail-closed: an unknown obligation, an invalid receipt chain, a
 missing receipt, a receipt for a different capability, or an executor outside
-the caller-supplied trust set all fail compliance.
+the caller-supplied trust set all fail compliance. ``emitActionReceipt`` is
+fulfilled by the receipt itself; ``logAuditEvent`` additionally requires the
+receipt (1.0) to report that obligation as satisfied.
 """
 
 from __future__ import annotations
@@ -112,9 +114,18 @@ class ObligationCompliance:
                 )
                 continue
             obligation_results = receipt_payload.get("obligation_results")
-            if obligation_results is None:
+            if obligation == "emitActionReceipt" and obligation_results is None:
                 # A 0.1 receipt is itself the fulfillment of emitActionReceipt.
                 results.append(ObligationResult(obligation, _SATISFIED))
+                continue
+            if obligation == "logAuditEvent" and obligation_results is None:
+                results.append(
+                    ObligationResult(
+                        obligation,
+                        _FAILED,
+                        "audit-log commitment missing from receipt",
+                    )
+                )
                 continue
             matched: Mapping[str, Any] | None = None
             if isinstance(obligation_results, list):

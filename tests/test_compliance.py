@@ -207,6 +207,81 @@ class ObligationComplianceTests(unittest.TestCase):
         self.assertTrue(verdict.compliant)
         self.assertEqual(verdict.results, ())
 
+    def test_log_audit_event_obligation_end_to_end(self) -> None:
+        rule = PolicyRule(
+            policy_id="compliance-rule-audit",
+            issuer=self.authority.kid,
+            target="door-*",
+            effect="allow",
+            actions=("open",),
+            obligations=("emitActionReceipt", "logAuditEvent"),
+        )
+        engine = PolicyEngine([rule], trusted_policy_issuers={self.authority.kid})
+        decision = engine.evaluate(self.request)
+        self.assertEqual(
+            decision.obligations,
+            ("emitActionReceipt", "logAuditEvent"),
+        )
+        capability = self.issuer.issue_scoped(
+            self.request,
+            decision,
+            ttl_seconds=30,
+            target=self.request.target,
+            actions=["open"],
+            purposes=["delivery"],
+        )
+        verified = ActionGate(
+            trusted_issuers={self.authority.kid},
+            replay_store=InMemoryReplayStore(),
+        ).authorize(capability, self.request)
+        receipt = self.log.append(
+            verified,
+            result="succeeded",
+            request=self.request,
+            obligation_results=[
+                {"obligation": "emitActionReceipt", "status": "satisfied"},
+                {"obligation": "logAuditEvent", "status": "satisfied"},
+            ],
+        )
+        self.assertEqual(receipt["payload"]["version"], "1.0")
+        verdict = self.evaluate([receipt], capability=capability)
+        self.assertTrue(verdict.compliant)
+        self.assertEqual(len(verdict.results), 2)
+        self.assertTrue(all(result.status == "satisfied" for result in verdict.results))
+
+    def test_log_audit_event_requires_receipt_commitment(self) -> None:
+        rule = PolicyRule(
+            policy_id="compliance-rule-audit-only",
+            issuer=self.authority.kid,
+            target="door-*",
+            effect="allow",
+            actions=("open",),
+            obligations=("logAuditEvent",),
+        )
+        engine = PolicyEngine([rule], trusted_policy_issuers={self.authority.kid})
+        decision = engine.evaluate(self.request)
+        capability = self.issuer.issue_scoped(
+            self.request,
+            decision,
+            ttl_seconds=30,
+            target=self.request.target,
+            actions=["open"],
+            purposes=["delivery"],
+        )
+        verified = ActionGate(
+            trusted_issuers={self.authority.kid},
+            replay_store=InMemoryReplayStore(),
+        ).authorize(capability, self.request)
+        plain_receipt = self.log.append(
+            verified,
+            result="succeeded",
+            request=self.request,
+        )
+        self.assertEqual(plain_receipt["payload"]["version"], "0.1")
+        verdict = self.evaluate([plain_receipt], capability=capability)
+        self.assertFalse(verdict.compliant)
+        self.assertIn("audit-log commitment", verdict.reason or "")
+
     def test_trusted_executors_are_required(self) -> None:
         with self.assertRaises(ValueError):
             ObligationCompliance().evaluate(self.capability, [])
