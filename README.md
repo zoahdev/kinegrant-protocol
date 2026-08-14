@@ -154,7 +154,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - One-call deployment boundary: `Gatekeeper` composes sequence check, gate
   verification and one-time consumption, actuator execution, signed receipt,
   obligation compliance, and the action journal into a single `execute()`
-  call with a machine-readable outcome; every stage fails closed.
+  call with a machine-readable outcome; every stage fails closed. All three
+  runnable demos and both deployment traces use `Gatekeeper`, and the
+  micro-benchmarks include its throughput.
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.

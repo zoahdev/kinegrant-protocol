@@ -20,9 +20,9 @@ from typing import Any, Callable
 from ..adapters.matter import matter_command_request
 from ..adapters.ros2 import ros_action_request
 from ..capability import CapabilityIssuer
-from ..compliance import ObligationCompliance
 from ..crypto import Ed25519KeyPair
 from ..gate import ActionGate, VerifiedCapability
+from ..gatekeeper import Gatekeeper
 from ..models import ActionRequest, PolicyRule
 from ..policy import PolicyEngine
 from ..receipt import ReceiptLog
@@ -136,7 +136,6 @@ class RobotDemo:
         self.journal = ActionJournal()
         self.executor = Ed25519KeyPair.generate()
         self.log = ReceiptLog(self.executor)
-        self.compliance = ObligationCompliance()
         self.sequence = SequencePolicy(
             [
                 ForbiddenCombination(
@@ -145,6 +144,12 @@ class RobotDemo:
                     trigger=("train_on_data", "*"),
                 )
             ]
+        )
+        self.gatekeeper = Gatekeeper(
+            gate=self.gate,
+            sequence=self.sequence,
+            journal=self.journal,
+            receipt_log=self.log,
         )
         self.ros2 = RobotStack(
             "ros2",
@@ -173,15 +178,11 @@ class RobotDemo:
         self.actuators = {"ros2": _Counter(), "matter": _Counter()}
         self.outcomes: list[DemoOutcome] = []
 
-    def _consume(
-        self,
-        stack: RobotStack,
-        request: ActionRequest,
-    ) -> bool:
+    def _issue(self, request: ActionRequest) -> dict[str, Any]:
         decision = self.engine.evaluate(request)
         if not decision.allowed:
             raise PermissionError(decision.reason)
-        capability = self.issuer.issue_scoped(
+        return self.issuer.issue_scoped(
             request,
             decision,
             ttl_seconds=30,
@@ -190,15 +191,6 @@ class RobotDemo:
             purposes=[request.purpose],
             approval_tier=decision.required_approval_tier,
         )
-        verified = self.gate.authorize(capability, request)
-        self.actuators[stack.name].execute(verified)
-        self.journal.record(request.action, request.target)
-        receipt = self.log.append(verified, result="succeeded", request=request)
-        return self.compliance.evaluate(
-            capability,
-            self.log.entries,
-            trusted_executors={self.executor.kid},
-        ).compliant
 
     def attempt(
         self,
@@ -228,9 +220,15 @@ class RobotDemo:
             self.outcomes.append(outcome)
             return outcome
         try:
-            obligation_compliant = self._consume(stack, request)
-            allowed = True
-            reason = "allow"
+            capability = self._issue(request)
+            outcome = self.gatekeeper.execute(
+                capability,
+                request,
+                self.actuators[stack.name].execute,
+            )
+            obligation_compliant = outcome.obligation_compliant
+            allowed = outcome.allowed
+            reason = "allow" if allowed else (outcome.reason or outcome.stage)
         except (PermissionError, ValueError) as exc:
             allowed = False
             reason = f"{type(exc).__name__}: {exc}"

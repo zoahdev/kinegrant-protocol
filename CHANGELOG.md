@@ -4,6 +4,10 @@
 
 ## 1.0.1 — 2026-08-15
 
+- All three runnable demos and both deployment traces now run through
+  `Gatekeeper.execute()` instead of hand-composing sequence/gate/receipt/
+  compliance/journal steps; the micro-benchmarks gained a
+  `gatekeeper_execute` throughput metric.
 - Added `kinegrant.gatekeeper.Gatekeeper`: one-call composition of sequence
   check, gate verification and one-time consumption, actuator execution,
   signed receipt (including failure receipts), obligation compliance, and the

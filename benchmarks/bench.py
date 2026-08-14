@@ -20,9 +20,11 @@ from kinegrant.capability import CapabilityIssuer
 from kinegrant.compliance import ObligationCompliance
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
+from kinegrant.gatekeeper import Gatekeeper
 from kinegrant.models import ActionRequest, PolicyRule
 from kinegrant.policy import PolicyEngine
 from kinegrant.receipt import ReceiptLog
+from kinegrant.sequence import ActionJournal, SequencePolicy
 
 
 def _measure(operation, iterations: int) -> float:
@@ -89,6 +91,18 @@ def run(iterations: int = 2000) -> dict:
             trusted_executors={executor.kid},
         )
 
+    def gatekeeper_execute() -> None:
+        capability = issuer.issue(request, decision, ttl_seconds=300)
+        Gatekeeper(
+            gate=ActionGate(
+                trusted_issuers={authority.kid},
+                replay_store=InMemoryReplayStore(),
+            ),
+            sequence=SequencePolicy([]),
+            journal=ActionJournal(),
+            receipt_log=ReceiptLog(executor),
+        ).execute(capability, request, lambda verified: None)
+
     from kinegrant.canonical import canonical_json
 
     def jcs_digest() -> None:
@@ -105,6 +119,9 @@ def run(iterations: int = 2000) -> dict:
             "receipt_append": round(_measure(receipt_append, max(1, iterations // 10)), 1),
             "obligation_compliance": round(
                 _measure(obligation_compliance, max(1, iterations // 10)), 1
+            ),
+            "gatekeeper_execute": round(
+                _measure(gatekeeper_execute, max(1, iterations // 10)), 1
             ),
             "jcs_digest": round(_measure(jcs_digest, iterations), 1),
         },

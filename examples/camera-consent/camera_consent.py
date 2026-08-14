@@ -6,9 +6,9 @@ import json
 import sys
 
 from kinegrant.capability import CapabilityIssuer
-from kinegrant.compliance import ObligationCompliance
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
+from kinegrant.gatekeeper import Gatekeeper
 from kinegrant.models import ActionRequest, PolicyRule
 from kinegrant.policy import PolicyEngine
 from kinegrant.receipt import ReceiptLog
@@ -78,38 +78,38 @@ def run() -> dict:
         trusted_issuers={authority.kid},
         replay_store=InMemoryReplayStore(),
     )
-    verified = gate.authorize(capability, record_request)
-    journal.record("record", target)
     executor = Ed25519KeyPair.generate()
-    receipt = ReceiptLog(executor).append(
-        verified,
-        result="succeeded",
-        request=record_request,
+    gatekeeper = Gatekeeper(
+        gate=gate,
+        sequence=sequence,
+        journal=journal,
+        receipt_log=ReceiptLog(executor),
+    )
+    outcome = gatekeeper.execute(
+        capability,
+        record_request,
+        lambda verified: None,
         obligation_results=[
             {"obligation": "emitActionReceipt", "status": "satisfied"},
             {"obligation": "logAuditEvent", "status": "satisfied"},
         ],
-    )
-    compliance = ObligationCompliance().evaluate(
-        capability,
-        [receipt],
-        trusted_executors={executor.kid},
     )
 
     policy_denied = not engine.evaluate(train_request).allowed
     sequence_verdict = sequence.evaluate(train_request, journal)
     trace = {
         "scenario": "camera-consent",
-        "record_allowed": record_decision.allowed,
-        "record_consumed": verified["capability_id"].startswith("kinegrant:cap:"),
+        "record_allowed": record_decision.allowed and outcome.allowed,
+        "record_consumed": (outcome.capability_id or "").startswith("kinegrant:cap:"),
         "train_policy_denied": policy_denied,
         "train_sequence_denied": not sequence_verdict.allowed,
-        "obligation_compliant": compliance.compliant,
+        "obligation_compliant": outcome.obligation_compliant,
         "passed": (
             record_decision.allowed
+            and outcome.allowed
             and policy_denied
             and not sequence_verdict.allowed
-            and compliance.compliant
+            and bool(outcome.obligation_compliant)
         ),
     }
     print(json.dumps(trace, indent=2, sort_keys=True))

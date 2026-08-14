@@ -28,6 +28,7 @@ class BenchmarkTests(unittest.TestCase):
         self.assertGreaterEqual(ops["gate_authorize"], 100)
         self.assertGreaterEqual(ops["receipt_append"], 20)
         self.assertGreaterEqual(ops["obligation_compliance"], 1)
+        self.assertGreaterEqual(ops["gatekeeper_execute"], 1)
         self.assertGreaterEqual(ops["jcs_digest"], 5000)
 
     def test_benchmark_cli_is_json(self) -> None:

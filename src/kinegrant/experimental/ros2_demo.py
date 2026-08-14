@@ -19,11 +19,10 @@ from typing import Any
 
 from ..adapters.mcp import mcp_tool_request
 from ..adapters.ros2 import ros_action_request
-from ..bridges.ros2 import Ros2GoalGate
 from ..capability import CapabilityIssuer
-from ..compliance import ObligationCompliance
 from ..crypto import Ed25519KeyPair
 from ..gate import ActionGate
+from ..gatekeeper import Gatekeeper
 from ..models import ActionRequest, PolicyRule
 from ..policy import PolicyEngine
 from ..receipt import ReceiptLog, verify_receipt_chain
@@ -84,10 +83,15 @@ class Ros2McpDemo:
             trusted_policy_issuers={self.authority.kid},
         )
         self.gate = ActionGate(trusted_issuers={self.authority.kid})
-        self.ros2_gate = Ros2GoalGate(self.gate)
         self.log = ReceiptLog(self.authority)
         self.journal = ActionJournal()
         self.sequence = _sequence_policy()
+        self.gatekeeper = Gatekeeper(
+            gate=self.gate,
+            sequence=self.sequence,
+            journal=self.journal,
+            receipt_log=self.log,
+        )
         self.outcomes: list[dict[str, Any]] = []
         self._last_capability: dict[str, Any] | None = None
 
@@ -118,23 +122,18 @@ class Ros2McpDemo:
             context=context,
         )
 
-    def _consume(
+    def _issue(
         self,
-        stack: str,
         request: ActionRequest,
         *,
         capability: dict[str, Any] | None = None,
         untrusted: bool = False,
-    ) -> tuple[dict[str, Any], dict[str, Any]]:
-        verdict = self.sequence.evaluate(request, self.journal)
-        if not verdict.allowed:
-            matched = ",".join(verdict.matched_combination_ids)
-            raise PermissionError(f"forbidden_combination:{matched}")
+    ) -> dict[str, Any]:
         decision = self.engine.evaluate(request)
         if not decision.allowed:
             raise PermissionError(decision.reason)
         issuer = self.untrusted_issuer if untrusted else self.issuer
-        issued = capability or issuer.issue_scoped(
+        return capability or issuer.issue_scoped(
             request,
             decision,
             ttl_seconds=30,
@@ -143,11 +142,6 @@ class Ros2McpDemo:
             purposes=[request.purpose],
             approval_tier=decision.required_approval_tier,
         )
-        if stack == "ros2":
-            verified = self.ros2_gate.accept_goal(issued, request)
-        else:
-            verified = self.gate.authorize(issued, request)
-        return issued, verified
 
     def _attempt(
         self,
@@ -170,24 +164,28 @@ class Ros2McpDemo:
             context=context,
         )
         try:
-            capability, verified = self._consume(
-                stack,
+            capability = self._issue(
                 request,
                 capability=self._last_capability if replay else None,
                 untrusted=untrusted,
             )
-            if replay or untrusted:
-                raise AssertionError("denied scenario unexpectedly passed")
-            receipt = self.log.append(verified, result="succeeded", request=request)
-            obligation_compliant = ObligationCompliance().evaluate(
+            outcome = self.gatekeeper.execute(
                 capability,
-                self.log.entries,
-                trusted_executors={self.authority.kid},
-            ).compliant
-            self.journal.record(action=request.action, target=request.target)
-            self._last_capability = capability
-            allowed = True
-            reason = "allow"
+                request,
+                lambda verified: None,
+            )
+            if replay or untrusted:
+                if outcome.allowed:
+                    raise AssertionError("denied scenario unexpectedly passed")
+                allowed = False
+                reason = outcome.reason or outcome.stage
+                obligation_compliant = None
+            else:
+                allowed = outcome.allowed
+                reason = "allow" if allowed else (outcome.reason or outcome.stage)
+                obligation_compliant = outcome.obligation_compliant
+                if allowed:
+                    self._last_capability = capability
         except (PermissionError, ValueError, AssertionError) as exc:
             allowed = False
             reason = f"{type(exc).__name__}: {exc}"
