@@ -269,6 +269,14 @@ Exit criterion: a fleet can receive a policy update, acknowledge it per gate, an
 
 Exit criterion: an ODRL consumer can ingest a KineGrant policy bundle's rules through a documented, versioned profile, and adopters can rely on explicit stability levels for wire formats and schemas. Released as v2.2.0 (2026-08-15).
 
+## v2.3 - audit tooling and schema governance
+
+- policy bundle static analysis (`analyze_policy_bundle` + `kinegrant-policy-bundle --analyze`): conservative conflict, duplicate, unknown-constraint/obligation, issuer-mismatch, and broad-allow findings, with CI fail-closed exit codes (complete via PR #89);
+- KGP-RFC-0003 draft: policy bundle schema stability (frozen 0.1 / normative ODRL mapping);
+- policy-bundle verification in the browser public verifier (needs site source).
+
+Exit criterion: an auditor can run one command on a signed bundle and get machine-readable conflict and coverage findings before deployment.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

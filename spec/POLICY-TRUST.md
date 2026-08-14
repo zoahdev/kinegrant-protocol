@@ -86,6 +86,16 @@ A registry already running a version at least as new is left untouched
 acknowledgements against the bundle (policy, bundle id, version, and count
 integrity).
 
+## Static analysis
+
+`analyze_policy_bundle` verifies a signed bundle (fail-closed) and emits a
+machine-readable `kinegrant:PolicyBundleAnalysis` with conservative findings:
+overlapping allow/deny rules (conflict), duplicate rules, unknown
+constraints/obligations, rule issuers that differ from the bundle signer, and
+unconditional broad allows. `kinegrant-policy-bundle --analyze` returns exit
+code 1 when any error-level finding exists, so CI can fail closed on a bad
+bundle.
+
 ## Non-goals
 
 - No ledger, token, or consensus mechanism is required or implied.
