@@ -15,7 +15,7 @@ SCHEMA_PATH = (
     / "schemas"
     / "machine-permission-test-evidence.schema.json"
 )
-REQUIRED_CASES = {f"MPT-{number:03d}" for number in range(1, 21)}
+REQUIRED_CASES = {f"MPT-{number:03d}" for number in range(1, 23)}
 
 
 def verify_evidence(

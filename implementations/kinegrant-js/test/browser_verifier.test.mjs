@@ -152,7 +152,7 @@ function buildReceipt(privateKey, publicKey, { capabilityId, previous = null } =
 }
 
 function buildMptEvidence() {
-  const cases = Array.from({ length: 20 }, (_, index) => ({
+  const cases = Array.from({ length: 22 }, (_, index) => ({
     id: `MPT-${String(index + 1).padStart(3, "0")}`,
     name: "case " + (index + 1),
     expected: "PASS",
@@ -161,10 +161,10 @@ function buildMptEvidence() {
     evidence: {},
   }));
   return {
-    schema_version: "0.4",
+    schema_version: "0.5",
     run_id: "urn:kinegrant:mpt:run:" + "0".repeat(36),
     overall_result: "PASS",
-    summary: { total: 20, passed: 20, failed: 0 },
+    summary: { total: 22, passed: 22, failed: 0 },
     cases,
     limitations: [],
   };
@@ -291,8 +291,8 @@ test("browser verifier validates MPT evidence and rejects tampering", () => {
   const evidence = buildMptEvidence();
   const result = verifyMptEvidence(evidence);
   assert.equal(result.overall_result, "PASS");
-  assert.equal(result.summary.passed, 20);
-  evidence.summary.passed = 19;
+  assert.equal(result.summary.passed, 22);
+  evidence.summary.passed = 21;
   assert.throws(() => verifyMptEvidence(evidence));
   const missing = buildMptEvidence();
   missing.cases.pop();

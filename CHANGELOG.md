@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.10.0 - v2.10 first item (unreleased)
+
+- Machine Permission Test v0.5: 22 reproducible cases (new MPT-021 fleet policy distribution with upgrades and no downgrades, MPT-022 policy bundle analysis detecting conflicts with clean coverage); evidence schema bumped to 0.5 (minItems 22), independent verifier requires MPT-001..022.
+
 ## 2.9.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.9.0 on the stable

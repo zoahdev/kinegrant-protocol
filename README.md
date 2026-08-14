@@ -87,8 +87,9 @@ single-use authorization, replay, request binding, issuer and expiry checks,
 concurrent consumption, persistent replay state, receipt trust, physical
 constraints, attenuation, delegation, approval tiers, and forbidden
 combinations, receipt-1.0 obligations, obligation compliance, and fleet
-revocation distribution, and signed policy bundles across twenty executable
-cases; the policy-trust cases additionally record independent JavaScript/Go
+revocation distribution, signed policy bundles, fleet policy distribution,
+and policy bundle analysis across twenty-two executable cases; the
+policy-trust cases additionally record independent JavaScript/Go
 cross-verification evidence when those toolchains are available. Validate
 the output with
 [`machine-permission-test-evidence.schema.json`](spec/schemas/machine-permission-test-evidence.schema.json).
@@ -274,7 +275,7 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   rollback in one runnable trace.
 - A standalone, offline [browser policy-bundle verifier](verify/policy-bundle-verifier.html)
   verifies signed bundles, current-version selection, capabilities, and
-  receipt chains, MPT evidence, revocation bundles, and policy distribution
+  receipt chains, MPT evidence (v0.5), revocation bundles, and policy distribution
   reports entirely in the browser (zero dependencies; host `verify/`
   anywhere and link the page).
 - Stable wire format: the reference implementation issues and verifies `1.0`
