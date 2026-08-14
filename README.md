@@ -112,6 +112,17 @@ that a GPIO, servo, or real machine has moved, and this experiment is not a
 functional-safety control or certification. Hardware assembly and the published
 acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-protocol/issues/7).
 
+## v0.2 development on main
+
+- RFC 8785 JCS canonical JSON is now the deterministic encoding behind every
+  digest and signature, matching ECMAScript number semantics and UTF-16 member
+  ordering so independent implementations can produce byte-identical decisions.
+- A machine-readable [`kg.action.*` vocabulary](spec/ACTION-VOCABULARY.md)
+  covers `observe`, `record`, `touch`, `grasp`, `move`, `open`, `enter`,
+  `retain`, and `train_on_data`, with risk tiers and data-sensitivity
+  metadata. Enable `PolicyEngine(require_known_actions=True)` to fail closed on
+  unknown action terms.
+
 ## Repository map
 
 | Path | Purpose |

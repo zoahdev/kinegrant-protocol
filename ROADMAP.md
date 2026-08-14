@@ -57,6 +57,15 @@ device and must not be inferred from software or CI results.
 - create a machine-readable action vocabulary for `observe`, `record`, `touch`,
   `grasp`, `move`, `open`, `enter`, `retain`, and `train_on_data`.
 
+Progress on main:
+
+- RFC 8785 JCS canonical encoding implemented in the reference implementation,
+  with ECMAScript number semantics, UTF-16 member ordering, and strict safe
+  integer bounds (`canonical.py` + `tests/test_canonical_jcs.py`).
+- Machine-readable `kg.action.*` vocabulary with risk tiers and
+  data-sensitivity metadata, a strict Draft 2020-12 schema, and an optional
+  fail-closed `require_known_actions` policy mode.
+
 Exit criterion: independent implementations produce byte-identical decisions and
 verify each other's capabilities and receipts.
 

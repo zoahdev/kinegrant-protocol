@@ -6,6 +6,7 @@ from typing import Any, Iterable
 
 from .canonical import digest
 from .models import ActionRequest, Decision, PolicyRule, parse_time, utc_now
+from .vocabulary import known_action, validate_actions
 
 SUPPORTED_CONSTRAINTS = {
     "not_before",
@@ -20,7 +21,7 @@ def _matches(patterns: tuple[str, ...], value: str) -> bool:
     return any(fnmatchcase(value, pattern) for pattern in patterns)
 
 
-def _validate_rule(rule: PolicyRule) -> None:
+def _validate_rule(rule: PolicyRule, require_known_actions: bool = False) -> None:
     unknown = set(rule.constraints) - SUPPORTED_CONSTRAINTS
     if unknown:
         raise ValueError(f"unsupported policy constraints: {', '.join(sorted(unknown))}")
@@ -28,6 +29,8 @@ def _validate_rule(rule: PolicyRule) -> None:
         rule.constraints["required_context"], dict
     ):
         raise ValueError("required_context must be an object")
+    if require_known_actions:
+        validate_actions(rule.actions, context=f"actions in policy rule {rule.policy_id}")
 
 
 def _constraints_hold(rule: PolicyRule, request: ActionRequest, now: datetime) -> bool:
@@ -70,14 +73,16 @@ class PolicyEngine:
         trusted_policy_issuers: set[str] | None = None,
         request_max_age_seconds: int = 300,
         clock_skew_seconds: int = 5,
+        require_known_actions: bool = False,
     ) -> None:
         self._rules = list(rules)
         for rule in self._rules:
-            _validate_rule(rule)
+            _validate_rule(rule, require_known_actions)
         policy_ids = [rule.policy_id for rule in self._rules]
         if len(policy_ids) != len(set(policy_ids)):
             raise ValueError("policy_id values must be unique within a policy snapshot")
         self.trusted_policy_issuers = set(trusted_policy_issuers or ())
+        self.require_known_actions = require_known_actions
         if request_max_age_seconds < 1 or clock_skew_seconds < 0:
             raise ValueError("invalid request freshness settings")
         self.request_max_age = timedelta(seconds=request_max_age_seconds)
@@ -89,7 +94,7 @@ class PolicyEngine:
 
     def add(self, *rules: PolicyRule) -> None:
         for rule in rules:
-            _validate_rule(rule)
+            _validate_rule(rule, self.require_known_actions)
         existing = {rule.policy_id for rule in self._rules}
         incoming = [rule.policy_id for rule in rules]
         if existing.intersection(incoming) or len(incoming) != len(set(incoming)):
@@ -109,6 +114,8 @@ class PolicyEngine:
             raise ValueError("policy evaluation time must include a timezone")
         current = current.astimezone(request.issued_at.tzinfo)
         policy_digest = self._policy_digest()
+        if self.require_known_actions and not known_action(request.action):
+            return Decision(False, "unknown_action", request.digest, policy_digest)
         if request.issued_at > current + self.clock_skew:
             return Decision(False, "future_request", request.digest, policy_digest)
         if current - request.issued_at > self.request_max_age:
