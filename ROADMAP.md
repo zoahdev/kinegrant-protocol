@@ -324,7 +324,7 @@ Exit criterion: a visitor can validate a Machine Permission Test evidence file i
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: a fleet operator can verify a revocation bundle and a policy distribution report in the browser without installing anything. Released as v2.9.0 (2026-08-15).
+Exit criterion: a fleet operator can verify a revocation bundle and a policy distribution report in the browser without installing anything. Released as v2.13.0 (2026-08-15). Released as v2.9.0 (2026-08-15).
 
 ## v2.10 - reproducible fleet operations (complete with v2.10.0)
 
@@ -350,7 +350,7 @@ Exit criterion: an auditor can validate an exported receipt evidence packet in t
 
 Exit criterion: an auditor can validate an exported audit CSV in the browser without installing anything.
 
-## v2.13 - browser reproduction verification
+## v2.13 - browser reproduction verification (complete with v2.13.0)
 
 - browser verifier validates external reproduction reports (`kinegrant:ReproductionReport` structure and verification consistency) (complete via PR #110);
 - RFC-0003 acceptance vote (community/steering action);
