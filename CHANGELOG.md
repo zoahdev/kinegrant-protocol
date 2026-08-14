@@ -4,6 +4,10 @@
 
 ## 1.2.0 — 2026-08-15
 
+- Added `verify_distribution_report`: re-validates a fleet revocation
+  distribution report against its bundle (id/version binding, summary vs
+  per-gate acknowledgement integrity, trusted authorities) and rejects any
+  inconsistency fail-closed.
 - Added the bounded policy-decision cache (`kinegrant.cache.
   CachedPolicyEngine`): LRU decisions keyed by policy+request digest, hit/miss
   statistics, automatic invalidation on policy change, and future requests

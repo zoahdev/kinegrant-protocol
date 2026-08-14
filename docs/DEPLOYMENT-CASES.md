@@ -101,6 +101,12 @@ The `kinegrant-revoke-distribute` CLI wraps this for operators
 (`bundle.json gates.json authorities.json`; `--self-test` validates the
 tool itself).
 
+`verify_distribution_report(report, bundle, trusted_authorities=...)`
+re-validates a fleet report after the fact: the report must reference the
+exact bundle id and version, its summary must match the per-gate
+acknowledgements, and the bundle must verify under the caller-supplied
+authorities. Any inconsistency is rejected (fail-closed).
+
 ## Acceptance for deployment
 
 - pass the conformance level that matches the deployment (L1-L4);

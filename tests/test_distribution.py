@@ -7,7 +7,11 @@ import unittest
 from pathlib import Path
 
 from kinegrant.crypto import Ed25519KeyPair
-from kinegrant.distribution import RevocationDistributor, main
+from kinegrant.distribution import (
+    RevocationDistributor,
+    main,
+    verify_distribution_report,
+)
 from kinegrant.revocation import (
     RevocationList,
     build_revocation_bundle,
@@ -120,6 +124,77 @@ class RevocationDistributorTests(unittest.TestCase):
                 ]
             )
             self.assertEqual(exit_code, 0)
+
+    def test_report_verifies_after_distribution(self) -> None:
+        gates = self.gates()
+        report = RevocationDistributor(
+            trusted_authorities={self.authority.kid}
+        ).distribute(self.bundle, gates)
+        verified = verify_distribution_report(
+            report,
+            self.bundle,
+            trusted_authorities={self.authority.kid},
+        )
+        self.assertEqual(verified["bundle_id"], report["bundle_id"])
+
+    def test_tampered_summary_fails_verification(self) -> None:
+        gates = self.gates()
+        report = RevocationDistributor(
+            trusted_authorities={self.authority.kid}
+        ).distribute(self.bundle, gates)
+        tampered = copy.deepcopy(report)
+        tampered["summary"]["added_total"] += 1
+        with self.assertRaises(ValueError):
+            verify_distribution_report(
+                tampered,
+                self.bundle,
+                trusted_authorities={self.authority.kid},
+            )
+
+    def test_tampered_ack_fails_verification(self) -> None:
+        gates = self.gates()
+        report = RevocationDistributor(
+            trusted_authorities={self.authority.kid}
+        ).distribute(self.bundle, gates)
+        tampered = copy.deepcopy(report)
+        tampered["acks"][0]["added_count"] += 1
+        with self.assertRaises(ValueError):
+            verify_distribution_report(
+                tampered,
+                self.bundle,
+                trusted_authorities={self.authority.kid},
+            )
+
+    def test_wrong_bundle_fails_verification(self) -> None:
+        gates = self.gates()
+        report = RevocationDistributor(
+            trusted_authorities={self.authority.kid}
+        ).distribute(self.bundle, gates)
+        other_rl = RevocationList()
+        other_rl.revoke("kinegrant:cap:" + "e" * 64)
+        other_bundle = sign_revocation_bundle(
+            build_revocation_bundle(other_rl, issuer=self.authority.kid),
+            self.authority,
+        )
+        with self.assertRaises(ValueError):
+            verify_distribution_report(
+                report,
+                other_bundle,
+                trusted_authorities={self.authority.kid},
+            )
+
+    def test_untrusted_authority_fails_verification(self) -> None:
+        gates = self.gates()
+        report = RevocationDistributor(
+            trusted_authorities={self.authority.kid}
+        ).distribute(self.bundle, gates)
+        other = Ed25519KeyPair.generate()
+        with self.assertRaises(ValueError):
+            verify_distribution_report(
+                report,
+                self.bundle,
+                trusted_authorities={other.kid},
+            )
 
 
 if __name__ == "__main__":
