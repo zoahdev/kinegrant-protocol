@@ -4,7 +4,7 @@ __version__ = "0.1.1"
 
 from .capability import CapabilityIssuer
 from .attenuation import attenuate_capability, verify_attenuation
-from .crypto import Ed25519KeyPair, verify_envelope
+from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
 from .gate import ActionGate, InMemoryReplayStore, SQLiteReplayStore, VerifiedCapability
 from .models import ActionRequest, Decision, PolicyRule
 from .policy import PolicyEngine
@@ -28,6 +28,7 @@ __all__ = [
     "Decision",
     "Ed25519KeyPair",
     "InMemoryReplayStore",
+    "MLDSA65KeyPair",
     "PolicyEngine",
     "PolicyRule",
     "ReceiptLog",

@@ -64,6 +64,8 @@ class CapabilityIssuer:
         purposes: tuple[str, ...] | list[str] | None = None,
         target: str | None = None,
         approval_tier: int = 0,
+        delegation_allowed: bool = False,
+        max_delegation_depth: int = 0,
     ) -> dict[str, Any]:
         """Issue a v0.2 capability with a narrowed-but-still-scoped grant."""
         if not decision.allowed:
@@ -74,6 +76,14 @@ class CapabilityIssuer:
             raise ValueError("capability TTL must be between 1 and 300 seconds")
         if not isinstance(approval_tier, int) or isinstance(approval_tier, bool) or not 0 <= approval_tier <= 2:
             raise ValueError("approval_tier must be an integer between 0 and 2")
+        if not isinstance(delegation_allowed, bool):
+            raise ValueError("delegation_allowed must be a boolean")
+        if (
+            not isinstance(max_delegation_depth, int)
+            or isinstance(max_delegation_depth, bool)
+            or not 0 <= max_delegation_depth <= 3
+        ):
+            raise ValueError("max_delegation_depth must be an integer between 0 and 3")
         scope_actions = list(actions or (request.action,))
         scope_purposes = list(purposes or (request.purpose,))
         scope_target = target or request.target
@@ -104,6 +114,10 @@ class CapabilityIssuer:
             "parent_capability_id": None,
             "constraints": {},
             "approval_tier": approval_tier,
+            "delegation_allowed": delegation_allowed,
+            "max_delegation_depth": max_delegation_depth,
+            "delegate_agent": None,
+            "delegation_depth": 0,
         }
         body["capability_id"] = content_id("kinegrant:cap", body)
         return self.key_pair.sign_envelope(body)
@@ -119,6 +133,8 @@ class CapabilityIssuer:
         max_force_newtons: int | float | None = None,
         max_velocity_mps: int | float | None = None,
         allowed_zones: list[str] | None = None,
+        delegate_agent: str | None = None,
+        delegate_request: ActionRequest | None = None,
     ) -> dict[str, Any]:
         """Sign a strictly narrower child of an already-issued capability."""
         from .crypto import verify_envelope
@@ -135,5 +151,7 @@ class CapabilityIssuer:
             max_force_newtons=max_force_newtons,
             max_velocity_mps=max_velocity_mps,
             allowed_zones=allowed_zones,
+            delegate_agent=delegate_agent,
+            delegate_request=delegate_request,
         )
         return self.key_pair.sign_envelope(body)

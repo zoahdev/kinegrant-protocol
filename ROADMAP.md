@@ -74,6 +74,9 @@ Progress on main:
   `required_approval_tier`, and tier binding in scoped capabilities.
 - Receipt evidence chain: v0.2 authorization context (approval tier,
   physical constraints, parent capability id) is recorded in signed receipts.
+- Cross-agent delegation: opt-in bounded delegation (max depth 1-3) with a
+  delegate-bound request digest; delegates cannot re-delegate.
+- Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Versioned ODRL profile (`kgp-v0.2`) and IEEE 7012 bridge metadata with
   fail-closed constraint mapping and interop tests.
 

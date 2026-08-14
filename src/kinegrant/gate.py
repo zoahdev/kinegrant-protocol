@@ -102,6 +102,7 @@ CAPABILITY_FIELDS_V2 = (
     CAPABILITY_FIELDS - {"action", "purpose"}
 ) | {
     "actions", "purposes", "parent_capability_id", "constraints", "approval_tier",
+    "delegation_allowed", "max_delegation_depth", "delegate_agent", "delegation_depth",
 }
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
@@ -147,9 +148,9 @@ class ActionGate:
         if payload.get("request_digest") != request.digest:
             raise PermissionError("capability does not authorize this request")
 
-        if payload.get("agent") != request.agent:
-            raise PermissionError("capability agent mismatch")
         if version == "0.1":
+            if payload.get("agent") != request.agent:
+                raise PermissionError("capability agent mismatch")
             if payload.get("target") != request.target:
                 raise PermissionError("capability target mismatch")
             if payload.get("action") != request.action:
@@ -157,6 +158,12 @@ class ActionGate:
             if payload.get("purpose") != request.purpose:
                 raise PermissionError("capability purpose mismatch")
         else:
+            delegate_agent = payload.get("delegate_agent")
+            if delegate_agent is None:
+                if payload.get("agent") != request.agent:
+                    raise PermissionError("capability agent mismatch")
+            elif request.agent != delegate_agent:
+                raise PermissionError("capability delegate agent mismatch")
             if not fnmatchcase(request.target, payload.get("target", "")):
                 raise PermissionError("capability target scope mismatch")
             if request.action not in payload.get("actions", []):
@@ -248,6 +255,22 @@ class ActionGate:
         tier = payload.get("approval_tier")
         if not isinstance(tier, int) or isinstance(tier, bool) or not 0 <= tier <= 2:
             raise PermissionError("capability approval_tier must be an integer between 0 and 2")
+        delegation_allowed = payload.get("delegation_allowed")
+        if not isinstance(delegation_allowed, bool):
+            raise PermissionError("capability delegation_allowed must be a boolean")
+        max_depth = payload.get("max_delegation_depth")
+        if not isinstance(max_depth, int) or isinstance(max_depth, bool) or not 0 <= max_depth <= 3:
+            raise PermissionError("capability max_delegation_depth must be an integer between 0 and 3")
+        depth = payload.get("delegation_depth")
+        if not isinstance(depth, int) or isinstance(depth, bool) or not 0 <= depth <= 3:
+            raise PermissionError("capability delegation_depth must be an integer between 0 and 3")
+        if delegation_allowed and depth > max_depth:
+            raise PermissionError("capability delegation depth exceeds its limit")
+        delegate_agent = payload.get("delegate_agent")
+        if delegate_agent is not None and (
+            not isinstance(delegate_agent, str) or not delegate_agent
+        ):
+            raise PermissionError("capability delegate_agent must be a non-empty string or null")
         actions = payload.get("actions")
         purposes = payload.get("purposes")
         if not isinstance(actions, list) or not actions or any(
