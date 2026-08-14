@@ -8,9 +8,9 @@ from .canonical import content_id, digest
 from .crypto import Ed25519KeyPair, verify_envelope
 from .gate import VerifiedCapability
 from .models import ActionRequest, isoformat, parse_time, utc_now
+from .obligations import KNOWN_OBLIGATIONS
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-KNOWN_OBLIGATIONS = {"emitActionReceipt"}
 _OBLIGATION_STATUSES = {"satisfied", "pending", "failed"}
 _RECEIPT_VERSIONS = {"0.1", "1.0"}
 

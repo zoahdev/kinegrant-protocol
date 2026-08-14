@@ -48,7 +48,7 @@
             "additionalProperties": false,
             "required": ["obligation", "status"],
             "properties": {
-              "obligation": {"const": "emitActionReceipt"},
+              "obligation": {"enum": ["emitActionReceipt", "logAuditEvent"]},
               "status": {"enum": ["satisfied", "pending", "failed"]},
               "failure_reason": {
                 "anyOf": [

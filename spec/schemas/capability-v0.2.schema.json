@@ -31,7 +31,7 @@
         "request_digest": {"$ref": "#/$defs/digest"},
         "policy_digest": {"$ref": "#/$defs/digest"},
         "matched_policy_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-        "obligations": {"type": "array", "items": {"enum": ["emitActionReceipt"]}, "uniqueItems": true},
+        "obligations": {"type": "array", "items": {"enum": ["emitActionReceipt", "logAuditEvent"]}, "uniqueItems": true},
         "issued_at": {"type": "string", "format": "date-time"},
         "not_before": {"type": "string", "format": "date-time"},
         "expires_at": {"type": "string", "format": "date-time"},

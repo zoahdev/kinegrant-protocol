@@ -36,6 +36,7 @@ currently recognizes exactly one obligation:
 | ODRL duty action | KineGrant obligation |
 | --- | --- |
 | `emitActionReceipt` | `emitActionReceipt` (must produce a signed receipt) |
+| `logAuditEvent` | `logAuditEvent` (must produce an audit-log commitment) |
 
 Unknown duty actions are **rejected**, never silently dropped: dropping an
 obligation would widen permission. A policy rule whose decision carries an

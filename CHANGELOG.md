@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added the `logAuditEvent` obligation (audit-log commitment) to the known
+  obligation vocabulary across Python, JavaScript, and Go, the capability and
+  receipt-1.0 schemas, the ODRL kgp-v0.2 duty mapping, and obligation
+  compliance; the conformance suite gained an `obligation_compliance` mark
+  (L1-L4 now 18 marks).
 - Obligation compliance now runs inside every runnable demo: the two-stack
   robot demo, the Matter/OPC UA/ROS 2 bridge demo, and the cross-system
   ROS 2 + MCP demo all append signed receipts after allowed actions, verify

@@ -5,7 +5,7 @@ KineGrant defines four conformance levels:
 - L1 core semantics: default deny, deny overrides, trusted issuers, one-time
   capability, replay rejection, receipt chains;
 - L2 scoped capabilities: attenuation, physical constraints, approval tiers,
-  forbidden combinations;
+  forbidden combinations, obligation compliance;
 - L3 delegation and revocation: opt-in delegation, delegate binding,
   allowlists, offline revocation;
 - L4 hardware trust: trusted clock, sensor evidence, checkpoints,
@@ -28,6 +28,7 @@ from .attenuation import verify_attenuation
 from .attestation import build_device_attestation, verify_device_attestation
 from .capability import CapabilityIssuer
 from .checkpoint import build_receipt_checkpoint, verify_receipt_checkpoint
+from .compliance import ObligationCompliance
 from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
 from .gate import ActionGate, InMemoryReplayStore
 from .models import ActionRequest, PolicyRule
@@ -291,6 +292,50 @@ class ConformanceRunner:
         )
         marks.append(
             ConformanceMark("L2", "forbidden_combination", not combo.allowed, combo.reason)
+        )
+
+        obligation_rule = PolicyRule(
+            "urn:kinegrant:conformance:policy:l2-obligation",
+            self.authority.kid,
+            "urn:kinegrant:conformance:target:door-7",
+            "allow",
+            ("open",),
+            obligations=("emitActionReceipt",),
+        )
+        obligation_decision = PolicyEngine(
+            [obligation_rule],
+            trusted_policy_issuers={self.authority.kid},
+        ).evaluate(self.request)
+        obligation_capability = self.issuer.issue_scoped(
+            self.request,
+            obligation_decision,
+            ttl_seconds=30,
+            target=self.request.target,
+            actions=["open"],
+            purposes=["delivery"],
+        )
+        obligation_verified = ActionGate(
+            trusted_issuers={self.authority.kid},
+            replay_store=InMemoryReplayStore(),
+        ).authorize(obligation_capability, self.request)
+        obligation_executor = Ed25519KeyPair.generate()
+        obligation_receipt = ReceiptLog(obligation_executor).append(
+            obligation_verified,
+            result="succeeded",
+            request=self.request,
+        )
+        obligation_compliant = ObligationCompliance().evaluate(
+            obligation_capability,
+            [obligation_receipt],
+            trusted_executors={obligation_executor.kid},
+        ).compliant
+        marks.append(
+            ConformanceMark(
+                "L2",
+                "obligation_compliance",
+                obligation_compliant,
+                "receipt obligation satisfied",
+            )
         )
         return tuple(marks)
 
