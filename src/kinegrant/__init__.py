@@ -5,6 +5,7 @@ __version__ = "0.1.1"
 from .capability import CapabilityIssuer
 from .attenuation import attenuate_capability, verify_attenuation
 from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
+from .discovery import DiscoveryResolution, ThingActions, ThingRegistry
 from .gate import ActionGate, InMemoryReplayStore, SQLiteReplayStore, VerifiedCapability
 from .identity import (
     KineGrantIdentifier,
@@ -23,7 +24,13 @@ from .identity import (
 from .models import ActionRequest, Decision, PolicyRule
 from .policy import PolicyEngine
 from .receipt import ReceiptLog, verify_receipt_chain
-from .revocation import RevocationEntry, RevocationList
+from .revocation import (
+    RevocationEntry,
+    RevocationList,
+    build_revocation_bundle,
+    sign_revocation_bundle,
+    verify_revocation_bundle,
+)
 from .sequence import (
     ActionJournal,
     ForbiddenCombination,
@@ -48,6 +55,7 @@ __all__ = [
     "ActionSpec",
     "CapabilityIssuer",
     "Decision",
+    "DiscoveryResolution",
     "Ed25519KeyPair",
     "InMemoryReplayStore",
     "KineGrantIdentifier",
@@ -57,6 +65,8 @@ __all__ = [
     "ReceiptLog",
     "RevocationEntry",
     "RevocationList",
+    "ThingActions",
+    "ThingRegistry",
     "SQLiteReplayStore",
     "SequencePolicy",
     "SequenceVerdict",
@@ -66,6 +76,7 @@ __all__ = [
     "action_spec",
     "approval_tier_from_risk",
     "attenuate_capability",
+    "build_revocation_bundle",
     "known_action",
     "is_agent_id",
     "is_kinegrant_identifier",
@@ -78,8 +89,10 @@ __all__ = [
     "random_target_id",
     "registry",
     "target_id",
+    "sign_revocation_bundle",
     "validate_actions",
     "verify_envelope",
     "verify_attenuation",
+    "verify_revocation_bundle",
     "verify_receipt_chain",
 ]

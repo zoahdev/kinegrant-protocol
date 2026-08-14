@@ -81,6 +81,10 @@ Progress on main:
   delegate-bound request digest; delegates cannot re-delegate.
 - Delegation revocation and fleet allowlists: offline `RevocationList` with
   root-chain revocation, and glob `delegate_allowlist` on delegation roots.
+- Signed revocation bundles: versioned, content-addressed, chain-linked
+  bundles signed by a revocation authority and loadable into the gate.
+- WoT-style discovery service with the authenticated/unauthenticated boundary
+  from KGP-001 section 3.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.
