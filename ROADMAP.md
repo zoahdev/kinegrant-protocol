@@ -112,6 +112,8 @@ Progress on main:
   cross-tested against the Python reference implementation in CI.
 - Interoperability: an independent Go verifier (`kinegrant-go`) and the first
   stable wire-format RFC draft plus certification-program draft.
+- Deployment cases: runnable home-robot and camera-consent examples with
+  policy -> capability -> gate -> receipt traces.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.

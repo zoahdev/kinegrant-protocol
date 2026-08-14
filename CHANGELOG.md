@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added runnable deployment examples (home-robot delivery, camera consent)
+  with full protocol traces and a deployment-cases guide.
 - Added the second independent implementation (`kinegrant-go`, standard
   library only), the first stable wire-format RFC draft, and the conformance
   certification-program draft.

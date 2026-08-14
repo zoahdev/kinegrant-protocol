@@ -179,6 +179,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   against the Python reference implementation in CI, plus the first stable
   wire-format RFC draft ([docs/rfcs/0001-stable-wire-format.md](docs/rfcs/0001-stable-wire-format.md))
   and the [certification program draft](CERTIFICATION.md).
+- Runnable deployment examples: home-robot delivery and camera-consent traces
+  with full policy -> capability -> gate -> receipt flows (see
+  [docs/DEPLOYMENT-CASES.md](docs/DEPLOYMENT-CASES.md)).
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies
