@@ -14,6 +14,7 @@ import {
   verifyRevocationDistributionReport,
   policyBundleToOdrl,
   validateActionVocabulary,
+  validateObligationVocabulary,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -117,6 +118,11 @@ try {
     const actions = load(actionsPath);
     const result = validateActionVocabulary(actions);
     console.log(`ACTION VOCABULARY VALID (${result.actions} actions)`);
+  } else if (command === "obligations") {
+    const [obligationsPath] = args;
+    const obligations = load(obligationsPath);
+    const result = validateObligationVocabulary(obligations);
+    console.log(`OBLIGATION VOCABULARY VALID (${result.obligations} obligations)`);
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
@@ -131,7 +137,8 @@ try {
       "reproduction-report <report.json> | " +
       "revocation-distribution <report.json> [bundle.json] [authorities.json] | " +
       "bundle-odrl <bundle.json> <authorities.json> | " +
-      "vocabulary <actions.json>"
+      "vocabulary <actions.json> | " +
+      "obligations <obligations.json>"
     );
   }
 } catch (error) {

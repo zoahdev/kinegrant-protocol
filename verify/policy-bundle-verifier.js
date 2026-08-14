@@ -1136,6 +1136,40 @@ export function validateActionVocabulary(actions) {
   };
 }
 
+const OBLIGATION_VOCABULARY = new Set([
+  "emitActionReceipt",
+  "logAuditEvent",
+  "preserveEvidence",
+]);
+
+export function validateObligationVocabulary(obligations) {
+  if (!Array.isArray(obligations) || obligations.length === 0) {
+    throw new Error("obligations must be a non-empty array");
+  }
+  const unknown = [];
+  for (const obligation of obligations) {
+    if (typeof obligation !== "string") {
+      throw new Error("each obligation must be a string");
+    }
+    if (!OBLIGATION_VOCABULARY.has(obligation)) {
+      unknown.push(obligation);
+    }
+  }
+  if (unknown.length > 0) {
+    throw new Error(
+      "unknown obligations: " +
+        unknown.sort().join(", ") +
+        "; known obligations: " +
+        [...OBLIGATION_VOCABULARY].sort().join(", ")
+    );
+  }
+  return {
+    valid: true,
+    obligations: obligations.length,
+    known_obligations: [...OBLIGATION_VOCABULARY].sort(),
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -1152,5 +1186,6 @@ if (typeof globalThis !== "undefined") {
     verifyRevocationDistributionReport,
     policyBundleToOdrl,
     validateActionVocabulary,
+    validateObligationVocabulary,
   };
 }

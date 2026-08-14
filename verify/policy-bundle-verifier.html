@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、ODRL 映射与动作词汇。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、ODRL 映射、动作词汇与义务词汇。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -127,6 +127,13 @@
     </div>
   </div>
   <p><button id="verify-vocabulary">校验动作词汇</button></p>
+  <div class="row">
+    <div class="col">
+      <label>义务列表 JSON 数组（已知义务词汇）</label>
+      <textarea id="obligations" placeholder='["emitActionReceipt", "logAuditEvent"]'>[]</textarea>
+    </div>
+  </div>
+  <p><button id="verify-obligations">校验义务词汇</button></p>
   <pre id="output">等待操作…</pre>
 
   <script type="module">
@@ -145,6 +152,7 @@
       verifyRevocationDistributionReport,
       policyBundleToOdrl,
       validateActionVocabulary,
+      validateObligationVocabulary,
     } from "./policy-bundle-verifier.js";
 
     const bundleInput = document.getElementById("bundle");
@@ -166,6 +174,7 @@
     const revocationDistributionInput = document.getElementById("revocation-distribution");
     const revocationDistributionBundleInput = document.getElementById("revocation-distribution-bundle");
     const vocabularyInput = document.getElementById("vocabulary");
+    const obligationsInput = document.getElementById("obligations");
     const output = document.getElementById("output");
 
     function showOk(text) {
@@ -360,6 +369,18 @@
         const actions = parseJson(vocabularyInput.value, "动作列表");
         const result = validateActionVocabulary(actions);
         showOk(`ACTION VOCABULARY VALID (${result.actions} actions)`);
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-obligations").addEventListener("click", () => {
+      try {
+        const obligations = parseJson(obligationsInput.value, "义务列表");
+        const result = validateObligationVocabulary(obligations);
+        showOk(
+          `OBLIGATION VOCABULARY VALID (${result.obligations} obligations)`
+        );
       } catch (error) {
         showErr("INVALID: " + error.message);
       }

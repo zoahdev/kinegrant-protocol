@@ -127,7 +127,8 @@ verification consistency) and revocation distribution reports (structure,
 summary consistency, optional bundle binding) are also validated in the
 browser, and verified policy bundles can be mapped to ODRL
 (`policyBundleToOdrl`, kgp-v0.2 profile) for standards alignment; the
-`kg.action.*` vocabulary can be validated (`validateActionVocabulary`).
+`kg.action.*` vocabulary and the known obligation vocabulary can be validated
+(`validateActionVocabulary` / `validateObligationVocabulary`).
 `verify/verify_policy_bundle.mjs` exposes the same logic as a Node CLI for CI
 cross-checks.
 

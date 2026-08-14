@@ -24,6 +24,7 @@ from kinegrant.policy_bundle import (
 from kinegrant.receipt import ReceiptLog
 from kinegrant.distribution import RevocationDistributor
 from kinegrant.vocabulary import ACTION_TERMS
+from kinegrant.obligations import KNOWN_OBLIGATIONS
 from kinegrant.revocation import (
     RevocationList,
     build_revocation_bundle,
@@ -532,6 +533,26 @@ class BrowserVerifierInteropTests(unittest.TestCase):
                 encoding="utf-8",
             )
             rejected = self._run("vocabulary", str(bad_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
+    def test_browser_verifier_validates_obligation_vocabulary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            obligations_path = base / "obligations.json"
+            obligations_path.write_text(
+                json.dumps(list(KNOWN_OBLIGATIONS)),
+                encoding="utf-8",
+            )
+            verified = self._run("obligations", str(obligations_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("OBLIGATION VOCABULARY VALID", verified.stdout)
+            bad_path = base / "bad.json"
+            bad_path.write_text(
+                json.dumps(["eraseMemory"]),
+                encoding="utf-8",
+            )
+            rejected = self._run("obligations", str(bad_path))
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
