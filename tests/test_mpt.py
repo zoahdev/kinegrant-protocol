@@ -16,10 +16,10 @@ class MachinePermissionTestTests(unittest.TestCase):
     def test_all_required_permission_cases_pass(self) -> None:
         evidence = run_machine_permission_test()
         self.assertEqual(evidence["overall_result"], "PASS")
-        self.assertEqual(evidence["summary"], {"total": 14, "passed": 14, "failed": 0})
+        self.assertEqual(evidence["summary"], {"total": 17, "passed": 17, "failed": 0})
         self.assertEqual(
             [case["id"] for case in evidence["cases"]],
-            [f"MPT-{number:03d}" for number in range(1, 15)],
+            [f"MPT-{number:03d}" for number in range(1, 18)],
         )
 
     def test_evidence_matches_published_schema(self) -> None:

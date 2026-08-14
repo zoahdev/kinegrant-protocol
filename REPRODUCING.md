@@ -2,7 +2,7 @@
 
 This guide produces a machine-readable packet that another developer can verify
 without trusting a screenshot, a hosted demo, or a KineGrant maintainer. It tests
-the software permission boundary defined by Machine Permission Test v0.2.
+the software permission boundary defined by Machine Permission Test v0.3.
 
 It does **not** prove that a physical machine moved, that a deployment is
 functionally safe, or that KineGrant is production-ready.
@@ -41,7 +41,7 @@ python challenge/verify_reproduction.py reproduction-output/reproduction-report.
 The last command must print `PASS` and exit with status `0`. The output directory
 contains:
 
-- `machine-permission-test.evidence.json`: results for MPT-001 through MPT-014;
+- `machine-permission-test.evidence.json`: results for MPT-001 through MPT-017;
 - `reproduction-report.json`: source, environment, material digests, artifact
   digest, and the independently checked overall result.
 - `reproduction-report.sha256`: a ready-to-publish SHA-256 checksum for the
@@ -101,7 +101,7 @@ deployment is functionally safe.
 
 ## What a PASS means
 
-A PASS means the tested source enforced all fourteen software assertions, including
+A PASS means the tested source enforced all seventeen software assertions, including
 default denial without a capability, exact request binding, single use,
 concurrent single-winner consumption, replay rejection after restart, explicit
 issuer trust, exact expiry rejection, and receipt integrity/trust checks.

@@ -37,7 +37,7 @@ class ExternalReproductionTests(unittest.TestCase):
 
             self.assertEqual(report["overall_result"], "PASS")
             self.assertEqual(verified["source"]["commit"], "a" * 40)
-            self.assertEqual(verified["verification"]["passed_cases"], 14)
+            self.assertEqual(verified["verification"]["passed_cases"], 17)
             self.assertTrue((output / "sample-receipt-v0.1.json").is_file())
             self.assertTrue(
                 (output / "materials/challenge/verify_reproduction.py").is_file()
