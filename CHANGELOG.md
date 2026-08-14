@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added the complete Chinese README (`README.zh-CN.md`) and refreshed the
+  English README to the v1.0.0 / stable wire format 1.0 status; Machine
+  Permission Test packet links now point at the `mpt-v0.2` release.
+- SECURITY.md now documents the stable-version support policy: the latest
+  `1.x` release and the default branch are supported; `0.x` drafts are not.
+- REPRODUCING.md now documents offline verification of release packets with
+  `scripts/verify_release.py`.
 - Added offline release-packet verification (`scripts/verify_release.py`) and
   machine-readable micro-benchmarks (`benchmarks/bench.py`) with CI smoke.
 - Added ready-to-send standards submissions (W3C ODRL, IEEE) and GitHub issue

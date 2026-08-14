@@ -8,11 +8,11 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
-[Website](https://kinegrant.com) · [Public verifier](https://kinegrant.com/verify) · [Technical whitepaper](docs/whitepaper/KineGrant-KGP-001-Whitepaper-v0.1.pdf) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Open in Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=main&quickstart=1) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md)
+[Website](https://kinegrant.com) · [Public verifier](https://kinegrant.com/verify) · [Technical whitepaper](docs/whitepaper/KineGrant-KGP-001-Whitepaper-v0.1.pdf) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Open in Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=main&quickstart=1) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md) · [中文说明](README.zh-CN.md)
 
-> **KGP-001 Experimental Open Draft 0.1**
+> **KGP-001 Experimental Open Draft 0.1 · stable wire format 1.0**
 >
-> **Reference implementation v0.1.1 · Apache-2.0**
+> **Reference implementation v1.0.0 · Apache-2.0**
 >
 > Do not use this implementation as the sole safety control for real machinery.
 
@@ -39,7 +39,7 @@ ActionRequest → PolicyEngine → Capability → ActionGate → Actuator
                                            Signed Receipt Log
 ```
 
-## Security properties implemented in reference implementation v0.1.1
+## Security properties implemented in reference implementation v1.0.0
 
 - default deny and deny-overrides policy evaluation;
 - explicit trust boundary for policy issuers: untrusted sources may deny but never allow;
@@ -90,7 +90,7 @@ combinations across fourteen executable cases. Validate
 the output with
 [`machine-permission-test-evidence.schema.json`](spec/schemas/machine-permission-test-evidence.schema.json).
 Download the checksum-addressed packet and reference evidence from the
-[`mpt-v0.1` release](https://github.com/zoahdev/kinegrant-protocol/releases/tag/mpt-v0.1).
+[`mpt-v0.2` release](https://github.com/zoahdev/kinegrant-protocol/releases/tag/mpt-v0.2).
 
 The browser-based [public verifier](https://kinegrant.com/verify) checks MPT
 evidence locally and can verify the Ed25519 signature, content-addressed ID,
@@ -114,7 +114,7 @@ that a GPIO, servo, or real machine has moved, and this experiment is not a
 functional-safety control or certification. Hardware assembly and the published
 acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-protocol/issues/7).
 
-## v0.2 development on main
+## Current feature surface on main
 
 - RFC 8785 JCS canonical JSON is now the deterministic encoding behind every
   digest and signature, matching ECMAScript number semantics and UTF-16 member

@@ -24,5 +24,12 @@ the highest priority.
 
 ## Supported versions
 
-Only the latest commit on the default branch is supported during the 0.x phase.
-Security behavior may change between experimental drafts.
+Security fixes land on the default branch first and are backported to the
+current stable release when the change is small and safe to backport.
+
+- The latest stable `1.x` release is the supported stable line (currently
+  **v1.0.0**).
+- The default branch is always supported.
+- `0.x` releases are experimental drafts and are **not** supported. They may
+  change or break without notice and must not be used as the sole safety
+  control for real machinery.
