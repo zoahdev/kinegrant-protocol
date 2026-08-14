@@ -233,6 +233,24 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
 - the security review kit is published as a checksummed, offline-verifiable
   release asset with every stable release.
 
+## v2.0 - policy trust lifecycle
+
+- signed, versioned policy bundles (`PolicyAuthority` / `PolicyRegistry` /
+  `verify_policy_bundle`): an authority can publish, replace, and revoke
+  policy documents without a central ledger; every consumer verifies the
+  signature, authority, validity window, and rules digest itself (first item
+  landed via PR #80, conformance at 22/22);
+- independent JavaScript/Go verification of policy bundles and current-
+  version selection;
+- policy-bundle cases in the Machine Permission Test;
+- a conformance mark set that requires rollback on revocation and fail-closed
+  behavior when no trusted policy is available.
+
+Exit criterion: a fleet can receive a policy update from a trusted authority,
+roll back an emergency revocation without a central service, and an external
+implementer can reproduce current-version selection from the signed bundles
+alone.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

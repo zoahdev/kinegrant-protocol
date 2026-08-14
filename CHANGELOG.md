@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 2.0.0 - v2.0 first item (unreleased)
+
+- Added signed, versioned policy bundles (`kinegrant.policy_bundle`):
+  `PolicyAuthority` publishes policy documents with a monotonic version, a
+  validity window, and a link to the previous version's digest;
+  `PolicyRegistry` activates bundles under the caller's trusted authorities,
+  answers "current version" with highest-version-wins among non-revoked
+  in-window bundles, and rolls back on per-version revocation;
+  `verify_policy_bundle` / `rules_from_bundle` enforce signature, authority,
+  policy-id, time-window, and rules-digest checks before the policy engine
+  consumes the rules; `kinegrant-policy-bundle` is the deployable CLI.
+- Conformance suite is now 22/22 with the new L3 `policy_bundle_trust` mark
+  (signed versions verified, revoked version rolled back, tampering rejected).
+
 ## 1.9.0 — 2026-08-15
 
 - Milestone release: reference implementation version 1.9.0 on the stable

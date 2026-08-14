@@ -7,7 +7,8 @@ KineGrant defines four conformance levels:
 - L2 scoped capabilities: attenuation, physical constraints, approval tiers,
   forbidden combinations, obligation compliance;
 - L3 delegation and revocation: opt-in delegation, delegate binding,
-  allowlists, offline revocation, fleet revocation distribution;
+  allowlists, offline revocation, fleet revocation distribution, signed
+  policy bundles;
 - L4 hardware trust: trusted clock, sensor evidence, checkpoints,
   attestations, post-quantum envelopes.
 
@@ -39,6 +40,7 @@ from .gatekeeper_modelcheck import check_gatekeeper_boundary
 from .gatekeeper import Gatekeeper
 from .models import ActionRequest, PolicyRule
 from .policy import PolicyEngine
+from .policy_bundle import PolicyAuthority, PolicyRegistry, verify_policy_bundle
 from .receipt import ReceiptLog, verify_receipt_chain
 from .revocation import (
     RevocationList,
@@ -764,6 +766,63 @@ class ConformanceRunner:
                 "revocation_distribution",
                 distribution_ok,
                 "verified bundle applied to both gates",
+            )
+        )
+
+        policy_authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:conformance:policy:trust"
+        base_rules = [
+            PolicyRule(
+                policy_id,
+                policy_authority.kid,
+                "*",
+                "allow",
+                ("open",),
+                purposes=("delivery",),
+            )
+        ]
+        v1 = policy_authority.publish(policy_id, base_rules, ttl_seconds=3600)
+        registry = PolicyRegistry(trusted_authorities={policy_authority.kid})
+        registry.activate(v1)
+        v2_rules = [
+            PolicyRule(
+                policy_id,
+                policy_authority.kid,
+                "*",
+                "allow",
+                ("open",),
+                purposes=("delivery", "maintenance"),
+            )
+        ]
+        v2 = policy_authority.publish(policy_id, v2_rules, ttl_seconds=3600)
+        registry.activate(v2)
+        current_ok = (
+            registry.current(policy_id) is not None
+            and registry.current(policy_id)["version"] == 2
+        )
+        registry.revoke(policy_id, 2, reason="conformance rollback")
+        rollback_ok = (
+            registry.current(policy_id) is not None
+            and registry.current(policy_id)["version"] == 1
+        )
+        tampered = dict(v2)
+        tampered["payload"] = dict(v2["payload"])
+        tampered["payload"]["rules"] = []
+        try:
+            verify_policy_bundle(
+                tampered,
+                trusted_authorities={policy_authority.kid},
+            )
+            tamper_rejected = False
+        except ValueError:
+            tamper_rejected = True
+        policy_bundle_ok = current_ok and rollback_ok and tamper_rejected
+        marks.append(
+            ConformanceMark(
+                "L3",
+                "policy_bundle_trust",
+                policy_bundle_ok,
+                "signed versions verified, revoked version rolled back",
             )
         )
         return tuple(marks)
