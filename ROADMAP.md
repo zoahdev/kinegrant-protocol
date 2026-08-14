@@ -252,14 +252,14 @@ roll back an emergency revocation without a central service, and an external
 implementer can reproduce current-version selection from the signed bundles
 alone. Released as v2.0.0 (2026-08-15).
 
-## v2.1 - fleet policy operations
+## v2.1 - fleet policy operations (complete with v2.1.0)
 
 - fleet policy distribution (`PolicyDistributor` + `verify_policy_distribution_report`): one signed policy bundle is applied to many registries idempotently (never auto-downgrading) with per-registry acknowledgements and machine-readable fleet reports (landed via PR #84, conformance at 23/23);
 - policy-bundle JavaScript/Go evidence in the Machine Permission Test cases (complete via PR #85);
 - policy-bundle verification in the browser public verifier (needs site source);
 - governance and stability documentation hardening.
 
-Exit criterion: a fleet can receive a policy update, acknowledge it per gate, and audit the acknowledgement against the signed bundle without a central service.
+Exit criterion: a fleet can receive a policy update, acknowledge it per gate, and audit the acknowledgement against the signed bundle without a central service. Released as v2.1.0 (2026-08-15).
 
 ## Success metrics
 
