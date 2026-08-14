@@ -158,6 +158,11 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   commitments bound into receipts, notarized receipt checkpoints, signing
   backends for hardware keys, and device attestations with measured-boot
   claims (see [spec/HARDWARE-TRUST.md](spec/HARDWARE-TRUST.md)).
+- Privacy groundwork: rotating ephemeral identifiers and selective-disclosure
+  envelopes (see [spec/PRIVACY.md](spec/PRIVACY.md)), plus an executable
+  red-team suite `kinegrant-red-team` covering replay, mutation, confused
+  deputy, conflict, downgrade, clock, revocation, delegation, adapter, and
+  sequence attacks (see [spec/RED-TEAM.md](spec/RED-TEAM.md)).
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies

@@ -21,6 +21,7 @@ kinegrant-demo = "kinegrant.cli:main"
 kinegrant-mpt = "kinegrant.mpt:main"
 kinegrant-robot-demo = "kinegrant.experimental.robot_demo:main"
 kinegrant-bridge-demo = "kinegrant.experimental.bridge_demo:main"
+kinegrant-red-team = "kinegrant.redteam:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
