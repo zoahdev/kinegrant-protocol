@@ -14,6 +14,7 @@ from typing import Any
 from ..adapters.matter import matter_command_request
 from ..adapters.opcua import opcua_method_request
 from ..adapters.ros2 import ros_action_request
+from ..cache import CachedPolicyEngine
 from ..capability import CapabilityIssuer
 from ..crypto import Ed25519KeyPair
 from ..gate import ActionGate
@@ -88,9 +89,11 @@ class BridgeDemo:
     def __init__(self) -> None:
         self.authority = Ed25519KeyPair.generate()
         self.issuer = CapabilityIssuer(self.authority)
-        self.engine = PolicyEngine(
-            _policy(self.authority.kid),
-            trusted_policy_issuers={self.authority.kid},
+        self.engine = CachedPolicyEngine(
+            PolicyEngine(
+                _policy(self.authority.kid),
+                trusted_policy_issuers={self.authority.kid},
+            )
         )
         self.gate = ActionGate(trusted_issuers={self.authority.kid})
         self.executor = Ed25519KeyPair.generate()

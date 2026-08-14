@@ -5,6 +5,7 @@ import unittest
 from contextlib import redirect_stdout
 from io import StringIO
 
+from kinegrant.cache import CachedPolicyEngine
 from kinegrant.experimental.robot_demo import RobotDemo, main
 
 
@@ -17,6 +18,19 @@ class RobotDemoTests(unittest.TestCase):
         self.assertEqual(self.report["overall_result"], "PASS")
         self.assertEqual(self.report["summary"], {"total": 8, "passed": 8, "failed": 0})
         self.assertTrue(self.report["obligation_compliance_ok"])
+
+    def test_demo_uses_cached_policy_engine(self) -> None:
+        self.assertIsInstance(self.demo.engine, CachedPolicyEngine)
+        request = self.demo.ros2.request(
+            action="open",
+            target="urn:kinegrant:demo:target:door-7",
+            purpose="delivery",
+            agent="urn:kinegrant:demo:agent:robot-1",
+            context={"zone": "urn:kinegrant:demo:zone:1", "force_newtons": 20},
+        )
+        self.demo.engine.evaluate(request)
+        self.demo.engine.evaluate(request)
+        self.assertGreaterEqual(self.demo.engine.hits, 1)
 
     def test_both_stacks_obey_the_same_policy(self) -> None:
         self.assertGreaterEqual(self.report["actuator_calls"]["ros2"], 2)

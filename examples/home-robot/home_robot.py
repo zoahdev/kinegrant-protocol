@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
+from kinegrant.cache import CachedPolicyEngine
 from kinegrant.capability import CapabilityIssuer
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
@@ -30,7 +31,9 @@ def run() -> dict:
         constraints={"max_force_newtons": 40, "allowed_zones": ["urn:kinegrant:home:zone:*"]},
         obligations=("emitActionReceipt", "logAuditEvent"),
     )
-    engine = PolicyEngine([rule], trusted_policy_issuers={authority.kid})
+    engine = CachedPolicyEngine(
+        PolicyEngine([rule], trusted_policy_issuers={authority.kid})
+    )
     request = ActionRequest(
         "urn:kinegrant:home:request:1",
         "urn:kinegrant:home:agent:delivery-robot-07",

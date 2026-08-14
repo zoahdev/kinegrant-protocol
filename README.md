@@ -173,7 +173,8 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Bounded policy-decision cache: `CachedPolicyEngine` wraps a policy engine
   with an LRU cache (hit/miss statistics, automatic invalidation on policy
   change, future requests never cached) for high-rate deployments; the
-  micro-benchmarks include cached-policy throughput.
+  micro-benchmarks include cached-policy throughput, and all runnable demos
+  and deployment traces evaluate through the cache.
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.

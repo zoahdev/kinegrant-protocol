@@ -4,6 +4,9 @@
 
 ## 1.3.0 — 2026-08-15
 
+- All runnable demos (`kinegrant-robot-demo`, `kinegrant-bridge-demo`,
+  `kinegrant-ros2-demo`) and both deployment traces (home-robot,
+  camera-consent) now evaluate policy through `CachedPolicyEngine`.
 - Milestone release: reference implementation version 1.3.0 on the stable
   1.0 wire format, adding the bounded policy-decision cache
   (`CachedPolicyEngine`), verifiable fleet revocation distribution reports
