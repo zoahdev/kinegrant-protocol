@@ -20,6 +20,7 @@ import {
   verifyRevocationBundle,
   verifyRevocationDistributionReport,
   policyBundleToOdrl,
+  validateActionVocabulary,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const DOMAIN = Buffer.from("KINEGRANT-SIGNED-ENVELOPE-V1\u0000", "utf8");
@@ -524,4 +525,12 @@ test("browser verifier maps policy bundles to ODRL", async () => {
   await assert.rejects(() =>
     policyBundleToOdrl(bundle, new Set([bundle.kid]))
   );
+});
+
+test("browser verifier validates the action vocabulary", () => {
+  const result = validateActionVocabulary(["kg.action.open", "kg.action.record"]);
+  assert.equal(result.valid, true);
+  assert.equal(result.actions, 2);
+  assert.throws(() => validateActionVocabulary(["kg.action.explode"]));
+  assert.throws(() => validateActionVocabulary([]));
 });

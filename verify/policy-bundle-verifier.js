@@ -1096,6 +1096,46 @@ export async function policyBundleToOdrl(
   return document;
 }
 
+const ACTION_VOCABULARY = new Set([
+  "kg.action.observe",
+  "kg.action.record",
+  "kg.action.touch",
+  "kg.action.grasp",
+  "kg.action.move",
+  "kg.action.open",
+  "kg.action.enter",
+  "kg.action.retain",
+  "kg.action.train_on_data",
+]);
+
+export function validateActionVocabulary(actions) {
+  if (!Array.isArray(actions) || actions.length === 0) {
+    throw new Error("actions must be a non-empty array");
+  }
+  const unknown = [];
+  for (const action of actions) {
+    if (typeof action !== "string") {
+      throw new Error("each action must be a string");
+    }
+    if (!ACTION_VOCABULARY.has(action)) {
+      unknown.push(action);
+    }
+  }
+  if (unknown.length > 0) {
+    throw new Error(
+      "unknown actions: " +
+        unknown.sort().join(", ") +
+        "; known terms: " +
+        [...ACTION_VOCABULARY].sort().join(", ")
+    );
+  }
+  return {
+    valid: true,
+    actions: actions.length,
+    known_terms: [...ACTION_VOCABULARY].sort(),
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -1111,5 +1151,6 @@ if (typeof globalThis !== "undefined") {
     verifyReproductionReport,
     verifyRevocationDistributionReport,
     policyBundleToOdrl,
+    validateActionVocabulary,
   };
 }

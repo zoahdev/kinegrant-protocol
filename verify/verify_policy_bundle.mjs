@@ -13,6 +13,7 @@ import {
   verifyReproductionReport,
   verifyRevocationDistributionReport,
   policyBundleToOdrl,
+  validateActionVocabulary,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -111,6 +112,11 @@ try {
     const trustedAuthorities = new Set(load(authoritiesPath));
     const document = await policyBundleToOdrl(bundle, trustedAuthorities);
     console.log(JSON.stringify(document, null, 2));
+  } else if (command === "vocabulary") {
+    const [actionsPath] = args;
+    const actions = load(actionsPath);
+    const result = validateActionVocabulary(actions);
+    console.log(`ACTION VOCABULARY VALID (${result.actions} actions)`);
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
@@ -124,7 +130,8 @@ try {
       "audit-csv <file.csv> | " +
       "reproduction-report <report.json> | " +
       "revocation-distribution <report.json> [bundle.json] [authorities.json] | " +
-      "bundle-odrl <bundle.json> <authorities.json>"
+      "bundle-odrl <bundle.json> <authorities.json> | " +
+      "vocabulary <actions.json>"
     );
   }
 } catch (error) {
