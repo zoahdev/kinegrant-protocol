@@ -11,8 +11,11 @@ class Ros2McpDemoTests(unittest.TestCase):
     def test_demo_reports_pass(self) -> None:
         report = Ros2McpDemo().run()
         self.assertEqual(report["overall_result"], "PASS")
+        self.assertTrue(report["obligation_compliance_ok"])
         self.assertEqual(report["summary"]["failed"], 0)
         self.assertTrue(all(outcome["passed"] for outcome in report["outcomes"]))
+        allowed = [outcome for outcome in report["outcomes"] if outcome["allowed"]]
+        self.assertTrue(all(outcome["obligation_compliant"] for outcome in allowed))
 
     def test_demo_covers_all_fault_classes(self) -> None:
         report = Ros2McpDemo().run()

@@ -20,10 +20,12 @@ from typing import Any, Callable
 from ..adapters.matter import matter_command_request
 from ..adapters.ros2 import ros_action_request
 from ..capability import CapabilityIssuer
+from ..compliance import ObligationCompliance
 from ..crypto import Ed25519KeyPair
 from ..gate import ActionGate, VerifiedCapability
 from ..models import ActionRequest, PolicyRule
 from ..policy import PolicyEngine
+from ..receipt import ReceiptLog
 from ..sequence import ActionJournal, ForbiddenCombination, SequencePolicy
 
 
@@ -53,6 +55,7 @@ class DemoOutcome:
     reason: str
     actuator_calls: int
     expected: str
+    obligation_compliant: bool | None = None
 
     @property
     def passed(self) -> bool:
@@ -67,6 +70,7 @@ class DemoOutcome:
             "reason": self.reason,
             "actuator_calls": self.actuator_calls,
             "expected": self.expected,
+            "obligation_compliant": self.obligation_compliant,
             "passed": self.passed,
         }
 
@@ -108,6 +112,7 @@ def default_policy(issuer: str) -> list[PolicyRule]:
             subjects=("urn:kinegrant:demo:agent:*",),
             purposes=("delivery", "maintenance", "audit"),
             constraints={"max_force_newtons": 50, "allowed_zones": ["urn:kinegrant:demo:zone:*"]},
+            obligations=("emitActionReceipt",),
         ),
         PolicyRule(
             "urn:kinegrant:demo:policy:deny-training",
@@ -129,6 +134,9 @@ class RobotDemo:
         )
         self.gate = ActionGate(trusted_issuers={self.authority.kid})
         self.journal = ActionJournal()
+        self.executor = Ed25519KeyPair.generate()
+        self.log = ReceiptLog(self.executor)
+        self.compliance = ObligationCompliance()
         self.sequence = SequencePolicy(
             [
                 ForbiddenCombination(
@@ -169,7 +177,7 @@ class RobotDemo:
         self,
         stack: RobotStack,
         request: ActionRequest,
-    ) -> None:
+    ) -> bool:
         decision = self.engine.evaluate(request)
         if not decision.allowed:
             raise PermissionError(decision.reason)
@@ -185,6 +193,12 @@ class RobotDemo:
         verified = self.gate.authorize(capability, request)
         self.actuators[stack.name].execute(verified)
         self.journal.record(request.action, request.target)
+        receipt = self.log.append(verified, result="succeeded", request=request)
+        return self.compliance.evaluate(
+            capability,
+            self.log.entries,
+            trusted_executors={self.executor.kid},
+        ).compliant
 
     def attempt(
         self,
@@ -214,15 +228,16 @@ class RobotDemo:
             self.outcomes.append(outcome)
             return outcome
         try:
-            self._consume(stack, request)
+            obligation_compliant = self._consume(stack, request)
             allowed = True
             reason = "allow"
         except (PermissionError, ValueError) as exc:
             allowed = False
             reason = f"{type(exc).__name__}: {exc}"
+            obligation_compliant = None
         outcome = DemoOutcome(
             scenario, stack.name, action, allowed, reason,
-            self.actuators[stack.name].calls, expected,
+            self.actuators[stack.name].calls, expected, obligation_compliant,
         )
         self.outcomes.append(outcome)
         return outcome
@@ -312,10 +327,19 @@ class RobotDemo:
         )
 
         passed = sum(outcome.passed for outcome in self.outcomes)
+        compliance_ok = all(
+            outcome.obligation_compliant
+            for outcome in self.outcomes
+            if outcome.allowed
+        )
         return {
             "type": "kinegrant:RobotDemoReport",
             "schema_version": "0.1",
-            "overall_result": "PASS" if passed == len(self.outcomes) else "FAIL",
+            "overall_result": (
+                "PASS"
+                if passed == len(self.outcomes) and compliance_ok
+                else "FAIL"
+            ),
             "summary": {
                 "total": len(self.outcomes),
                 "passed": passed,
@@ -324,6 +348,7 @@ class RobotDemo:
             "actuator_calls": {
                 stack: counter.calls for stack, counter in self.actuators.items()
             },
+            "obligation_compliance_ok": compliance_ok,
             "outcomes": [outcome.to_dict() for outcome in self.outcomes],
             "limitations": [
                 "Software simulation only; no physical actuation is claimed.",

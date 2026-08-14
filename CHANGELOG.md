@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Obligation compliance now runs inside every runnable demo: the two-stack
+  robot demo, the Matter/OPC UA/ROS 2 bridge demo, and the cross-system
+  ROS 2 + MCP demo all append signed receipts after allowed actions, verify
+  them with `ObligationCompliance`, and report `obligation_compliance_ok`;
+  the micro-benchmarks gained an `obligation_compliance` throughput metric.
 - Added fail-closed obligation compliance (`kinegrant.compliance.
   ObligationCompliance`): after execution, every capability obligation must
   have a verifiable fulfillment — a signed receipt for `emitActionReceipt`
