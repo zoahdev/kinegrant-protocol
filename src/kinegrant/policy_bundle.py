@@ -29,6 +29,7 @@ import re
 import sys
 from dataclasses import dataclass
 from datetime import timedelta
+from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -232,6 +233,174 @@ def bundle_to_odrl(
         policy_uid=policy_uid or payload["policy_id"],
         assigner=assigner or payload["issuer"],
     )
+
+
+def _pattern_overlaps(pattern_a: str, pattern_b: str) -> bool:
+    if pattern_a == "*" or pattern_b == "*" or pattern_a == pattern_b:
+        return True
+    if "*" not in pattern_a and "*" not in pattern_b:
+        return False
+    return fnmatchcase(pattern_a, pattern_b) or fnmatchcase(pattern_b, pattern_a)
+
+
+def _tuple_overlaps(tuple_a: tuple[str, ...], tuple_b: tuple[str, ...]) -> bool:
+    if "*" in tuple_a or "*" in tuple_b:
+        return True
+    return bool(set(tuple_a).intersection(tuple_b))
+
+
+def _scope_overlaps(rule_a: PolicyRule, rule_b: PolicyRule) -> bool:
+    return (
+        _pattern_overlaps(rule_a.target, rule_b.target)
+        and _tuple_overlaps(rule_a.actions, rule_b.actions)
+        and _tuple_overlaps(rule_a.purposes, rule_b.purposes)
+    )
+
+
+def analyze_policy_bundle(
+    bundle: Mapping[str, Any],
+    *,
+    trusted_authorities: set[str] | None = None,
+    expected_policy_id: str | None = None,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Analyze a verified signed policy bundle for audit-relevant findings.
+
+    The bundle must pass signature, authority, time-window, and digest checks
+    (fail-closed). Findings are conservative: any scope overlap between an
+    allow and a deny rule is reported as a conflict, duplicate rules are
+    reported, unknown constraints and obligations are reported, and rules
+    whose issuer differs from the bundle signer are errors.
+    """
+    payload = verify_policy_bundle(
+        bundle,
+        trusted_authorities=trusted_authorities,
+        expected_policy_id=expected_policy_id,
+        now=now,
+    )
+    rules = rules_from_bundle(
+        bundle,
+        trusted_authorities=trusted_authorities,
+        expected_policy_id=expected_policy_id,
+        now=now,
+    )
+    findings: list[dict[str, Any]] = []
+
+    for rule in rules:
+        if rule.issuer != payload["issuer"]:
+            findings.append(
+                {
+                    "severity": "error",
+                    "code": "rule_issuer_mismatch",
+                    "rule_ids": [rule.policy_id],
+                    "message": (
+                        f"rule issuer {rule.issuer} differs from the bundle "
+                        f"signer {payload['issuer']}"
+                    ),
+                }
+            )
+        unknown_constraints = set(rule.constraints) - {
+            "not_before",
+            "not_after",
+            "required_context",
+            "requires_human_present",
+            "max_risk_tier",
+            "max_force_newtons",
+            "max_velocity_mps",
+            "allowed_zones",
+            "min_approval_tier",
+        }
+        if unknown_constraints:
+            findings.append(
+                {
+                    "severity": "error",
+                    "code": "unknown_constraint",
+                    "rule_ids": [rule.policy_id],
+                    "message": (
+                        "unsupported policy constraints: "
+                        + ", ".join(sorted(unknown_constraints))
+                    ),
+                }
+            )
+        from .obligations import KNOWN_OBLIGATIONS
+
+        unknown_obligations = set(rule.obligations) - set(KNOWN_OBLIGATIONS)
+        if unknown_obligations:
+            findings.append(
+                {
+                    "severity": "error",
+                    "code": "unknown_obligation",
+                    "rule_ids": [rule.policy_id],
+                    "message": (
+                        "unsupported policy obligations: "
+                        + ", ".join(sorted(unknown_obligations))
+                    ),
+                }
+            )
+        if (
+            rule.effect == "allow"
+            and rule.target == "*"
+            and rule.actions == ("*",)
+            and rule.purposes == ("*",)
+            and not rule.constraints
+        ):
+            findings.append(
+                {
+                    "severity": "warning",
+                    "code": "broad_allow",
+                    "rule_ids": [rule.policy_id],
+                    "message": "unconditional allow rule covering all targets",
+                }
+            )
+
+    for index_a in range(len(rules)):
+        for index_b in range(index_a + 1, len(rules)):
+            rule_a = rules[index_a]
+            rule_b = rules[index_b]
+            if not _scope_overlaps(rule_a, rule_b):
+                continue
+            if rule_a.effect != rule_b.effect:
+                findings.append(
+                    {
+                        "severity": "error",
+                        "code": "conflicting_effect",
+                        "rule_ids": [rule_a.policy_id, rule_b.policy_id],
+                        "message": (
+                            f"overlapping {rule_a.effect} and {rule_b.effect} "
+                            "rules; deny-overrides semantics apply"
+                        ),
+                    }
+                )
+            elif (
+                rule_a.to_dict() == rule_b.to_dict()
+            ):
+                findings.append(
+                    {
+                        "severity": "warning",
+                        "code": "duplicate_rule",
+                        "rule_ids": [rule_a.policy_id, rule_b.policy_id],
+                        "message": "duplicate rules with identical content",
+                    }
+                )
+
+    errors = sum(1 for finding in findings if finding["severity"] == "error")
+    warnings = sum(1 for finding in findings if finding["severity"] == "warning")
+    info = sum(1 for finding in findings if finding["severity"] == "info")
+    return {
+        "type": "kinegrant:PolicyBundleAnalysis",
+        "schema_version": "0.1",
+        "policy_id": payload["policy_id"],
+        "bundle_id": payload["bundle_id"],
+        "bundle_version": payload["version"],
+        "overall_result": "PASS" if errors == 0 else "FAIL",
+        "summary": {
+            "findings": len(findings),
+            "errors": errors,
+            "warnings": warnings,
+            "info": info,
+        },
+        "findings": findings,
+    }
 
 
 @dataclass(frozen=True)
@@ -683,6 +852,11 @@ def _self_test() -> int:
         {"gate-a": fleet_a},
     )
     checks.append(noop["summary"]["already_present_total"] == 1)
+    analysis = analyze_policy_bundle(
+        v2,
+        trusted_authorities={authority.kid},
+    )
+    checks.append(analysis["overall_result"] == "PASS")
     return 0 if all(checks) else 1
 
 
@@ -783,6 +957,17 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps(verified, indent=2, sort_keys=True))
         return 0
+    if "--analyze" in args:
+        bundle_path = args[args.index("--analyze") + 1]
+        authorities_path = args[args.index("--authorities") + 1]
+        bundle = json.loads(Path(bundle_path).read_text(encoding="utf-8"))
+        authorities = json.loads(Path(authorities_path).read_text(encoding="utf-8"))
+        report = analyze_policy_bundle(
+            bundle,
+            trusted_authorities=set(authorities),
+        )
+        print(json.dumps(report, indent=2, sort_keys=True))
+        return 0 if report["overall_result"] == "PASS" else 1
     print(
         "usage: kinegrant-policy-bundle --verify <bundle.json> --authorities <ids.json> "
         "[--policy-id <id>] | --activate <bundle.json> --authorities <ids.json> "
@@ -791,6 +976,7 @@ def main(argv: list[str] | None = None) -> int:
         "--distribute <bundle.json> --authorities <ids.json> --registries <states.json> "
         "[--out <states.json>] | "
         "--verify-report <report.json> --bundle <bundle.json> --authorities <ids.json> | "
+        "--analyze <bundle.json> --authorities <ids.json> | "
         "--self-test",
         file=sys.stderr,
     )

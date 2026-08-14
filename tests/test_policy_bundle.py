@@ -14,6 +14,7 @@ from kinegrant.policy_bundle import (
     PolicyAuthority,
     PolicyDistributor,
     PolicyRegistry,
+    analyze_policy_bundle,
     build_policy_bundle,
     bundle_to_odrl,
     main,
@@ -459,6 +460,179 @@ class PolicyBundleTests(unittest.TestCase):
             bundle_to_odrl(
                 tampered,
                 trusted_authorities={authority.kid},
+            )
+
+    def test_analyze_clean_bundle_passes(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:analyze"
+        bundle = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        report = analyze_policy_bundle(
+            bundle,
+            trusted_authorities={authority.kid},
+        )
+        self.assertEqual(report["overall_result"], "PASS")
+        self.assertEqual(report["summary"]["errors"], 0)
+
+    def test_analyze_detects_allow_deny_conflict(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:analyze-conflict"
+        rules = [
+            PolicyRule(
+                policy_id,
+                authority.kid,
+                "urn:space:test:door-1",
+                "allow",
+                ("open",),
+                purposes=("delivery",),
+            ),
+            PolicyRule(
+                policy_id + "-deny",
+                authority.kid,
+                "urn:space:test:door-1",
+                "deny",
+                ("open",),
+                purposes=("delivery",),
+            ),
+        ]
+        bundle = authority.publish(policy_id, rules, ttl_seconds=3600)
+        report = analyze_policy_bundle(
+            bundle,
+            trusted_authorities={authority.kid},
+        )
+        self.assertEqual(report["overall_result"], "FAIL")
+        self.assertTrue(
+            any(
+                finding["code"] == "conflicting_effect"
+                for finding in report["findings"]
+            )
+        )
+
+    def test_analyze_detects_duplicate_rule_warning(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:analyze-duplicate"
+        rule = PolicyRule(
+            policy_id,
+            authority.kid,
+            "urn:space:test:door-1",
+            "allow",
+            ("open",),
+            purposes=("delivery",),
+        )
+        bundle = authority.publish(policy_id, [rule, rule], ttl_seconds=3600)
+        report = analyze_policy_bundle(
+            bundle,
+            trusted_authorities={authority.kid},
+        )
+        self.assertTrue(
+            any(
+                finding["code"] == "duplicate_rule"
+                for finding in report["findings"]
+            )
+        )
+
+    def test_analyze_detects_broad_allow_warning(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:analyze-broad"
+        rule = PolicyRule(
+            policy_id,
+            authority.kid,
+            "*",
+            "allow",
+            ("*",),
+            purposes=("*",),
+        )
+        bundle = authority.publish(policy_id, [rule], ttl_seconds=3600)
+        report = analyze_policy_bundle(
+            bundle,
+            trusted_authorities={authority.kid},
+        )
+        self.assertTrue(
+            any(
+                finding["code"] == "broad_allow"
+                for finding in report["findings"]
+            )
+        )
+
+    def test_analyze_rejects_tampered(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        bundle = authority.publish(
+            "urn:kinegrant:policy:analyze",
+            make_rules(authority.kid, "urn:kinegrant:policy:analyze"),
+            ttl_seconds=3600,
+        )
+        tampered = dict(bundle)
+        tampered["payload"] = dict(bundle["payload"])
+        tampered["payload"]["rules"] = []
+        with self.assertRaises(ValueError):
+            analyze_policy_bundle(
+                tampered,
+                trusted_authorities={authority.kid},
+            )
+
+    def test_cli_analyze_exit_codes(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:analyze-cli"
+        clean = authority.publish(
+            policy_id,
+            make_rules(authority.kid, policy_id),
+            ttl_seconds=3600,
+        )
+        conflicting = authority.publish(
+            policy_id,
+            [
+                PolicyRule(
+                    policy_id,
+                    authority.kid,
+                    "urn:space:test:door-1",
+                    "allow",
+                    ("open",),
+                ),
+                PolicyRule(
+                    policy_id + "-deny",
+                    authority.kid,
+                    "urn:space:test:door-1",
+                    "deny",
+                    ("open",),
+                ),
+            ],
+            ttl_seconds=3600,
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            clean_path = root / "clean.json"
+            conflict_path = root / "conflict.json"
+            authorities_path = root / "authorities.json"
+            clean_path.write_text(json.dumps(clean), encoding="utf-8")
+            conflict_path.write_text(json.dumps(conflicting), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            self.assertEqual(
+                main(
+                    [
+                        "--analyze",
+                        str(clean_path),
+                        "--authorities",
+                        str(authorities_path),
+                    ]
+                ),
+                0,
+            )
+            self.assertEqual(
+                main(
+                    [
+                        "--analyze",
+                        str(conflict_path),
+                        "--authorities",
+                        str(authorities_path),
+                    ]
+                ),
+                1,
             )
 
 

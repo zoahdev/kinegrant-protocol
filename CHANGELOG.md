@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.3.0 - v2.3 first item (unreleased)
+
+- Added `analyze_policy_bundle`: verifies a signed policy bundle (fail-closed) and emits a machine-readable `kinegrant:PolicyBundleAnalysis` with conservative findings (conflicting allow/deny overlaps, duplicate rules, unknown constraints/obligations, rule issuers differing from the bundle signer, unconditional broad allows).
+- `kinegrant-policy-bundle --analyze` exits 1 on error-level findings for CI fail-closed use.
+- Added KGP-RFC-0003 draft (policy bundle schema stability).
+
 ## 2.2.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.2.0 on the stable
