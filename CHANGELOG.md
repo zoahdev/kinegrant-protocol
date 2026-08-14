@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.17.0 - v2.17 first item (unreleased)
+
+- Browser verifier validates the known obligation vocabulary (`validateObligationVocabulary`: emitActionReceipt, logAuditEvent, preserveEvidence; fail-closed on unknown obligations); the HTML page and Node CLI (`obligations` command) expose it, cross-tested against the Python `KNOWN_OBLIGATIONS`.
+
 ## 2.16.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.16.0 on the

@@ -21,6 +21,7 @@ import {
   verifyRevocationDistributionReport,
   policyBundleToOdrl,
   validateActionVocabulary,
+  validateObligationVocabulary,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const DOMAIN = Buffer.from("KINEGRANT-SIGNED-ENVELOPE-V1\u0000", "utf8");
@@ -533,4 +534,16 @@ test("browser verifier validates the action vocabulary", () => {
   assert.equal(result.actions, 2);
   assert.throws(() => validateActionVocabulary(["kg.action.explode"]));
   assert.throws(() => validateActionVocabulary([]));
+});
+
+test("browser verifier validates the obligation vocabulary", () => {
+  const result = validateObligationVocabulary([
+    "emitActionReceipt",
+    "logAuditEvent",
+    "preserveEvidence",
+  ]);
+  assert.equal(result.valid, true);
+  assert.equal(result.obligations, 3);
+  assert.throws(() => validateObligationVocabulary(["eraseMemory"]));
+  assert.throws(() => validateObligationVocabulary([]));
 });
