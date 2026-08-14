@@ -1,0 +1,13 @@
+{
+  "name": "kinegrant-js",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Independent JavaScript verifier for KineGrant KGP-001 envelopes, capabilities, and receipts",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

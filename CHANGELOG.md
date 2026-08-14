@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added the first independent implementation: `kinegrant-js`, a dependency-free
+  JavaScript verifier for JCS, Ed25519 envelopes, v0.1 capabilities, and
+  receipt chains, cross-tested against the Python reference implementation in
+  CI.
 - Added Merkle selective disclosure (inclusion proofs without revealing the
   full document) and a bounded model checker for policy semantics.
 - Added the executable conformance suite (`kinegrant-conformance`, levels
