@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.9.0 — 2026-08-15
+
+- Milestone release: reference implementation version 1.9.0 on the stable
+  1.0 wire format, shipping the checksummed security review kit packet as a
+  release asset with offline verification support.
+
 ## 1.8.0 — 2026-08-15
 
 - The security review kit generator now supports `--packet-dir` (checksummed
