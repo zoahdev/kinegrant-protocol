@@ -233,7 +233,7 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
 - the security review kit is published as a checksummed, offline-verifiable
   release asset with every stable release.
 
-## v2.0 - policy trust lifecycle
+## v2.0 - policy trust lifecycle (complete with v2.0.0)
 
 - signed, versioned policy bundles (`PolicyAuthority` / `PolicyRegistry` /
   `verify_policy_bundle`): an authority can publish, replace, and revoke
@@ -250,7 +250,7 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
 Exit criterion: a fleet can receive a policy update from a trusted authority,
 roll back an emergency revocation without a central service, and an external
 implementer can reproduce current-version selection from the signed bundles
-alone.
+alone. Released as v2.0.0 (2026-08-15).
 
 ## Success metrics
 

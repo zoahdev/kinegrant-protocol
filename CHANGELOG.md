@@ -2,7 +2,12 @@
 
 ## Unreleased
 
-## 2.0.0 - v2.0 first item (unreleased)
+## 2.0.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.0.0 on the stable
+  1.0 wire format, completing the policy trust lifecycle: signed policy
+  bundles with versioning and revocation, JavaScript/Go cross-implementation
+  verification, Machine Permission Test v0.4 (20 cases), and conformance 22/22.
 
 - Added signed, versioned policy bundles (`kinegrant.policy_bundle`):
   `PolicyAuthority` publishes policy documents with a monotonic version, a
