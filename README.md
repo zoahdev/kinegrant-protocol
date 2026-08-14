@@ -152,8 +152,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   (`kinegrant-robot-demo`, `kinegrant-bridge-demo`, `kinegrant-ros2-demo`)
   report `obligation_compliance_ok`, the conformance suite L1-L4 includes
   `obligation_compliance`, `gatekeeper_boundary`, and
-  `revocation_distribution` marks (20/20), and the micro-benchmarks include
-  obligation compliance and revocation-distribution throughput.
+  `revocation_distribution` marks plus a `gatekeeper_boundary_modelcheck`
+  (21/21), and the micro-benchmarks include obligation compliance and
+  revocation-distribution throughput.
 - One-call deployment boundary: `Gatekeeper` composes sequence check,
   revocation check, gate verification and one-time consumption, actuator
   execution, signed receipt, obligation compliance, and the action journal

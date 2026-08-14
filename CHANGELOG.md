@@ -4,6 +4,9 @@
 
 ## 1.5.0 — 2026-08-15
 
+- The conformance suite now includes a `gatekeeper_boundary_modelcheck` mark
+  (L2: bounded composition-invariant verification of the one-call boundary)
+  — L1-L4 is now 21 marks.
 - Added the Gatekeeper boundary model check (`kinegrant.gatekeeper_modelcheck.
   check_gatekeeper_boundary`): bounded enumeration over allow/deny/actuator-
   failure scenarios verifying composition invariants (actuator after the

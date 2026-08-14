@@ -31,6 +31,7 @@ from .checkpoint import build_receipt_checkpoint, verify_receipt_checkpoint
 from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
 from .distribution import RevocationDistributor
 from .gate import ActionGate, InMemoryReplayStore
+from .gatekeeper_modelcheck import check_gatekeeper_boundary
 from .gatekeeper import Gatekeeper
 from .models import ActionRequest, PolicyRule
 from .policy import PolicyEngine
@@ -455,6 +456,18 @@ class ConformanceRunner:
                 "gatekeeper_boundary",
                 boundary_ok,
                 "open+replay denied+sequence denied+revocation denied",
+            )
+        )
+
+        boundary_modelcheck = check_gatekeeper_boundary()
+        marks.append(
+            ConformanceMark(
+                "L2",
+                "gatekeeper_boundary_modelcheck",
+                boundary_modelcheck["overall_result"] == "PASS",
+                f"properties="
+                f"{boundary_modelcheck['summary']['passed_properties']}/"
+                f"{boundary_modelcheck['summary']['properties']}",
             )
         )
         return tuple(marks)
