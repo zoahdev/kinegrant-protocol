@@ -302,13 +302,13 @@ Exit criterion: an auditor can audit an entire policy fleet with one command and
 
 Exit criterion: anyone can verify a signed policy bundle in a browser without installing anything or uploading data. Released as v2.6.0 (2026-08-15).
 
-## v2.7 - full browser verification
+## v2.7 - full browser verification (complete with v2.7.0)
 
 - browser verifier extended to capabilities (v0.1/v0.2/1.0) and receipt chains (v0.1/1.0) alongside policy bundles (complete via PR #98);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: a visitor can verify a policy bundle, a capability, and a receipt chain in the browser without installing anything.
+Exit criterion: a visitor can verify a policy bundle, a capability, and a receipt chain in the browser without installing anything. Released as v2.7.0 (2026-08-15).
 
 ## Success metrics
 
