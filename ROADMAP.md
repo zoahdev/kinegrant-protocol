@@ -294,13 +294,13 @@ Exit criterion: an adopter can run one example and see the full signed policy li
 
 Exit criterion: an auditor can audit an entire policy fleet with one command and get a machine-readable, fail-closed summary. Released as v2.5.0 (2026-08-15).
 
-## v2.6 - browser verification and governance
+## v2.6 - browser verification and governance (complete with v2.6.0)
 
 - standalone offline browser policy-bundle verifier (`verify/`): zero-dependency WebCrypto verification, current-version selection, and a hostable HTML page (complete via PR #96);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: anyone can verify a signed policy bundle in a browser without installing anything or uploading data.
+Exit criterion: anyone can verify a signed policy bundle in a browser without installing anything or uploading data. Released as v2.6.0 (2026-08-15).
 
 ## Success metrics
 

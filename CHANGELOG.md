@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.6.0 - v2.6 first item (unreleased)
+## 2.6.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.6.0 on the stable
+  1.0 wire format, adding the standalone offline browser policy-bundle
+  verifier.
 
 - Added a standalone offline browser policy-bundle verifier (`verify/policy-bundle-verifier.js` + hostable HTML page + Node CLI): zero-dependency RFC 8785 JCS subset, WebCrypto Ed25519 and SHA-256, signature/authority/policy-id/time-window/rules-digest checks, and current-version selection with revocation, all in the browser.
 
