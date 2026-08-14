@@ -20,18 +20,21 @@
 - strict schemas and 33 automated protocol/security regression tests;
 - GitHub Actions across Python 3.11–3.13.
 
-## Machine Permission Test v0.1 — reproducible challenge (complete)
+## Machine Permission Test v0.2 — reproducible challenge (complete)
 
-- nine executable permission-boundary cases with real sandbox actuator counts;
+- fourteen executable permission-boundary cases with real sandbox actuator counts;
 - no-grant, valid-once, replay, request mutation, issuer, expiry, concurrency,
   restart persistence, and receipt-trust assertions;
+- v0.2 surface: physical constraints, attenuation with parent verification,
+  cross-agent delegation, approval-tier propagation into receipts, and
+  forbidden combinations;
 - strict Draft 2020-12 evidence Schema and independent verifier;
 - source commit, runner digest, and runtime-environment provenance;
-- public reference run with 9/9 PASS and checksum-addressed release assets;
+- public reference run with 14/14 PASS and checksum-addressed release assets;
 - production Challenge page aligned with the executable runner.
 
 Exit criterion: an external implementer can download one packet, reproduce all
-nine cases, and submit Schema-valid evidence without trusting the website UI.
+fourteen cases, and submit Schema-valid evidence without trusting the website UI.
 
 ## Low-risk ESP32-C3 permission proof — software boundary complete
 

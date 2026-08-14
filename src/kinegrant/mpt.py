@@ -16,12 +16,14 @@ from typing import Any, Callable
 from uuid import uuid4
 
 from . import __version__
+from .attenuation import verify_attenuation
 from .capability import CapabilityIssuer
 from .crypto import Ed25519KeyPair
 from .gate import ActionGate, SQLiteReplayStore, VerifiedCapability
 from .models import ActionRequest, PolicyRule, parse_time
 from .policy import PolicyEngine
 from .receipt import ReceiptLog, verify_receipt_chain
+from .sequence import ActionJournal, ForbiddenCombination, SequencePolicy
 
 CaseResult = dict[str, Any]
 
@@ -343,6 +345,357 @@ def _receipt_trust() -> CaseResult:
     )
 
 
+def _physical_constraints() -> CaseResult:
+    agent = "urn:kinegrant:mpt:agent:1"
+    target = "urn:kinegrant:mpt:target:1"
+    authority = Ed25519KeyPair.generate()
+    allow = PolicyRule(
+        "urn:kinegrant:mpt:policy:physical-allow",
+        authority.kid,
+        "urn:kinegrant:mpt:target:*",
+        "allow",
+        ("open",),
+        subjects=(agent,),
+        purposes=("permission-test",),
+        constraints={"max_force_newtons": 50, "allowed_zones": ["urn:kinegrant:mpt:zone:*"]},
+    )
+    deny_over = PolicyRule(
+        "urn:kinegrant:mpt:policy:physical-deny",
+        authority.kid,
+        "urn:kinegrant:mpt:target:*",
+        "deny",
+        ("open",),
+        constraints={"max_force_newtons": 30},
+    )
+    engine = PolicyEngine(
+        [allow, deny_over],
+        trusted_policy_issuers={authority.kid},
+    )
+
+    def make_request(label: str, context: dict[str, object]) -> ActionRequest:
+        return ActionRequest(
+            f"urn:kinegrant:mpt:request:physical-{label}",
+            agent,
+            target,
+            "open",
+            "permission-test",
+            context=context,
+        )
+
+    within = make_request("within", {"force_newtons": 20, "zone": "urn:kinegrant:mpt:zone:1"})
+    over = make_request("over", {"force_newtons": 40, "zone": "urn:kinegrant:mpt:zone:1"})
+    missing = make_request("missing", {})
+    within_decision = engine.evaluate(within)
+    over_decision = engine.evaluate(over)
+    missing_decision = engine.evaluate(missing)
+
+    actuator = _SandboxActuator()
+    if within_decision.allowed:
+        capability = CapabilityIssuer(authority).issue(
+            within, within_decision, ttl_seconds=10
+        )
+        _authorize_and_act(
+            ActionGate(trusted_issuers={authority.kid}),
+            capability,
+            within,
+            actuator,
+        )
+    passed = (
+        within_decision.allowed
+        and not over_decision.allowed
+        and not missing_decision.allowed
+        and actuator.calls == 1
+    )
+    return _result(
+        "MPT-010",
+        "Physical constraints fail closed",
+        "Within limit ALLOW; over limit and missing evidence DENY",
+        (
+            f"within={within_decision.reason}, over={over_decision.reason}, "
+            f"missing={missing_decision.reason}, actuator_calls={actuator.calls}"
+        ),
+        passed,
+        {
+            "within_decision": within_decision.reason,
+            "over_decision": over_decision.reason,
+            "missing_decision": missing_decision.reason,
+            "actuator_calls": actuator.calls,
+        },
+    )
+
+
+def _attenuation() -> CaseResult:
+    request, authority, _ = _fixture("attenuation")
+    rule = PolicyRule(
+        "urn:kinegrant:mpt:policy:attenuation",
+        authority.kid,
+        "urn:kinegrant:mpt:target:*",
+        "allow",
+        ("open", "close"),
+        subjects=(request.agent,),
+        purposes=(request.purpose,),
+    )
+    decision = PolicyEngine(
+        [rule], trusted_policy_issuers={authority.kid}
+    ).evaluate(request)
+    issuer = CapabilityIssuer(authority)
+    root = issuer.issue_scoped(
+        request,
+        decision,
+        ttl_seconds=30,
+        target="urn:kinegrant:mpt:target:*",
+        actions=["open", "close"],
+        purposes=["permission-test"],
+    )
+    child = issuer.issue_attenuated(
+        root,
+        target=request.target,
+        actions=["open"],
+        ttl_seconds=10,
+        max_force_newtons=20,
+    )
+    gate = ActionGate(trusted_issuers={authority.kid})
+    actuator = _SandboxActuator()
+    try:
+        verified = gate.authorize(child, request, parent_capability=root)
+        actuator.execute(verified)
+        child_accepted = True
+    except PermissionError:
+        child_accepted = False
+    replay_rejected, replay_error = _rejected(
+        lambda: _authorize_and_act(gate, child, request, actuator)
+    )
+    forged = copy.deepcopy(child)
+    forged["payload"]["actions"] = ["open", "close"]
+    widen_rejected, widen_error = _rejected(
+        lambda: gate.authorize(forged, request, parent_capability=root)
+    )
+    other_root = issuer.issue_scoped(
+        request,
+        decision,
+        ttl_seconds=30,
+        target="urn:kinegrant:mpt:target:other",
+        actions=["open"],
+        purposes=["permission-test"],
+    )
+    parent_rejected, parent_error = _rejected(
+        lambda: gate.authorize(child, request, parent_capability=other_root)
+    )
+    passed = (
+        child_accepted
+        and verify_attenuation(child["payload"], root["payload"])
+        and replay_rejected
+        and widen_rejected
+        and parent_rejected
+        and actuator.calls == 1
+    )
+    return _result(
+        "MPT-011",
+        "Scoped attenuation narrows and is parent-verified",
+        "Child ALLOW once; replay, widening, and wrong parent DENY",
+        (
+            f"child={'ALLOW' if child_accepted else 'DENY'}, "
+            f"replay={'DENY' if replay_rejected else 'ALLOW'}, "
+            f"widen={'DENY' if widen_rejected else 'ALLOW'}, "
+            f"wrong_parent={'DENY' if parent_rejected else 'ALLOW'}, "
+            f"actuator_calls={actuator.calls}"
+        ),
+        passed,
+        {
+            "child_accepted": child_accepted,
+            "attenuation_valid": verify_attenuation(child["payload"], root["payload"]),
+            "replay_rejected": replay_rejected,
+            "replay_error": replay_error,
+            "widen_rejected": widen_rejected,
+            "widen_error": widen_error,
+            "parent_rejected": parent_rejected,
+            "parent_error": parent_error,
+            "actuator_calls": actuator.calls,
+        },
+    )
+
+
+def _delegation() -> CaseResult:
+    request, authority, _ = _fixture("delegation")
+    rule = PolicyRule(
+        "urn:kinegrant:mpt:policy:delegation",
+        authority.kid,
+        "urn:kinegrant:mpt:target:*",
+        "allow",
+        ("open",),
+        subjects=(request.agent,),
+        purposes=(request.purpose,),
+    )
+    decision = PolicyEngine(
+        [rule], trusted_policy_issuers={authority.kid}
+    ).evaluate(request)
+    issuer = CapabilityIssuer(authority)
+    root = issuer.issue_scoped(
+        request,
+        decision,
+        ttl_seconds=30,
+        target="urn:kinegrant:mpt:target:*",
+        actions=["open"],
+        purposes=["permission-test"],
+        delegation_allowed=True,
+        max_delegation_depth=1,
+    )
+    delegate_request = replace(
+        request,
+        request_id="urn:kinegrant:mpt:request:delegate",
+        agent="urn:kinegrant:mpt:agent:2",
+    )
+    child = issuer.issue_attenuated(
+        root,
+        target=request.target,
+        delegate_agent=delegate_request.agent,
+        delegate_request=delegate_request,
+    )
+    gate = ActionGate(trusted_issuers={authority.kid})
+    actuator = _SandboxActuator()
+    try:
+        verified = gate.authorize(child, delegate_request)
+        actuator.execute(verified)
+        delegate_allowed = True
+    except PermissionError:
+        delegate_allowed = False
+    principal_rejected, principal_error = _rejected(
+        lambda: _authorize_and_act(gate, child, request, actuator)
+    )
+    passed = (
+        delegate_allowed
+        and verify_attenuation(child["payload"], root["payload"])
+        and principal_rejected
+        and actuator.calls == 1
+    )
+    return _result(
+        "MPT-012",
+        "Cross-agent delegation binds the delegate request",
+        "Delegate ALLOW once; principal agent DENY",
+        (
+            f"delegate={'ALLOW' if delegate_allowed else 'DENY'}, "
+            f"principal={'DENY' if principal_rejected else 'ALLOW'}, "
+            f"actuator_calls={actuator.calls}"
+        ),
+        passed,
+        {
+            "delegate_allowed": delegate_allowed,
+            "principal_rejected": principal_rejected,
+            "principal_error": principal_error,
+            "actuator_calls": actuator.calls,
+        },
+    )
+
+
+def _approval_tiers() -> CaseResult:
+    request, authority, _ = _fixture("approval")
+    rule = PolicyRule(
+        "urn:kinegrant:mpt:policy:approval",
+        authority.kid,
+        request.target,
+        "allow",
+        (request.action,),
+        subjects=(request.agent,),
+        purposes=(request.purpose,),
+        constraints={"min_approval_tier": 2},
+    )
+    decision = PolicyEngine(
+        [rule], trusted_policy_issuers={authority.kid}
+    ).evaluate(request)
+    capability = CapabilityIssuer(authority).issue_scoped(
+        request,
+        decision,
+        ttl_seconds=10,
+        approval_tier=decision.required_approval_tier,
+    )
+    verified = ActionGate(trusted_issuers={authority.kid}).authorize(
+        capability, request
+    )
+    executor = Ed25519KeyPair.generate()
+    receipt = ReceiptLog(executor).append(
+        verified, result="succeeded", request=request
+    )
+    chain_valid = verify_receipt_chain(
+        [receipt],
+        trusted_executors={executor.kid},
+        expected_capability_ids={verified["capability_id"]},
+    )
+    passed = (
+        decision.allowed
+        and decision.required_approval_tier == 2
+        and capability["payload"]["approval_tier"] == 2
+        and receipt["payload"]["approval_tier"] == 2
+        and chain_valid
+    )
+    return _result(
+        "MPT-013",
+        "Approval tiers propagate from policy to receipt",
+        "Decision, capability, and receipt all carry tier 2",
+        (
+            f"decision_tier={decision.required_approval_tier}, "
+            f"capability_tier={capability['payload']['approval_tier']}, "
+            f"receipt_tier={receipt['payload']['approval_tier']}, "
+            f"chain={'VALID' if chain_valid else 'INVALID'}"
+        ),
+        passed,
+        {
+            "decision_tier": decision.required_approval_tier,
+            "capability_tier": capability["payload"]["approval_tier"],
+            "receipt_tier": receipt["payload"]["approval_tier"],
+            "receipt_chain_valid": chain_valid,
+        },
+    )
+
+
+def _forbidden_combination() -> CaseResult:
+    target = "urn:kinegrant:mpt:target:1"
+    journal = ActionJournal()
+    journal.record("record", target)
+    journal.record("open", target)
+    combination = ForbiddenCombination(
+        "mpt-record-open-train",
+        (("record", target), ("open", target)),
+        trigger=("train_on_data", "*"),
+    )
+    policy = SequencePolicy([combination])
+    train = ActionRequest(
+        "urn:kinegrant:mpt:request:forbidden-train",
+        "urn:kinegrant:mpt:agent:1",
+        target,
+        "train_on_data",
+        "permission-test",
+    )
+    touch = ActionRequest(
+        "urn:kinegrant:mpt:request:allowed-touch",
+        "urn:kinegrant:mpt:agent:1",
+        target,
+        "touch",
+        "permission-test",
+    )
+    train_verdict = policy.evaluate(train, journal)
+    touch_verdict = policy.evaluate(touch, journal)
+    passed = (
+        not train_verdict.allowed
+        and train_verdict.reason == "forbidden_combination"
+        and touch_verdict.allowed
+    )
+    return _result(
+        "MPT-014",
+        "Forbidden combinations deny matching requests",
+        "train_on_data DENY after record+open; unrelated action ALLOW",
+        (
+            f"train={train_verdict.reason}, "
+            f"touch={touch_verdict.reason}, "
+            f"matched={list(train_verdict.matched_combination_ids)}"
+        ),
+        passed,
+        {
+            "train_verdict": train_verdict.to_dict(),
+            "touch_verdict": touch_verdict.to_dict(),
+        },
+    )
+
+
 CASES: tuple[tuple[str, Callable[[], CaseResult]], ...] = (
     ("MPT-001", _no_grant),
     ("MPT-002", _valid_once),
@@ -353,6 +706,11 @@ CASES: tuple[tuple[str, Callable[[], CaseResult]], ...] = (
     ("MPT-007", _concurrent),
     ("MPT-008", _persistent_replay),
     ("MPT-009", _receipt_trust),
+    ("MPT-010", _physical_constraints),
+    ("MPT-011", _attenuation),
+    ("MPT-012", _delegation),
+    ("MPT-013", _approval_tiers),
+    ("MPT-014", _forbidden_combination),
 )
 
 
@@ -377,7 +735,7 @@ def run_machine_permission_test(*, source_commit: str | None = None) -> dict[str
     passed = sum(case["passed"] for case in results)
     failed = len(results) - passed
     return {
-        "schema_version": "0.1",
+        "schema_version": "0.2",
         "run_id": f"urn:kinegrant:mpt:run:{uuid4()}",
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "protocol": "KGP-001 Experimental Open Draft 0.1",
