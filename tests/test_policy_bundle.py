@@ -6,6 +6,7 @@ import unittest
 from datetime import timedelta
 from pathlib import Path
 
+from kinegrant.adapters.odrl import odrl_to_rules
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.models import PolicyRule, utc_now
 from kinegrant.policy import PolicyEngine
@@ -14,6 +15,7 @@ from kinegrant.policy_bundle import (
     PolicyDistributor,
     PolicyRegistry,
     build_policy_bundle,
+    bundle_to_odrl,
     main,
     rules_from_bundle,
     sign_policy_bundle,
@@ -398,6 +400,66 @@ class PolicyBundleTests(unittest.TestCase):
                 trusted_authorities={authority.kid},
             )
             self.assertEqual(restored.current(policy_id)["version"], 1)
+
+    def test_bundle_to_odrl_roundtrip(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:odrl"
+        rules = [
+            PolicyRule(
+                policy_id,
+                authority.kid,
+                "urn:space:test:door-1",
+                "allow",
+                ("open",),
+                purposes=("delivery",),
+                obligations=("emitActionReceipt",),
+            )
+        ]
+        bundle = authority.publish(policy_id, rules, ttl_seconds=3600)
+        odrl_document = bundle_to_odrl(
+            bundle,
+            trusted_authorities={authority.kid},
+            expected_policy_id=policy_id,
+        )
+        self.assertEqual(odrl_document["uid"], policy_id)
+        round_trip = odrl_to_rules(odrl_document)
+        engine = PolicyEngine(
+            round_trip,
+            trusted_policy_issuers={authority.kid},
+        )
+        from kinegrant.models import ActionRequest
+
+        request = ActionRequest(
+            "req-odrl-1",
+            "urn:robot:test-1",
+            "urn:space:test:door-1",
+            "open",
+            "delivery",
+        )
+        decision = engine.evaluate(request)
+        self.assertTrue(decision.allowed)
+        self.assertTrue(
+            any(
+                matched.startswith(policy_id)
+                for matched in decision.matched_policy_ids
+            )
+        )
+
+    def test_bundle_to_odrl_rejects_tampered(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        bundle = authority.publish(
+            "urn:kinegrant:policy:odrl",
+            make_rules(authority.kid, "urn:kinegrant:policy:odrl"),
+            ttl_seconds=3600,
+        )
+        tampered = dict(bundle)
+        tampered["payload"] = dict(bundle["payload"])
+        tampered["payload"]["rules"] = []
+        with self.assertRaises(ValueError):
+            bundle_to_odrl(
+                tampered,
+                trusted_authorities={authority.kid},
+            )
 
 
 if __name__ == "__main__":

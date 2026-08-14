@@ -261,6 +261,14 @@ alone. Released as v2.0.0 (2026-08-15).
 
 Exit criterion: a fleet can receive a policy update, acknowledge it per gate, and audit the acknowledgement against the signed bundle without a central service. Released as v2.1.0 (2026-08-15).
 
+## v2.2 - standards alignment and stability
+
+- signed policy bundles serialize to ODRL (`bundle_to_odrl`, kgp-v0.2 profile round-trip) (complete via PR #87);
+- stability and compatibility policy for policy bundles and schemas (`docs/STABILITY.md`, COMPATIBILITY/GOVERNANCE updates) (complete via PR #87);
+- policy-bundle verification in the browser public verifier (needs site source).
+
+Exit criterion: an ODRL consumer can ingest a KineGrant policy bundle's rules through a documented, versioned profile, and adopters can rely on explicit stability levels for wire formats and schemas.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

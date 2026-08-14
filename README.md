@@ -186,7 +186,8 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   signature, authority, time-window, and digest checks, and
   `kinegrant-policy-bundle` is the deployable CLI; the independent
   JavaScript and Go verifiers cross-check Python-signed bundles and
-  current-version rollback in the conformance report.
+  current-version rollback in the conformance report; `bundle_to_odrl`
+  maps verified bundles to ODRL through the versioned `kgp-v0.2` profile.
 - Fleet policy distribution: `PolicyDistributor` verifies one signed policy
   bundle under the caller's trusted authorities and applies it to many
   registries idempotently (never auto-downgrading), with per-registry
