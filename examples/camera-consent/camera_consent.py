@@ -27,7 +27,7 @@ def run() -> dict:
         ("record",),
         subjects=("urn:kinegrant:camera:agent:*",),
         purposes=("security",),
-        obligations=("emitActionReceipt",),
+        obligations=("emitActionReceipt", "logAuditEvent"),
     )
     deny_training = PolicyRule(
         "urn:kinegrant:camera:policy:deny-training",
@@ -85,6 +85,10 @@ def run() -> dict:
         verified,
         result="succeeded",
         request=record_request,
+        obligation_results=[
+            {"obligation": "emitActionReceipt", "status": "satisfied"},
+            {"obligation": "logAuditEvent", "status": "satisfied"},
+        ],
     )
     compliance = ObligationCompliance().evaluate(
         capability,
