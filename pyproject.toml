@@ -20,6 +20,7 @@ hardware = ["pyserial>=3.5"]
 kinegrant-demo = "kinegrant.cli:main"
 kinegrant-mpt = "kinegrant.mpt:main"
 kinegrant-robot-demo = "kinegrant.experimental.robot_demo:main"
+kinegrant-bridge-demo = "kinegrant.experimental.bridge_demo:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

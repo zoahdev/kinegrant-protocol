@@ -150,6 +150,10 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   and a Matter-style stack against one shared policy with replay, untrusted
   issuer, prompt-injection, physical-limit, and forbidden-combination faults
   (see [spec/ROBOT-DEMO.md](spec/ROBOT-DEMO.md)).
+- Reference bridges: `Ros2GoalGate` + `Sros2PolicyMapping` for ROS 2-shaped
+  integration, and `kinegrant-bridge-demo` covering Matter, OPC UA, and ROS 2
+  adapters with adapter-fidelity checks (see
+  [spec/ROS2-BRIDGE.md](spec/ROS2-BRIDGE.md)).
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies
