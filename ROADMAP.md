@@ -197,6 +197,13 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
   authorities;
 - benchmark metrics for cached policy evaluation and fleet distribution.
 
+## v1.4 — integrated operations (complete with v1.4.0)
+
+- every runnable demo and deployment trace evaluates policy through
+  `CachedPolicyEngine`;
+- the audit CLI verifies and includes fleet revocation distribution status
+  alongside receipt audits.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

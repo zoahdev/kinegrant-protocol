@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.4.0 — 2026-08-15
+
+- Milestone release: reference implementation version 1.4.0 on the stable
+  1.0 wire format, adding cached policy evaluation across every runnable demo
+  and deployment trace, and fleet revocation distribution status integrated
+  into the audit CLI.
+
 ## 1.3.0 — 2026-08-15
 
 - `kinegrant-audit` now accepts `--distribution-report`,
