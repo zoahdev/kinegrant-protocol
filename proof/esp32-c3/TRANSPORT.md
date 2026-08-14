@@ -1,6 +1,7 @@
 # Bounded serial transport profile
 
-Status: software framing model only; no serial port or firmware is connected.
+Status: host serial adapter implemented and software-tested; firmware and
+physical validation are pending.
 
 The paper-barrier proof uses newline-delimited JSON solely as a transport for the
 experimental challenge, command, and acknowledgement objects. Signatures and
@@ -45,3 +46,28 @@ decoder.close()
 bytes raises `PermissionError` and discards the partial object. Tests assert that
 the simulated actuator count remains zero until the final LF arrives and the
 fully decoded command passes the device gate.
+
+## Real host adapter
+
+`kinegrant.experimental.esp32c3_serial` provides a lazy-loaded pyserial adapter
+and `PaperBarrierSerialClient`. The client accepts only an `ActionGate`-produced
+`VerifiedCapability`, reads one strict challenge, writes one complete signed
+command, and accepts only a trusted acknowledgement bound to the exact device,
+command, and capability. Timeouts, partial writes, surplus frames, malformed
+challenges, and untrusted acknowledgements fail closed.
+
+Install the optional dependency only on a hardware host:
+
+```bash
+python -m pip install -e '.[test,hardware]'
+```
+
+The preflight command captures one challenge and intentionally sends no actuator
+command. It cannot produce `PHYSICAL_PASS`:
+
+```bash
+python proof/esp32-c3/hil_preflight.py \
+  --port COM7 \
+  --output evidence/preflight.json \
+  --confirm-low-risk-paper-barrier
+```
