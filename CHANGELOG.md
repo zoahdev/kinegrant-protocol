@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.16.0 - v2.16 first item (unreleased)
+## 2.16.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.16.0 on the
+  stable 1.0 wire format, adding action vocabulary validation to the
+  browser verifier.
 
 - Browser verifier validates the `kg.action.*` action vocabulary (`validateActionVocabulary`: canonical terms, fail-closed on unknown actions); the HTML page and Node CLI (`vocabulary` command) expose it, cross-tested against the Python `ACTION_TERMS`.
 
