@@ -19,6 +19,11 @@
   current-version selection: the conformance report cross-verifies a
   Python-signed v2 bundle plus current-version rollback with both
   implementations (missing toolchains are recorded as skipped).
+- Machine Permission Test v0.4 with 20 reproducible cases: three new policy
+  trust cases (MPT-018 signed bundle accepted and enforced, MPT-019
+  tampering/wrong-authority/wrong-policy rejected, MPT-020 version rollback
+  and fail-closed with no current version); evidence schema bumped to 0.4
+  with `minItems` 20.
 
 ## 1.9.0 — 2026-08-15
 

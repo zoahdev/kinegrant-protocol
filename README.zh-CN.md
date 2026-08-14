@@ -69,7 +69,7 @@ python -m unittest discover -s tests -v
 
 ## Machine Permission Test（机器权限测试）
 
-可复现的 [Machine Permission Test](challenge/README.md) 输出严格的 JSON 证据，并带显式的 `PASS` 或 `FAIL`。它覆盖十七个可执行用例：无授权拒绝、一次性授权、重放、请求绑定、签发者与过期检查、并发消费、持久化重放状态、收据信任、物理约束、能力衰减、委派、审批分级、禁止组合、收据 1.0 义务、合规逃逸检测、车队撤销分发。验证结果可以用
+可复现的 [Machine Permission Test](challenge/README.md) 输出严格的 JSON 证据，并带显式的 `PASS` 或 `FAIL`。它覆盖二十个可执行用例：无授权拒绝、一次性授权、重放、请求绑定、签发者与过期检查、并发消费、持久化重放状态、收据信任、物理约束、能力衰减、委派、审批分级、禁止组合、收据 1.0 义务、合规逃逸检测、车队撤销分发、签名策略包接受与强制、策略包篡改/错误机构/错误策略拒绝、策略版本回滚与无当前版本时 fail-closed。验证结果可以用
 [`machine-permission-test-evidence.schema.json`](spec/schemas/machine-permission-test-evidence.schema.json) 校验。
 
 从 [`mpt-v0.2` 发布](https://github.com/zoahdev/kinegrant-protocol/releases/tag/mpt-v0.2) 下载校验和寻址的数据包与参考证据。基于浏览器的[公开验证器](https://kinegrant.com/verify)在本地检查 MPT 证据，并可以验证发布的 [`sample-receipt-v0.1.json`](examples/sample-receipt-v0.1.json) 的 Ed25519 签名、内容寻址 ID 与调用者提供的执行方信任锚。仅凭签名有效并不等于执行方可信，也不等于物理动作真实发生。

@@ -242,7 +242,8 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
   landed via PR #80, conformance at 22/22);
 - independent JavaScript/Go verification of policy bundles and current-
   version selection (complete via PR #81);
-- policy-bundle cases in the Machine Permission Test;
+- policy-bundle cases in the Machine Permission Test (complete via PR #82,
+  MPT v0.4 with 20 cases);
 - a conformance mark set that requires rollback on revocation and fail-closed
   behavior when no trusted policy is available.
 

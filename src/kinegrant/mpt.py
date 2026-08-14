@@ -24,6 +24,12 @@ from .distribution import RevocationDistributor
 from .gate import ActionGate, SQLiteReplayStore, VerifiedCapability
 from .models import ActionRequest, PolicyRule, parse_time
 from .policy import PolicyEngine
+from .policy_bundle import (
+    PolicyAuthority,
+    PolicyRegistry,
+    rules_from_bundle,
+    verify_policy_bundle,
+)
 from .receipt import ReceiptLog, verify_receipt_chain
 from .revocation import (
     RevocationList,
@@ -838,6 +844,160 @@ def _revocation_distribution() -> CaseResult:
     )
 
 
+def _policy_bundle_enforced() -> CaseResult:
+    authority = PolicyAuthority(Ed25519KeyPair.generate())
+    policy_id = "urn:kinegrant:mpt:policy:bundle-018"
+    rules = [
+        PolicyRule(
+            policy_id,
+            authority.kid,
+            "urn:kinegrant:mpt:target:1",
+            "allow",
+            ("open",),
+            subjects=("urn:kinegrant:mpt:agent:1",),
+            purposes=("permission-test",),
+        )
+    ]
+    bundle = authority.publish(policy_id, rules, ttl_seconds=3600)
+    bundle_rules = rules_from_bundle(
+        bundle,
+        trusted_authorities={authority.kid},
+        expected_policy_id=policy_id,
+    )
+    request = ActionRequest(
+        "urn:kinegrant:mpt:request:bundle-018",
+        "urn:kinegrant:mpt:agent:1",
+        "urn:kinegrant:mpt:target:1",
+        "open",
+        "permission-test",
+    )
+    decision = PolicyEngine(
+        bundle_rules,
+        trusted_policy_issuers={authority.kid},
+    ).evaluate(request)
+    passed = decision.allowed and policy_id in decision.matched_policy_ids
+    return _result(
+        "MPT-018",
+        "Signed policy bundle is accepted and enforced",
+        "ALLOW with the signed policy id matched",
+        f"{'ALLOW' if passed else 'DENY'} matched={list(decision.matched_policy_ids)}",
+        passed,
+        {
+            "policy_id": policy_id,
+            "bundle_version": bundle["payload"]["version"],
+            "matched_policy_ids": list(decision.matched_policy_ids),
+        },
+    )
+
+
+def _policy_bundle_tamper_rejected() -> CaseResult:
+    authority = PolicyAuthority(Ed25519KeyPair.generate())
+    outsider = PolicyAuthority(Ed25519KeyPair.generate())
+    policy_id = "urn:kinegrant:mpt:policy:bundle-019"
+    rules = [
+        PolicyRule(
+            policy_id,
+            authority.kid,
+            "urn:kinegrant:mpt:target:1",
+            "allow",
+            ("open",),
+            purposes=("permission-test",),
+        )
+    ]
+    bundle = authority.publish(policy_id, rules, ttl_seconds=3600)
+
+    tampered = dict(bundle)
+    tampered["payload"] = dict(bundle["payload"])
+    tampered["payload"]["rules"] = []
+    tamper_rejected, _ = _rejected(
+        lambda: verify_policy_bundle(
+            tampered,
+            trusted_authorities={authority.kid},
+        )
+    )
+    authority_rejected, _ = _rejected(
+        lambda: verify_policy_bundle(
+            bundle,
+            trusted_authorities={outsider.kid},
+        )
+    )
+    policy_rejected, _ = _rejected(
+        lambda: verify_policy_bundle(
+            bundle,
+            trusted_authorities={authority.kid},
+            expected_policy_id="urn:kinegrant:mpt:policy:other",
+        )
+    )
+    passed = tamper_rejected and authority_rejected and policy_rejected
+    return _result(
+        "MPT-019",
+        "Policy bundle tampering, wrong authority, and wrong policy are rejected",
+        "ALL rejected (fail-closed)",
+        f"tamper={tamper_rejected} authority={authority_rejected} "
+        f"policy={policy_rejected}",
+        passed,
+        {
+            "tamper_rejected": tamper_rejected,
+            "wrong_authority_rejected": authority_rejected,
+            "wrong_policy_rejected": policy_rejected,
+        },
+    )
+
+
+def _policy_bundle_rollback() -> CaseResult:
+    authority = PolicyAuthority(Ed25519KeyPair.generate())
+    policy_id = "urn:kinegrant:mpt:policy:bundle-020"
+    rules_v1 = [
+        PolicyRule(
+            policy_id,
+            authority.kid,
+            "urn:kinegrant:mpt:target:1",
+            "allow",
+            ("open",),
+            purposes=("permission-test",),
+        )
+    ]
+    rules_v2 = [
+        PolicyRule(
+            policy_id,
+            authority.kid,
+            "urn:kinegrant:mpt:target:1",
+            "allow",
+            ("open",),
+            purposes=("permission-test", "maintenance"),
+        )
+    ]
+    v1 = authority.publish(policy_id, rules_v1, ttl_seconds=3600)
+    v2 = authority.publish(policy_id, rules_v2, ttl_seconds=3600)
+    registry = PolicyRegistry(trusted_authorities={authority.kid})
+    registry.activate(v1)
+    registry.activate(v2)
+    current_v2 = (
+        registry.current(policy_id) is not None
+        and registry.current(policy_id)["version"] == 2
+    )
+    registry.revoke(policy_id, 2, reason="emergency rollback")
+    rolled_back = (
+        registry.current(policy_id) is not None
+        and registry.current(policy_id)["version"] == 1
+    )
+    registry.revoke(policy_id, 1, reason="full withdrawal")
+    fail_closed = registry.current(policy_id) is None
+    passed = current_v2 and rolled_back and fail_closed
+    return _result(
+        "MPT-020",
+        "Policy version rollback and fail-closed with no current version",
+        "v2 current, then v1 after revocation, then None",
+        f"v2={current_v2} rolled_back={rolled_back} fail_closed={fail_closed}",
+        passed,
+        {
+            "current_v2": current_v2,
+            "rolled_back_to_v1": rolled_back,
+            "fail_closed_none": fail_closed,
+        },
+    )
+
+
 CASES: tuple[tuple[str, Callable[[], CaseResult]], ...] = (
     ("MPT-001", _no_grant),
     ("MPT-002", _valid_once),
@@ -856,6 +1016,9 @@ CASES: tuple[tuple[str, Callable[[], CaseResult]], ...] = (
     ("MPT-015", _receipt_obligation_results),
     ("MPT-016", _obligation_evasion),
     ("MPT-017", _revocation_distribution),
+    ("MPT-018", _policy_bundle_enforced),
+    ("MPT-019", _policy_bundle_tamper_rejected),
+    ("MPT-020", _policy_bundle_rollback),
 )
 
 
@@ -880,7 +1043,7 @@ def run_machine_permission_test(*, source_commit: str | None = None) -> dict[str
     passed = sum(case["passed"] for case in results)
     failed = len(results) - passed
     return {
-    "schema_version": "0.3",
+    "schema_version": "0.4",
         "run_id": f"urn:kinegrant:mpt:run:{uuid4()}",
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "protocol": "KGP-001 Experimental Open Draft 0.1",
