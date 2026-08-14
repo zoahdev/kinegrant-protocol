@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added offline delegation revocation: `RevocationList` bundles, gate-side
+  checks, and `root_capability_id` chain propagation so revoking a root
+  revokes every descendant.
+- Added fleet-level `delegate_allowlist` (glob patterns) on delegation roots,
+  enforced at issuance and by the independent attenuation verifier.
 - Extended the Machine Permission Test to v0.2: five new executable cases for
   physical constraints, scoped attenuation with parent verification,
   cross-agent delegation, approval-tier propagation into receipts, and

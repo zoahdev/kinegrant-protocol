@@ -17,7 +17,8 @@
         "request_digest", "policy_digest", "matched_policy_ids", "obligations",
         "issued_at", "not_before", "expires_at", "nonce", "capability_id",
         "parent_capability_id", "constraints", "approval_tier",
-        "delegation_allowed", "max_delegation_depth", "delegate_agent", "delegation_depth"
+        "delegation_allowed", "max_delegation_depth", "delegate_agent", "delegation_depth",
+        "root_capability_id", "delegate_allowlist"
       ],
       "properties": {
         "type": {"const": "kinegrant:PhysicalActionCapability"},
@@ -50,7 +51,14 @@
         "delegation_allowed": {"type": "boolean"},
         "max_delegation_depth": {"type": "integer", "minimum": 0, "maximum": 3},
         "delegate_agent": {"type": ["string", "null"], "minLength": 1},
-        "delegation_depth": {"type": "integer", "minimum": 0, "maximum": 3}
+        "delegation_depth": {"type": "integer", "minimum": 0, "maximum": 3},
+        "root_capability_id": {"type": "string", "pattern": "^kinegrant:cap:[0-9a-f]{64}$"},
+        "delegate_allowlist": {
+          "anyOf": [
+            {"type": "null"},
+            {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+          ]
+        }
       }
     }
   },

@@ -79,6 +79,8 @@ Progress on main:
   physical constraints, parent capability id) is recorded in signed receipts.
 - Cross-agent delegation: opt-in bounded delegation (max depth 1-3) with a
   delegate-bound request digest; delegates cannot re-delegate.
+- Delegation revocation and fleet allowlists: offline `RevocationList` with
+  root-chain revocation, and glob `delegate_allowlist` on delegation roots.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.

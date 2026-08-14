@@ -297,6 +297,80 @@ class AttenuationTests(unittest.TestCase):
         tampered["delegation_depth"] = 2
         self.assertFalse(verify_attenuation(tampered, root["payload"]))
 
+    def test_delegate_allowlist_restricts_delegation(self) -> None:
+        root = self.issuer.issue_scoped(
+            self.request,
+            self.decision,
+            ttl_seconds=30,
+            target="door-*",
+            actions=["open"],
+            purposes=["delivery"],
+            delegation_allowed=True,
+            max_delegation_depth=1,
+            delegate_allowlist=["robot-2"],
+        )
+        with self.assertRaises(ValueError):
+            self.issuer.issue_attenuated(
+                root,
+                target="door-7",
+                delegate_agent="robot-3",
+                delegate_request=self.delegate_request("robot-3"),
+            )
+        child = self.issuer.issue_attenuated(
+            root,
+            target="door-7",
+            delegate_agent="robot-2",
+            delegate_request=self.delegate_request(),
+        )
+        self.assertTrue(verify_attenuation(child["payload"], root["payload"]))
+        self.assertEqual(child["payload"]["delegate_allowlist"], ["robot-2"])
+
+    def test_delegate_allowlist_glob_patterns(self) -> None:
+        root = self.issuer.issue_scoped(
+            self.request,
+            self.decision,
+            ttl_seconds=30,
+            target="door-*",
+            actions=["open"],
+            purposes=["delivery"],
+            delegation_allowed=True,
+            max_delegation_depth=1,
+            delegate_allowlist=["fleet-*"],
+        )
+        child = self.issuer.issue_attenuated(
+            root,
+            target="door-7",
+            delegate_agent="fleet-robot-2",
+            delegate_request=self.delegate_request("fleet-robot-2"),
+        )
+        self.assertTrue(verify_attenuation(child["payload"], root["payload"]))
+
+    def test_root_capability_id_propagates_through_chain(self) -> None:
+        child = self.issuer.issue_attenuated(
+            self.root,
+            target="door-7",
+            ttl_seconds=15,
+        )
+        root_id = self.root_payload["capability_id"]
+        self.assertEqual(child["payload"]["root_capability_id"], root_id)
+        nested = self.issuer.issue_attenuated(
+            child,
+            target="door-7",
+            ttl_seconds=5,
+        )
+        self.assertEqual(nested["payload"]["root_capability_id"], root_id)
+        self.assertTrue(verify_attenuation(nested["payload"], child["payload"]))
+
+    def test_verify_attenuation_rejects_root_id_tampering(self) -> None:
+        child = self.issuer.issue_attenuated(
+            self.root,
+            target="door-7",
+            ttl_seconds=15,
+        )
+        tampered = json.loads(json.dumps(child["payload"]))
+        tampered["root_capability_id"] = "kinegrant:cap:" + "0" * 64
+        self.assertFalse(verify_attenuation(tampered, self.root_payload))
+
 
 if __name__ == "__main__":
     unittest.main()
