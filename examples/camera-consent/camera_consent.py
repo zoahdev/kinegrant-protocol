@@ -6,10 +6,12 @@ import json
 import sys
 
 from kinegrant.capability import CapabilityIssuer
+from kinegrant.compliance import ObligationCompliance
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
 from kinegrant.models import ActionRequest, PolicyRule
 from kinegrant.policy import PolicyEngine
+from kinegrant.receipt import ReceiptLog
 from kinegrant.sequence import ActionJournal, ForbiddenCombination, SequencePolicy
 
 
@@ -25,6 +27,7 @@ def run() -> dict:
         ("record",),
         subjects=("urn:kinegrant:camera:agent:*",),
         purposes=("security",),
+        obligations=("emitActionReceipt",),
     )
     deny_training = PolicyRule(
         "urn:kinegrant:camera:policy:deny-training",
@@ -77,6 +80,17 @@ def run() -> dict:
     )
     verified = gate.authorize(capability, record_request)
     journal.record("record", target)
+    executor = Ed25519KeyPair.generate()
+    receipt = ReceiptLog(executor).append(
+        verified,
+        result="succeeded",
+        request=record_request,
+    )
+    compliance = ObligationCompliance().evaluate(
+        capability,
+        [receipt],
+        trusted_executors={executor.kid},
+    )
 
     policy_denied = not engine.evaluate(train_request).allowed
     sequence_verdict = sequence.evaluate(train_request, journal)
@@ -86,10 +100,12 @@ def run() -> dict:
         "record_consumed": verified["capability_id"].startswith("kinegrant:cap:"),
         "train_policy_denied": policy_denied,
         "train_sequence_denied": not sequence_verdict.allowed,
+        "obligation_compliant": compliance.compliant,
         "passed": (
             record_decision.allowed
             and policy_denied
             and not sequence_verdict.allowed
+            and compliance.compliant
         ),
     }
     print(json.dumps(trace, indent=2, sort_keys=True))

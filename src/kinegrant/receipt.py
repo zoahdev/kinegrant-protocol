@@ -10,7 +10,7 @@ from .gate import VerifiedCapability
 from .models import ActionRequest, isoformat, parse_time, utc_now
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-_KNOWN_OBLIGATIONS = {"emitActionReceipt"}
+KNOWN_OBLIGATIONS = {"emitActionReceipt"}
 _OBLIGATION_STATUSES = {"satisfied", "pending", "failed"}
 _RECEIPT_VERSIONS = {"0.1", "1.0"}
 
@@ -170,7 +170,7 @@ def _validate_obligation_results(
                 f"unsupported obligation result fields: {', '.join(sorted(unknown))}"
             )
         obligation = item.get("obligation")
-        if obligation not in _KNOWN_OBLIGATIONS:
+        if obligation not in KNOWN_OBLIGATIONS:
             raise ValueError(f"unknown obligation in result: {obligation!r}")
         status = item.get("status")
         if status not in _OBLIGATION_STATUSES:

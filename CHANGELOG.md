@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Added fail-closed obligation compliance (`kinegrant.compliance.
+  ObligationCompliance`): after execution, every capability obligation must
+  have a verifiable fulfillment — a signed receipt for `emitActionReceipt`
+  (0.1 receipts count, 1.0 receipts must report `satisfied`); unknown
+  obligations, missing receipts, wrong-capability receipts, invalid chains,
+  and unverified executors fail. The red-team suite gained probe RT-011
+  (suppressed-receipt evasion), and the home-robot and camera-consent
+  deployment traces now include the compliance verdict.
 - Added additive receipt version `1.0`: optional `obligation_results`
   (obligation execution status with failure reasons) and `failure_reason`
   (why an attempted action failed), validated and verified by the Python
