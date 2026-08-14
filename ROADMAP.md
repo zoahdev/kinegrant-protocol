@@ -218,6 +218,11 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
 - conformance suite at 21/21 including the `gatekeeper_boundary_modelcheck`
   mark.
 
+## v1.7 — cross-implementation trust (complete with v1.7.0)
+
+- the conformance report cross-checks generated capabilities and receipt
+  chains with the independent JavaScript and Go verifiers.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
