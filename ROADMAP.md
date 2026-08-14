@@ -318,13 +318,13 @@ Exit criterion: a visitor can verify a policy bundle, a capability, and a receip
 
 Exit criterion: a visitor can validate a Machine Permission Test evidence file in the browser without installing anything. Released as v2.8.0 (2026-08-15).
 
-## v2.9 - browser operations verification
+## v2.9 - browser operations verification (complete with v2.9.0)
 
 - browser verifier validates revocation bundles and policy distribution reports (complete via PR #102);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: a fleet operator can verify a revocation bundle and a policy distribution report in the browser without installing anything.
+Exit criterion: a fleet operator can verify a revocation bundle and a policy distribution report in the browser without installing anything. Released as v2.9.0 (2026-08-15).
 
 ## Success metrics
 
