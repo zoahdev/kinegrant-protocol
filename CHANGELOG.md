@@ -4,6 +4,10 @@
 
 ## 1.0.1 — 2026-08-15
 
+- Added the receipt audit interface (`kinegrant.audit.ReceiptAuditor`) and
+  `kinegrant-audit` CLI: verified-chain queries by capability/agent/target/
+  action/purpose/result/time, machine-readable summaries, and obligation
+  compliance checks, all fail-closed; `--self-test` is CI-smoked.
 - The conformance suite now runs its `obligation_compliance` mark through
   `Gatekeeper` with both obligations (`emitActionReceipt`, `logAuditEvent`)
   and adds a `gatekeeper_boundary` mark (allow, replay denial, sequence

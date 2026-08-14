@@ -56,6 +56,7 @@ jobs:
           kinegrant-robot-demo >/tmp/robot.json && python -m json.tool /tmp/robot.json >/dev/null
           kinegrant-bridge-demo >/tmp/bridge.json && python -m json.tool /tmp/bridge.json >/dev/null
           kinegrant-ros2-demo >/tmp/ros2mcp.json && python -m json.tool /tmp/ros2mcp.json >/dev/null
+          kinegrant-audit --self-test >/tmp/audit.json && python -m json.tool /tmp/audit.json >/dev/null
 
   package:
     runs-on: ubuntu-latest
