@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.3.0 — 2026-08-15
+
+- Milestone release: reference implementation version 1.3.0 on the stable
+  1.0 wire format, adding the bounded policy-decision cache
+  (`CachedPolicyEngine`), verifiable fleet revocation distribution reports
+  (`verify_distribution_report`), and their benchmark metrics.
+
 ## 1.2.0 — 2026-08-15
 
 - Added `verify_distribution_report`: re-validates a fleet revocation
