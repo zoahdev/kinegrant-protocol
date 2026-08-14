@@ -11,8 +11,10 @@ import {
   currentPolicyVersion,
   verifyCapability,
   verifyMptEvidence,
+  verifyPolicyDistributionReport,
   verifyPolicyBundle,
   verifyReceiptChain,
+  verifyRevocationBundle,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const DOMAIN = Buffer.from("KINEGRANT-SIGNED-ENVELOPE-V1\u0000", "utf8");
@@ -168,6 +170,32 @@ function buildMptEvidence() {
   };
 }
 
+function buildRevocationBundle(privateKey, publicKey) {
+  const kid = kidOf(publicKey);
+  const body = {
+    type: "kinegrant:RevocationBundle",
+    schema_version: "0.1",
+    issuer: kid,
+    version: 1,
+    previous_bundle_digest: null,
+    issued_at: new Date().toISOString(),
+    revocations: [
+      {
+        capability_id: "kinegrant:cap:" + "c".repeat(64),
+        reason: null,
+        at: new Date().toISOString(),
+      },
+    ],
+  };
+  const unsigned = { ...body };
+  body.bundle_id =
+    "kinegrant:revocation-bundle:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson(unsigned), "utf8"))
+      .digest("hex");
+  return signEnvelope(privateKey, body);
+}
+
 test("browser verifier canonicalizes JCS", () => {
   assert.equal(canonicalJson({ b: 1, a: 2 }), '{"a":2,"b":1}');
   assert.equal(canonicalJson({ x: "a\u2028b" }), '{"x":"a\\u2028b"}');
@@ -269,4 +297,52 @@ test("browser verifier validates MPT evidence and rejects tampering", () => {
   const missing = buildMptEvidence();
   missing.cases.pop();
   assert.throws(() => verifyMptEvidence(missing));
+});
+
+test("browser verifier validates revocation bundles and rejects tampering", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildRevocationBundle(privateKey, publicKey);
+  const payload = await verifyRevocationBundle(
+    bundle,
+    new Set([bundle.kid])
+  );
+  assert.equal(payload.version, 1);
+  bundle.payload.revocations[0].capability_id = "kinegrant:cap:" + "d".repeat(64);
+  await assert.rejects(() =>
+    verifyRevocationBundle(bundle, new Set([bundle.kid]))
+  );
+});
+
+test("browser verifier validates policy distribution reports", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  const report = {
+    type: "kinegrant:PolicyDistributionReport",
+    schema_version: "0.1",
+    policy_id: "urn:policy:browser",
+    bundle_id: bundle.payload.bundle_id,
+    bundle_version: 1,
+    overall_result: "PASS",
+    summary: { registries: 1, applied_total: 1, already_present_total: 0 },
+    acks: [
+      {
+        gate_id: "gate-a",
+        policy_id: "urn:policy:browser",
+        bundle_id: bundle.payload.bundle_id,
+        applied: true,
+        current_before: null,
+        current_after: 1,
+        detail: "policy bundle activated",
+      },
+    ],
+  };
+  await verifyPolicyDistributionReport(
+    report,
+    bundle,
+    new Set([bundle.kid])
+  );
+  report.acks[0].applied = false;
+  await assert.rejects(() =>
+    verifyPolicyDistributionReport(report, bundle, new Set([bundle.kid]))
+  );
 });

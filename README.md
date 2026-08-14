@@ -274,8 +274,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   rollback in one runnable trace.
 - A standalone, offline [browser policy-bundle verifier](verify/policy-bundle-verifier.html)
   verifies signed bundles, current-version selection, capabilities, and
-  receipt chains, plus MPT evidence, entirely in the browser (zero
-  dependencies; host `verify/` anywhere and link the page).
+  receipt chains, MPT evidence, revocation bundles, and policy distribution
+  reports entirely in the browser (zero dependencies; host `verify/`
+  anywhere and link the page).
 - Stable wire format: the reference implementation issues and verifies `1.0`
   capabilities (frozen scoped shape), with `capability-1.0` schema and
   KGP-RFC-0001 accepted, and the JavaScript and Go verifiers accept `0.2`/`1.0`

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.9.0 - v2.9 first item (unreleased)
+
+- Browser verifier now validates revocation bundles (`verifyRevocationBundle`: signature, authority, version, digest, revocation entries, content-addressed id) and policy distribution reports (`verifyPolicyDistributionReport`: policy/bundle/version binding, acknowledgement structure, summary consistency); HTML page and Node CLI (`revocation`, `distribution-report` commands) expose them, cross-tested against Python-generated bundles and reports.
+
 ## 2.8.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.8.0 on the stable

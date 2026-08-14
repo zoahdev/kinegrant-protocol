@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链与 MPT 证据。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链、MPT 证据、撤销包与策略分发报告。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -75,6 +75,21 @@
     </div>
   </div>
   <p><button id="verify-mpt">验证 MPT 证据</button></p>
+  <div class="row">
+    <div class="col">
+      <label>撤销包 JSON（带签名 envelope）</label>
+      <textarea id="revocation" placeholder='{ "alg": "EdDSA", "kid": "...", "payload": { "type": "kinegrant:RevocationBundle", ... }, "signature": "..." }'></textarea>
+    </div>
+    <div class="col">
+      <label>策略分发报告 JSON + 对应策略包 JSON（第二个框）</label>
+      <textarea id="distribution-report" placeholder='{ "type": "kinegrant:PolicyDistributionReport", ... }'></textarea>
+      <textarea id="distribution-bundle" placeholder='{ "alg": "EdDSA", "kid": "...", "payload": { "type": "kinegrant:PolicyBundle", ... }, "signature": "..." }'></textarea>
+    </div>
+  </div>
+  <p>
+    <button id="verify-revocation">验证撤销包</button>
+    <button id="verify-distribution">验证分发报告</button>
+  </p>
   <pre id="output">等待操作…</pre>
 
   <script type="module">
@@ -85,6 +100,8 @@
       verifyCapability,
       verifyReceiptChain,
       verifyMptEvidence,
+      verifyPolicyDistributionReport,
+      verifyRevocationBundle,
     } from "./policy-bundle-verifier.js";
 
     const bundleInput = document.getElementById("bundle");
@@ -97,6 +114,9 @@
     const receiptsInput = document.getElementById("receipts");
     const executorsInput = document.getElementById("executors");
     const mptInput = document.getElementById("mpt");
+    const revocationInput = document.getElementById("revocation");
+    const distributionReportInput = document.getElementById("distribution-report");
+    const distributionBundleInput = document.getElementById("distribution-bundle");
     const output = document.getElementById("output");
 
     function showOk(text) {
@@ -188,6 +208,33 @@
         showOk(
           `MPT EVIDENCE VALID (${result.overall_result}: ${result.summary.passed}/${result.summary.total})`
         );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-revocation").addEventListener("click", async () => {
+      try {
+        const bundle = parseJson(revocationInput.value, "撤销包");
+        const authorities = parseJson(authoritiesInput.value, "信任机构");
+        await verifyRevocationBundle(bundle, new Set(authorities));
+        showOk("REVOCATION BUNDLE VALID");
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-distribution").addEventListener("click", async () => {
+      try {
+        const report = parseJson(distributionReportInput.value, "分发报告");
+        const bundle = parseJson(distributionBundleInput.value, "策略包");
+        const authorities = parseJson(authoritiesInput.value, "信任机构");
+        await verifyPolicyDistributionReport(
+          report,
+          bundle,
+          new Set(authorities)
+        );
+        showOk("POLICY DISTRIBUTION REPORT VALID");
       } catch (error) {
         showErr("INVALID: " + error.message);
       }

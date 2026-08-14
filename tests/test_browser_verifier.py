@@ -13,8 +13,13 @@ from kinegrant.gate import ActionGate, InMemoryReplayStore
 from kinegrant.models import ActionRequest, PolicyRule
 from kinegrant.mpt import run_machine_permission_test
 from kinegrant.policy import PolicyEngine
-from kinegrant.policy_bundle import PolicyAuthority
+from kinegrant.policy_bundle import PolicyAuthority, PolicyDistributor, PolicyRegistry
 from kinegrant.receipt import ReceiptLog
+from kinegrant.revocation import (
+    RevocationList,
+    build_revocation_bundle,
+    sign_revocation_bundle,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "verify" / "verify_policy_bundle.mjs"
@@ -245,6 +250,69 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             verified = self._run("mpt", str(evidence_path))
             self.assertEqual(verified.returncode, 0, verified.stderr)
             self.assertIn("MPT EVIDENCE VALID", verified.stdout)
+
+    def test_browser_verifier_verifies_python_revocation_bundle(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        revocations = RevocationList()
+        revocations.revoke(
+            "kinegrant:cap:" + "d" * 64,
+            reason="fleet maintenance",
+        )
+        bundle = sign_revocation_bundle(
+            build_revocation_bundle(
+                revocations,
+                issuer=authority.kid,
+            ),
+            authority,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            bundle_path = base / "revocation.json"
+            authorities_path = base / "authorities.json"
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            verified = self._run(
+                "revocation",
+                str(bundle_path),
+                str(authorities_path),
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("REVOCATION BUNDLE VALID", verified.stdout)
+
+    def test_browser_verifier_verifies_python_distribution_report(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:browser:policy:door"
+        bundle = authority.publish(
+            policy_id,
+            self.rules_v1,
+            ttl_seconds=3600,
+        )
+        registry = PolicyRegistry(trusted_authorities={authority.kid})
+        report = PolicyDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(bundle, {"gate-a": registry})
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            report_path = base / "report.json"
+            bundle_path = base / "bundle.json"
+            authorities_path = base / "authorities.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            verified = self._run(
+                "distribution-report",
+                str(report_path),
+                str(bundle_path),
+                str(authorities_path),
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("POLICY DISTRIBUTION REPORT VALID", verified.stdout)
 
 
 if __name__ == "__main__":
