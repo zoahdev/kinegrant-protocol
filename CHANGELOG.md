@@ -15,6 +15,10 @@
   consumes the rules; `kinegrant-policy-bundle` is the deployable CLI.
 - Conformance suite is now 22/22 with the new L3 `policy_bundle_trust` mark
   (signed versions verified, revoked version rolled back, tampering rejected).
+- Independent JavaScript and Go verifiers now check policy bundles and
+  current-version selection: the conformance report cross-verifies a
+  Python-signed v2 bundle plus current-version rollback with both
+  implementations (missing toolchains are recorded as skipped).
 
 ## 1.9.0 — 2026-08-15
 

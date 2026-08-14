@@ -65,6 +65,16 @@ document so a fleet can persist and exchange it without a central service.
 - `--current <state.json> --policy-id <id>`;
 - `--self-test` for CI smoke.
 
+## Cross-implementation verification
+
+The independent JavaScript verifier (`implementations/kinegrant-js`) and Go
+verifier (`implementations/kinegrant-go`) both implement
+`verifyPolicyBundle` / `VerifyPolicyBundle` and current-version selection
+(`currentPolicyVersion` / `CurrentPolicyVersion`). The conformance report
+signs bundles in Python and requires both implementations to accept the
+bundle, select version 2 as current, and roll back to version 1 after
+revocation; a missing toolchain is recorded as skipped, never as passed.
+
 ## Non-goals
 
 - No ledger, token, or consensus mechanism is required or implied.

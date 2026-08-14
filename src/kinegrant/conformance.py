@@ -201,6 +201,58 @@ class ConformanceRunner:
                 json.dumps([executor.kid]),
                 encoding="utf-8",
             )
+            policy_authority = PolicyAuthority(Ed25519KeyPair.generate())
+            policy_id = "urn:kinegrant:conformance:independent:policy"
+            policy_rules_v1 = [
+                PolicyRule(
+                    policy_id,
+                    policy_authority.kid,
+                    "*",
+                    "allow",
+                    ("open",),
+                    purposes=("delivery",),
+                )
+            ]
+            policy_rules_v2 = [
+                PolicyRule(
+                    policy_id,
+                    policy_authority.kid,
+                    "*",
+                    "allow",
+                    ("open",),
+                    purposes=("delivery", "maintenance"),
+                )
+            ]
+            policy_v1 = policy_authority.publish(
+                policy_id,
+                policy_rules_v1,
+                ttl_seconds=3600,
+            )
+            policy_v2 = policy_authority.publish(
+                policy_id,
+                policy_rules_v2,
+                ttl_seconds=3600,
+            )
+            policy_bundle_path = base / "policy-bundle-v2.json"
+            policy_authorities_path = base / "policy-authorities.json"
+            policy_bundles_path = base / "policy-bundles.json"
+            policy_revoked_path = base / "policy-revoked.json"
+            policy_bundle_path.write_text(
+                json.dumps(policy_v2),
+                encoding="utf-8",
+            )
+            policy_authorities_path.write_text(
+                json.dumps([policy_authority.kid]),
+                encoding="utf-8",
+            )
+            policy_bundles_path.write_text(
+                json.dumps([policy_v1["payload"], policy_v2["payload"]]),
+                encoding="utf-8",
+            )
+            policy_revoked_path.write_text(
+                json.dumps([f"{policy_id}:2"]),
+                encoding="utf-8",
+            )
 
             for tool, command in (
                 ("kinegrant-js", [node, str(js_cli)] if node_available else None),
@@ -217,6 +269,8 @@ class ConformanceRunner:
                             "tool": tool,
                             "capability": "SKIP",
                             "receipts": "SKIP",
+                            "policy_bundle": "SKIP",
+                            "policy_current_version": "SKIP",
                             "detail": "toolchain unavailable",
                         }
                     )
@@ -259,16 +313,87 @@ class ConformanceRunner:
                         receipt_proc.returncode == 0
                         and "RECEIPT CHAIN VALID" in receipt_proc.stdout
                     )
+                    policy_proc = subprocess.run(
+                        [
+                            *command,
+                            "verify-policy-bundle",
+                            str(policy_bundle_path),
+                            str(policy_authorities_path),
+                            policy_id,
+                        ],
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        timeout=120,
+                        cwd=go_dir if tool == "kinegrant-go" else None,
+                    )
+                    policy_ok = (
+                        policy_proc.returncode == 0
+                        and "POLICY BUNDLE VALID" in policy_proc.stdout
+                    )
+                    current_proc = subprocess.run(
+                        [
+                            *command,
+                            "current-policy-version",
+                            str(policy_bundles_path),
+                        ],
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        timeout=120,
+                        cwd=go_dir if tool == "kinegrant-go" else None,
+                    )
+                    current_ok = False
+                    if current_proc.returncode == 0:
+                        try:
+                            current_payload = json.loads(current_proc.stdout)
+                            current_ok = current_payload.get("version") == 2
+                        except (ValueError, AttributeError):
+                            current_ok = False
+                    rollback_proc = subprocess.run(
+                        [
+                            *command,
+                            "current-policy-version",
+                            str(policy_bundles_path),
+                            str(policy_revoked_path),
+                        ],
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        timeout=120,
+                        cwd=go_dir if tool == "kinegrant-go" else None,
+                    )
+                    rollback_ok = False
+                    if rollback_proc.returncode == 0:
+                        try:
+                            rollback_payload = json.loads(rollback_proc.stdout)
+                            rollback_ok = rollback_payload.get("version") == 1
+                        except (ValueError, AttributeError):
+                            rollback_ok = False
+                    policy_current_ok = current_ok and rollback_ok
                     checks.append(
                         {
                             "tool": tool,
                             "capability": "PASS" if capability_ok else "FAIL",
                             "receipts": "PASS" if receipts_ok else "FAIL",
+                            "policy_bundle": "PASS" if policy_ok else "FAIL",
+                            "policy_current_version": (
+                                "PASS" if policy_current_ok else "FAIL"
+                            ),
                             "detail": (
                                 capability_proc.stderr[:200]
                                 if not capability_ok
                                 else receipt_proc.stderr[:200]
                                 if not receipts_ok
+                                else policy_proc.stderr[:200]
+                                if not policy_ok
+                                else current_proc.stderr[:200]
+                                if not current_ok
+                                else rollback_proc.stderr[:200]
+                                if not rollback_ok
                                 else "cross-verified"
                             ),
                         }
@@ -279,6 +404,8 @@ class ConformanceRunner:
                             "tool": tool,
                             "capability": "ERROR",
                             "receipts": "ERROR",
+                            "policy_bundle": "ERROR",
+                            "policy_current_version": "ERROR",
                             "detail": f"{type(exc).__name__}: {exc}",
                         }
                     )
@@ -289,6 +416,8 @@ class ConformanceRunner:
                 if all(
                     check["capability"] in {"PASS", "SKIP"}
                     and check["receipts"] in {"PASS", "SKIP"}
+                    and check["policy_bundle"] in {"PASS", "SKIP"}
+                    and check["policy_current_version"] in {"PASS", "SKIP"}
                     for check in checks
                 )
                 else "FAIL"

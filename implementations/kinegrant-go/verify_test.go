@@ -4,6 +4,8 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -58,6 +60,108 @@ func TestEnvelopeRoundTrip(t *testing.T) {
 	envelope["payload"].(map[string]any)["hello"] = "tampered"
 	if _, err := VerifyEnvelope(envelope); err == nil {
 		t.Fatal("tampered envelope was accepted")
+	}
+}
+
+func policyBundle(t *testing.T, privateKey ed25519.PrivateKey, kid string, version int, purposes []string) map[string]any {
+	t.Helper()
+	now := time.Now().UTC()
+	rules := []any{
+		map[string]any{
+			"policy_id": "urn:policy:door",
+			"issuer":    kid,
+			"target":    "urn:space:door-1",
+			"effect":    "allow",
+			"actions":   []any{"open"},
+			"subjects":  []any{"*"},
+			"purposes":  purposes,
+			"constraints": map[string]any{},
+			"obligations": []any{},
+			"priority":    0,
+			"source":      map[string]any{},
+		},
+	}
+	digest, err := digestObject(map[string]any{"rules": rules})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := map[string]any{
+		"type":                    "kinegrant:PolicyBundle",
+		"schema_version":          "0.1",
+		"policy_id":               "urn:policy:door",
+		"issuer":                  kid,
+		"version":                 float64(version),
+		"previous_version_digest": nil,
+		"issued_at":               now.Format(time.RFC3339Nano),
+		"not_before":              now.Format(time.RFC3339Nano),
+		"not_after":               now.Add(time.Hour).Format(time.RFC3339Nano),
+		"policy_digest":           digest,
+		"rules":                   rules,
+	}
+	bundleID, err := contentID("kinegrant:policy-bundle", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body["bundle_id"] = bundleID
+	return signEnvelope(t, privateKey, kid, body)
+}
+
+func TestVerifyPolicyBundle(t *testing.T) {
+	privateKey, _, kid := testKeyPair(t)
+	bundle := policyBundle(t, privateKey, kid, 1, []any{"delivery"})
+	payload, err := VerifyPolicyBundle(bundle, map[string]bool{kid: true}, "urn:policy:door", time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if payload["version"] != float64(1) {
+		t.Fatal("unexpected version")
+	}
+	rules, _ := payload["rules"].([]any)
+	rules[0].(map[string]any)["effect"] = "deny"
+	if _, err := VerifyPolicyBundle(bundle, map[string]bool{kid: true}, "", time.Now()); err == nil {
+		t.Fatal("tampered policy bundle was accepted")
+	}
+	if _, err := VerifyPolicyBundle(bundle, map[string]bool{}, "", time.Now()); err == nil {
+		t.Fatal("untrusted authority was accepted")
+	}
+	if _, err := VerifyPolicyBundle(bundle, map[string]bool{kid: true}, "urn:policy:other", time.Now()); err == nil {
+		t.Fatal("wrong policy id was accepted")
+	}
+}
+
+func TestCurrentPolicyVersion(t *testing.T) {
+	privateKey, _, kid := testKeyPair(t)
+	v1 := policyBundle(t, privateKey, kid, 1, []any{"delivery"})
+	v2 := policyBundle(t, privateKey, kid, 2, []any{"delivery", "maintenance"})
+	payloads := []map[string]any{v1["payload"].(map[string]any), v2["payload"].(map[string]any)}
+	current, err := CurrentPolicyVersion(payloads, map[string]bool{}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current["version"] != float64(2) {
+		t.Fatal("expected version 2")
+	}
+	current, err = CurrentPolicyVersion(payloads, map[string]bool{"urn:policy:door:2": true}, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current["version"] != float64(1) {
+		t.Fatal("expected rollback to version 1")
+	}
+	if _, err := CurrentPolicyVersion(payloads, map[string]bool{"urn:policy:door:1": true, "urn:policy:door:2": true}, time.Now()); err == nil {
+		t.Fatal("expected fail-closed with no current version")
+	}
+}
+
+func TestPolicyBundleCLICompatHelpers(t *testing.T) {
+	privateKey, _, kid := testKeyPair(t)
+	bundle := policyBundle(t, privateKey, kid, 1, []any{"delivery"})
+	encoded, err := json.Marshal(bundle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(encoded), `"type":"kinegrant:PolicyBundle"`) {
+		t.Fatal("policy bundle encoding mismatch")
 	}
 }
 

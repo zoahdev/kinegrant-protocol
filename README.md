@@ -182,7 +182,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   highest-version-wins, and rolls back on per-version revocation;
   `verify_policy_bundle` / `rules_from_bundle` feed the policy engine after
   signature, authority, time-window, and digest checks, and
-  `kinegrant-policy-bundle` is the deployable CLI.
+  `kinegrant-policy-bundle` is the deployable CLI; the independent
+  JavaScript and Go verifiers cross-check Python-signed bundles and
+  current-version rollback in the conformance report.
 - Bounded policy-decision cache: `CachedPolicyEngine` wraps a policy engine
   with an LRU cache (hit/miss statistics, automatic invalidation on policy
   change, future requests never cached) for high-rate deployments; the

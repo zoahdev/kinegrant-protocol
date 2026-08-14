@@ -1,5 +1,10 @@
 import { readFileSync } from "node:fs";
-import { verifyCapability, verifyReceiptChain } from "./verify.mjs";
+import {
+  currentPolicyVersion,
+  verifyCapability,
+  verifyPolicyBundle,
+  verifyReceiptChain,
+} from "./verify.mjs";
 
 function load(path) {
   return JSON.parse(readFileSync(path, "utf8"));
@@ -25,6 +30,23 @@ try {
     const trustedExecutors = executorsPath ? new Set(load(executorsPath)) : null;
     verifyReceiptChain(entries, trustedExecutors);
     console.log("RECEIPT CHAIN VALID");
+  } else if (command === "verify-policy-bundle") {
+    const [bundlePath, authoritiesPath, policyId] = args;
+    const bundle = load(bundlePath);
+    const trustedAuthorities = new Set(load(authoritiesPath));
+    verifyPolicyBundle(bundle, trustedAuthorities, {
+      expectedPolicyId: policyId,
+    });
+    console.log("POLICY BUNDLE VALID");
+  } else if (command === "current-policy-version") {
+    const [bundlesPath, revokedPath] = args;
+    const bundles = load(bundlesPath);
+    const revoked = revokedPath ? load(revokedPath) : [];
+    const current = currentPolicyVersion(bundles, { revoked });
+    if (current === null) {
+      throw new Error("no current policy version");
+    }
+    console.log(JSON.stringify(current));
   } else {
     throw new Error(`unknown command ${command}`);
   }
