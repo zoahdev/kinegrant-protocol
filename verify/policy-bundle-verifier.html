@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KineGrant Policy Bundle Verifier</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+    textarea { width: 100%; box-sizing: border-box; font-family: ui-monospace, monospace; font-size: 0.85rem; min-height: 8rem; }
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .col { flex: 1; min-width: 18rem; }
+    button { padding: 0.6rem 1.2rem; font-size: 1rem; cursor: pointer; }
+    pre { background: #f6f8fa; padding: 1rem; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+    .ok { color: #0a7d33; font-weight: bold; }
+    .err { color: #b00020; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>KineGrant 策略包浏览器验证器</h1>
+  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+
+  <div class="row">
+    <div class="col">
+      <label>策略包 JSON（带签名 envelope）</label>
+      <textarea id="bundle" placeholder='{ "alg": "EdDSA", "kid": "kinegrant:key:ed25519:...", "payload": { ... }, "signature": "..." }'></textarea>
+    </div>
+    <div class="col">
+      <label>信任机构 kid 列表（JSON 数组）</label>
+      <textarea id="authorities" placeholder='["kinegrant:key:ed25519:..."]'>[]</textarea>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col">
+      <label>可选：已撤销版本（JSON 数组，格式 "policy_id:version"）</label>
+      <textarea id="revoked" placeholder='["urn:kinegrant:policy:space-7:2"]'>[]</textarea>
+    </div>
+    <div class="col">
+      <label>可选：全部策略包 payloads（JSON 数组，用于当前版本选择）</label>
+      <textarea id="bundles" placeholder='[{ "policy_id": "...", "version": 1, ... }]'>[]</textarea>
+    </div>
+  </div>
+  <p>
+    <button id="verify">验证策略包</button>
+    <button id="current">选择当前版本</button>
+  </p>
+  <pre id="output">等待操作…</pre>
+
+  <script type="module">
+    import {
+      canonicalJson,
+      verifyPolicyBundle,
+      currentPolicyVersion,
+    } from "./policy-bundle-verifier.js";
+
+    const bundleInput = document.getElementById("bundle");
+    const authoritiesInput = document.getElementById("authorities");
+    const revokedInput = document.getElementById("revoked");
+    const bundlesInput = document.getElementById("bundles");
+    const output = document.getElementById("output");
+
+    function showOk(text) {
+      output.className = "ok";
+      output.textContent = text;
+    }
+    function showErr(text) {
+      output.className = "err";
+      output.textContent = text;
+    }
+    function parseJson(value, label) {
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        throw new Error(`${label} JSON 解析失败: ${error.message}`);
+      }
+    }
+
+    document.getElementById("verify").addEventListener("click", async () => {
+      try {
+        const bundle = parseJson(bundleInput.value, "策略包");
+        const authorities = parseJson(authoritiesInput.value, "信任机构");
+        const payload = await verifyPolicyBundle(
+          bundle,
+          new Set(authorities)
+        );
+        showOk(
+          "POLICY BUNDLE VALID\npolicy_id: " + payload.policy_id +
+          "\nversion: " + payload.version +
+          "\nbundle_id: " + payload.bundle_id
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("current").addEventListener("click", () => {
+      try {
+        const bundles = parseJson(bundlesInput.value, "策略包列表");
+        const revoked = parseJson(revokedInput.value, "撤销列表");
+        const current = currentPolicyVersion(bundles, { revoked });
+        if (current === null) {
+          showErr("没有当前版本（全部撤销或不在有效期内）");
+          return;
+        }
+        showOk(
+          "当前版本: " + current.version + "\n" +
+          JSON.stringify(current, null, 2)
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    window.KineGrantVerifierDemo = { canonicalJson };
+  </script>
+</body>
+</html>
