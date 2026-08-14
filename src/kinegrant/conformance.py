@@ -7,7 +7,7 @@ KineGrant defines four conformance levels:
 - L2 scoped capabilities: attenuation, physical constraints, approval tiers,
   forbidden combinations, obligation compliance;
 - L3 delegation and revocation: opt-in delegation, delegate binding,
-  allowlists, offline revocation;
+  allowlists, offline revocation, fleet revocation distribution;
 - L4 hardware trust: trusted clock, sensor evidence, checkpoints,
   attestations, post-quantum envelopes.
 
@@ -29,12 +29,17 @@ from .attestation import build_device_attestation, verify_device_attestation
 from .capability import CapabilityIssuer
 from .checkpoint import build_receipt_checkpoint, verify_receipt_checkpoint
 from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
+from .distribution import RevocationDistributor
 from .gate import ActionGate, InMemoryReplayStore
 from .gatekeeper import Gatekeeper
 from .models import ActionRequest, PolicyRule
 from .policy import PolicyEngine
 from .receipt import ReceiptLog, verify_receipt_chain
-from .revocation import RevocationList
+from .revocation import (
+    RevocationList,
+    build_revocation_bundle,
+    sign_revocation_bundle,
+)
 from .sensor_evidence import (
     SensorReading,
     build_sensor_commitment,
@@ -530,6 +535,38 @@ class ConformanceRunner:
         except PermissionError:
             revoked = True
         marks.append(ConformanceMark("L3", "revocation", revoked, "root revoked child"))
+
+        distribution_rl = RevocationList()
+        distribution_rl.revoke("kinegrant:cap:" + "d" * 64, reason="fleet maintenance")
+        distribution_bundle = sign_revocation_bundle(
+            build_revocation_bundle(
+                distribution_rl,
+                issuer=self.authority.kid,
+            ),
+            self.authority,
+        )
+        gate_a = RevocationList()
+        gate_b = RevocationList()
+        distribution_report = RevocationDistributor(
+            trusted_authorities={self.authority.kid}
+        ).distribute(
+            distribution_bundle,
+            {"gate-a": gate_a, "gate-b": gate_b},
+        )
+        distribution_ok = (
+            distribution_report["overall_result"] == "PASS"
+            and distribution_report["summary"]["added_total"] == 2
+            and gate_a.is_revoked("kinegrant:cap:" + "d" * 64)
+            and gate_b.is_revoked("kinegrant:cap:" + "d" * 64)
+        )
+        marks.append(
+            ConformanceMark(
+                "L3",
+                "revocation_distribution",
+                distribution_ok,
+                "verified bundle applied to both gates",
+            )
+        )
         return tuple(marks)
 
     def _level4(self) -> tuple[ConformanceMark, ...]:
