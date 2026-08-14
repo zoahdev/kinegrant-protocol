@@ -241,7 +241,7 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
   signature, authority, validity window, and rules digest itself (first item
   landed via PR #80, conformance at 22/22);
 - independent JavaScript/Go verification of policy bundles and current-
-  version selection;
+  version selection (complete via PR #81);
 - policy-bundle cases in the Machine Permission Test;
 - a conformance mark set that requires rollback on revocation and fail-closed
   behavior when no trusted policy is available.

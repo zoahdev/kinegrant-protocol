@@ -30,6 +30,8 @@ class ConformanceSuiteTests(unittest.TestCase):
         for check in independent["checks"]:
             self.assertIn(check["capability"], {"PASS", "SKIP"})
             self.assertIn(check["receipts"], {"PASS", "SKIP"})
+            self.assertIn(check["policy_bundle"], {"PASS", "SKIP"})
+            self.assertIn(check["policy_current_version"], {"PASS", "SKIP"})
         self.assertTrue(
             any(check["capability"] == "PASS" for check in independent["checks"])
         )

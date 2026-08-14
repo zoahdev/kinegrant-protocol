@@ -139,6 +139,175 @@ func writeCanonical(buf *bytes.Buffer, value any) error {
 	return nil
 }
 
+func bundleVersion(payload map[string]any) (int, error) {
+	raw, ok := payload["version"].(float64)
+	if !ok || raw < 1 || raw != float64(int(raw)) {
+		return 0, errors.New("bundle version must be a positive integer")
+	}
+	return int(raw), nil
+}
+
+func validateBundleRule(rule any) error {
+	ruleMap, ok := rule.(map[string]any)
+	if !ok {
+		return errors.New("each policy rule must be an object")
+	}
+	for _, field := range []string{"policy_id", "issuer", "target", "effect"} {
+		value, _ := ruleMap[field].(string)
+		if value == "" {
+			return fmt.Errorf("invalid policy rule: missing %s", field)
+		}
+	}
+	actions, ok := ruleMap["actions"].([]any)
+	if !ok || len(actions) == 0 {
+		return errors.New("invalid policy rule: actions must be a non-empty array")
+	}
+	for _, action := range actions {
+		if _, ok := action.(string); !ok {
+			return errors.New("invalid policy rule: action must be a string")
+		}
+	}
+	return nil
+}
+
+// VerifyPolicyBundle verifies a signed policy bundle: envelope signature,
+// trusted authority, policy id, version, digest, and validity window.
+func VerifyPolicyBundle(
+	envelope map[string]any,
+	trustedAuthorities map[string]bool,
+	expectedPolicyID string,
+	now time.Time,
+) (map[string]any, error) {
+	payload, err := VerifyEnvelope(envelope)
+	if err != nil {
+		return nil, err
+	}
+	if payload["type"] != "kinegrant:PolicyBundle" {
+		return nil, errors.New("wrong policy bundle type")
+	}
+	if payload["schema_version"] != "0.1" {
+		return nil, errors.New("unsupported policy bundle version")
+	}
+	issuer, err := stringField(payload, "issuer")
+	if err != nil {
+		return nil, err
+	}
+	if issuer != envelope["kid"] {
+		return nil, errors.New("policy bundle issuer does not match signing key")
+	}
+	if !trustedAuthorities[issuer] {
+		return nil, errors.New("untrusted policy authority")
+	}
+	policyID, err := stringField(payload, "policy_id")
+	if err != nil {
+		return nil, err
+	}
+	if expectedPolicyID != "" && policyID != expectedPolicyID {
+		return nil, errors.New("policy bundle is for a different policy")
+	}
+	if _, err := bundleVersion(payload); err != nil {
+		return nil, err
+	}
+	previous, _ := payload["previous_version_digest"].(string)
+	if previous != "" && !sha256Re.MatchString(previous) {
+		return nil, errors.New("previous_version_digest must be a sha256 digest or null")
+	}
+	rules, ok := payload["rules"].([]any)
+	if !ok || len(rules) == 0 {
+		return nil, errors.New("a policy bundle must contain at least one rule")
+	}
+	for _, rule := range rules {
+		if err := validateBundleRule(rule); err != nil {
+			return nil, err
+		}
+	}
+	expectedDigest, err := digestObject(map[string]any{"rules": rules})
+	if err != nil {
+		return nil, err
+	}
+	if payload["policy_digest"] != expectedDigest {
+		return nil, errors.New("policy rules do not match the signed digest")
+	}
+	notBeforeValue, err := stringField(payload, "not_before")
+	if err != nil {
+		return nil, err
+	}
+	notAfterValue, err := stringField(payload, "not_after")
+	if err != nil {
+		return nil, err
+	}
+	notBefore, err := parseTime(notBeforeValue)
+	if err != nil {
+		return nil, errors.New("invalid policy bundle time window")
+	}
+	notAfter, err := parseTime(notAfterValue)
+	if err != nil {
+		return nil, errors.New("invalid policy bundle time window")
+	}
+	if !notAfter.After(notBefore) {
+		return nil, errors.New("invalid policy bundle time window")
+	}
+	if now.Before(notBefore) {
+		return nil, errors.New("policy bundle is not active yet")
+	}
+	if !now.Before(notAfter) {
+		return nil, errors.New("policy bundle has expired")
+	}
+	return payload, nil
+}
+
+// CurrentPolicyVersion returns the highest non-revoked payload whose validity
+// window covers now, or an error when no version is current (fail-closed).
+// Revoked keys use the form "<policy_id>:<version>".
+func CurrentPolicyVersion(
+	payloads []map[string]any,
+	revoked map[string]bool,
+	now time.Time,
+) (map[string]any, error) {
+	bestVersion := -1
+	var bestPayload map[string]any
+	for _, payload := range payloads {
+		policyID, err := stringField(payload, "policy_id")
+		if err != nil {
+			return nil, err
+		}
+		version, err := bundleVersion(payload)
+		if err != nil {
+			return nil, err
+		}
+		if revoked[fmt.Sprintf("%s:%d", policyID, version)] {
+			continue
+		}
+		notBeforeValue, err := stringField(payload, "not_before")
+		if err != nil {
+			return nil, err
+		}
+		notAfterValue, err := stringField(payload, "not_after")
+		if err != nil {
+			return nil, err
+		}
+		notBefore, err := parseTime(notBeforeValue)
+		if err != nil {
+			return nil, errors.New("invalid policy bundle time window")
+		}
+		notAfter, err := parseTime(notAfterValue)
+		if err != nil {
+			return nil, errors.New("invalid policy bundle time window")
+		}
+		if now.Before(notBefore) || !now.Before(notAfter) {
+			continue
+		}
+		if version > bestVersion {
+			bestVersion = version
+			bestPayload = payload
+		}
+	}
+	if bestPayload == nil {
+		return nil, errors.New("no current policy version")
+	}
+	return bestPayload, nil
+}
+
 func b64urlDecode(value string) ([]byte, error) {
 	if value == "" {
 		return nil, errors.New("empty base64url")

@@ -91,6 +91,98 @@ export function verifyCapability(envelope, request, trustedIssuers) {
   throw new Error("unsupported capability version");
 }
 
+function requireNonEmptyString(value, name) {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`invalid policy rule: missing ${name}`);
+  }
+  return value;
+}
+
+export function verifyPolicyBundle(envelope, trustedAuthorities, { expectedPolicyId, now } = {}) {
+  const payload = verifyEnvelope(envelope);
+  if (payload.type !== "kinegrant:PolicyBundle") {
+    throw new Error("wrong policy bundle type");
+  }
+  if (payload.schema_version !== "0.1") {
+    throw new Error("unsupported policy bundle version");
+  }
+  if (payload.issuer !== envelope.kid) {
+    throw new Error("policy bundle issuer does not match signing key");
+  }
+  if (!trustedAuthorities.has(payload.issuer)) {
+    throw new Error("untrusted policy authority");
+  }
+  const policyId = requireNonEmptyString(payload.policy_id, "policy_id");
+  if (expectedPolicyId !== undefined && policyId !== expectedPolicyId) {
+    throw new Error("policy bundle is for a different policy");
+  }
+  if (!Number.isInteger(payload.version) || payload.version < 1) {
+    throw new Error("bundle version must be a positive integer");
+  }
+  if (
+    payload.previous_version_digest != null &&
+    !/^sha256:[0-9a-f]{64}$/.test(payload.previous_version_digest)
+  ) {
+    throw new Error("previous_version_digest must be a sha256 digest or null");
+  }
+  if (!Array.isArray(payload.rules) || payload.rules.length === 0) {
+    throw new Error("a policy bundle must contain at least one rule");
+  }
+  for (const rule of payload.rules) {
+    if (typeof rule !== "object" || rule === null || Array.isArray(rule)) {
+      throw new Error("each policy rule must be an object");
+    }
+    for (const field of ["policy_id", "issuer", "target", "effect"]) {
+      requireNonEmptyString(rule[field], field);
+    }
+    if (
+      !Array.isArray(rule.actions) ||
+      rule.actions.length === 0 ||
+      rule.actions.some((action) => typeof action !== "string")
+    ) {
+      throw new Error("invalid policy rule: actions must be a non-empty string array");
+    }
+  }
+  const expectedDigest = "sha256:" + sha256Hex(canonicalJson({ rules: payload.rules }));
+  if (payload.policy_digest !== expectedDigest) {
+    throw new Error("policy rules do not match the signed digest");
+  }
+  const notBefore = parseTime(payload.not_before);
+  const notAfter = parseTime(payload.not_after);
+  if (!(notAfter > notBefore)) {
+    throw new Error("invalid policy bundle time window");
+  }
+  const current = now !== undefined ? now : Date.now();
+  if (current < notBefore) {
+    throw new Error("policy bundle is not active yet");
+  }
+  if (current >= notAfter) {
+    throw new Error("policy bundle has expired");
+  }
+  return payload;
+}
+
+export function currentPolicyVersion(payloads, { revoked = [], now } = {}) {
+  const revokedSet = new Set(revoked);
+  const current = now !== undefined ? now : Date.now();
+  let best = null;
+  for (const payload of payloads) {
+    if (typeof payload.policy_id !== "string" || payload.policy_id.length === 0) {
+      throw new Error("payload is missing policy_id");
+    }
+    const policyId = payload.policy_id;
+    if (!Number.isInteger(payload.version) || payload.version < 1) {
+      throw new Error("bundle version must be a positive integer");
+    }
+    if (revokedSet.has(`${policyId}:${payload.version}`)) continue;
+    const notBefore = parseTime(payload.not_before);
+    const notAfter = parseTime(payload.not_after);
+    if (current < notBefore || current >= notAfter) continue;
+    if (best === null || payload.version > best.version) best = payload;
+  }
+  return best;
+}
+
 function verifyCapabilityV1(payload, envelope, request, trustedIssuers) {
   const fields = new Set(Object.keys(payload));
   if (fields.size !== CAPABILITY_FIELDS.size ||

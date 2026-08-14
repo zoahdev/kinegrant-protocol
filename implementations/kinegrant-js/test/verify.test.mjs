@@ -4,9 +4,11 @@ import { createHash, createPublicKey, generateKeyPairSync, sign } from "node:cry
 import { canonicalJson } from "../src/jcs.mjs";
 import {
   contentId,
+  currentPolicyVersion,
   publicKeyFromKid,
   verifyCapability,
   verifyEnvelope,
+  verifyPolicyBundle,
   verifyReceiptChain,
 } from "../src/verify.mjs";
 
@@ -194,4 +196,94 @@ test("receipt chain round trip", () => {
   body.receipt_id = contentId("kinegrant:receipt", unsigned);
   const envelope = signEnvelope(privateKey, body);
   assert.equal(verifyReceiptChain([envelope], new Set([envelope.kid])), true);
+});
+
+function buildPolicyBundle(privateKey, publicKey, { version = 1, purposes = ["delivery"], policyId = "urn:policy:door", ttlSeconds = 3600 } = {}) {
+  const now = Date.now();
+  const body = {
+    type: "kinegrant:PolicyBundle",
+    schema_version: "0.1",
+    policy_id: policyId,
+    issuer: kidOf(publicKey),
+    version,
+    previous_version_digest: null,
+    issued_at: new Date(now).toISOString(),
+    not_before: new Date(now).toISOString(),
+    not_after: new Date(now + ttlSeconds * 1000).toISOString(),
+    rules: [
+      {
+        policy_id: policyId,
+        issuer: kidOf(publicKey),
+        target: "urn:space:door-1",
+        effect: "allow",
+        actions: ["open"],
+        subjects: ["*"],
+        purposes,
+        constraints: {},
+        obligations: [],
+        priority: 0,
+        source: {},
+      },
+    ],
+  };
+  const unsigned = { ...body };
+  body.bundle_id = contentId("kinegrant:policy-bundle", unsigned);
+  body.policy_digest = "sha256:" + createHash("sha256")
+    .update(canonicalJson({ rules: body.rules }))
+    .digest("hex");
+  return signEnvelope(privateKey, body);
+}
+
+test("policy bundle verify round trip and tamper rejection", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildPolicyBundle(privateKey, publicKey);
+  const payload = verifyPolicyBundle(
+    bundle,
+    new Set([bundle.kid]),
+    { expectedPolicyId: "urn:policy:door" },
+  );
+  assert.equal(payload.version, 1);
+  bundle.payload.rules[0].effect = "deny";
+  assert.throws(() => verifyPolicyBundle(bundle, new Set([bundle.kid])));
+});
+
+test("policy bundle rejects wrong authority and wrong policy", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const { publicKey: otherPublicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildPolicyBundle(privateKey, publicKey);
+  assert.throws(() => verifyPolicyBundle(bundle, new Set([kidOf(otherPublicKey)])));
+  assert.throws(() =>
+    verifyPolicyBundle(bundle, new Set([bundle.kid]), { expectedPolicyId: "urn:policy:other" })
+  );
+});
+
+test("policy bundle expires and future bundles are rejected", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const expired = buildPolicyBundle(privateKey, publicKey, { ttlSeconds: -1 });
+  assert.throws(() => verifyPolicyBundle(expired, new Set([expired.kid])));
+  const future = buildPolicyBundle(privateKey, publicKey);
+  assert.throws(() =>
+    verifyPolicyBundle(future, new Set([future.kid]), {
+      now: Date.parse(future.payload.not_before) - 1000,
+    })
+  );
+});
+
+test("current policy version picks latest and honors revocation", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const v1 = buildPolicyBundle(privateKey, publicKey, { version: 1 });
+  const v2 = buildPolicyBundle(privateKey, publicKey, {
+    version: 2,
+    purposes: ["delivery", "maintenance"],
+  });
+  const bundles = [v1.payload, v2.payload];
+  assert.equal(currentPolicyVersion(bundles).version, 2);
+  assert.equal(
+    currentPolicyVersion(bundles, { revoked: ["urn:policy:door:2"] }).version,
+    1
+  );
+  assert.equal(
+    currentPolicyVersion(bundles, { revoked: ["urn:policy:door:1", "urn:policy:door:2"] }),
+    null
+  );
 });
