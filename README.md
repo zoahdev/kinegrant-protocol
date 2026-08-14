@@ -178,6 +178,12 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   change, future requests never cached) for high-rate deployments; the
   micro-benchmarks include cached-policy throughput, and all runnable demos
   and deployment traces evaluate through the cache.
+- Gatekeeper boundary model check: `check_gatekeeper_boundary` enumerates the
+  executable decision space (allow, sequence/gate/revocation/obligation
+  denials, actuator failure) and verifies composition invariants — the
+  actuator runs only after the boundary admits, receipts follow gate
+  consumption, the journal records only fully compliant successes, replay
+  cannot double-execute, and every denial carries a stage.
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.
