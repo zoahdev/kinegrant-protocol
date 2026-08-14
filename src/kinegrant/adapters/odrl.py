@@ -8,6 +8,7 @@ POLICY_FIELDS = {"@context", "@type", "type", "uid", "@id", "profile", "assigner
 STATEMENT_FIELDS = {"target", "assigner", "assignee", "action", "constraint", "duty"}
 CONSTRAINT_FIELDS = {"leftOperand", "operator", "rightOperand"}
 DUTY_FIELDS = {"action"}
+KGP_ODRL_PROFILE = "https://kinegrant.com/profiles/odrl/kgp-v0.2"
 
 
 def _reject_unknown_fields(value: Mapping[str, Any], allowed: set[str], label: str) -> None:
@@ -51,7 +52,11 @@ def _action(value: Any) -> str:
     return aliases.get(raw, raw.rsplit("/", 1)[-1])
 
 
-def _constraints(items: Iterable[Any]) -> tuple[dict[str, Any], tuple[str, ...]]:
+def _constraints(
+    items: Iterable[Any],
+    *,
+    allow_kgp: bool = False,
+) -> tuple[dict[str, Any], tuple[str, ...]]:
     required_context: dict[str, Any] = {}
     purposes: list[str] = []
     result: dict[str, Any] = {}
@@ -72,6 +77,28 @@ def _constraints(items: Iterable[Any]) -> tuple[dict[str, Any], tuple[str, ...]]
             result["not_after"] = right
         elif left == "dateTime" and operator in {"gt", "gteq"}:
             result["not_before"] = right
+        elif allow_kgp and left == "maxForceNewtons" and operator in {"eq", "lteq"}:
+            if not isinstance(right, (int, float)) or isinstance(right, bool) or right < 0:
+                raise ValueError("ODRL kg:maxForceNewtons must be a non-negative number")
+            result["max_force_newtons"] = right
+        elif allow_kgp and left == "maxVelocityMps" and operator in {"eq", "lteq"}:
+            if not isinstance(right, (int, float)) or isinstance(right, bool) or right < 0:
+                raise ValueError("ODRL kg:maxVelocityMps must be a non-negative number")
+            result["max_velocity_mps"] = right
+        elif allow_kgp and left == "allowedZones" and operator == "eq":
+            zones = _list(right)
+            if not zones or any(not isinstance(zone, str) or not zone for zone in zones):
+                raise ValueError("ODRL kg:allowedZones must be a non-empty list of strings")
+            result["allowed_zones"] = zones
+        elif allow_kgp and left == "minApprovalTier" and operator == "eq":
+            if not isinstance(right, int) or isinstance(right, bool) or not 0 <= right <= 2:
+                raise ValueError("ODRL kg:minApprovalTier must be an integer between 0 and 2")
+            result["min_approval_tier"] = right
+        elif left in {"maxForceNewtons", "maxVelocityMps", "allowedZones", "minApprovalTier"}:
+            raise ValueError(
+                f"ODRL constraint {left} requires the KineGrant profile "
+                f"{KGP_ODRL_PROFILE}"
+            )
         elif operator == "eq" and left:
             required_context[left] = right
         else:
@@ -90,6 +117,7 @@ def odrl_to_rules(policy: Mapping[str, Any]) -> list[PolicyRule]:
     guessed. This prevents an unknown restriction from widening permission.
     """
     _reject_unknown_fields(policy, POLICY_FIELDS, "ODRL policy")
+    allow_kgp = policy.get("profile") == KGP_ODRL_PROFILE
     policy_uid = _id(policy.get("uid") or policy.get("@id"), "odrl:anonymous")
     default_issuer = _id(policy.get("assigner"), "odrl:unknown-assigner")
     rules: list[PolicyRule] = []
@@ -107,7 +135,10 @@ def odrl_to_rules(policy: Mapping[str, Any]) -> list[PolicyRule]:
             actions = tuple(_action(value) for value in _list(statement.get("action")))
             if not actions:
                 raise ValueError("ODRL action is required")
-            constraints, purposes = _constraints(_list(statement.get("constraint")))
+            constraints, purposes = _constraints(
+                _list(statement.get("constraint")),
+                allow_kgp=allow_kgp,
+            )
             obligations_list: list[str] = []
             for item in _list(statement.get("duty")):
                 if not isinstance(item, Mapping):

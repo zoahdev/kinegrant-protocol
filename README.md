@@ -131,6 +131,13 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   [spec/ATTENUATION.md](spec/ATTENUATION.md).
 - Approval tiers: policy decisions carry `required_approval_tier` (automatic /
   operator approval / human present), and scoped capabilities bind the tier.
+- Receipts carry the authorization context of v0.2 capabilities: approval
+  tier, physical constraints, and parent capability id are recorded in the
+  signed receipt so audits see exactly what was authorized.
+- Versioned external profiles: the ODRL adapter supports a KineGrant
+  physical-action profile (`kgp-v0.2`) mapping force/velocity/zone/approval
+  constraints, and the IEEE 7012 bridge accepts profile/version metadata.
+  Unknown constraints still fail closed.
 
 ## Repository map
 
