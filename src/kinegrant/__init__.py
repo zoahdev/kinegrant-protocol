@@ -32,6 +32,13 @@ from .keys import (
     SoftwareMLDSA65Backend,
     key_id_from_backend,
 )
+from .merkle import (
+    merkle_proofs,
+    merkle_redact,
+    verify_field,
+    verify_merkle_redaction,
+)
+from .modelcheck import bounded_model_check
 from .models import ActionRequest, Decision, PolicyRule
 from .policy import PolicyEngine
 from .privacy import RotatingIdentifierRegistry, redact, verify_redaction
@@ -86,6 +93,7 @@ __all__ = [
     "InMemoryReplayStore",
     "KineGrantIdentifier",
     "MLDSA65KeyPair",
+    "bounded_model_check",
     "PolicyEngine",
     "PolicyInvariants",
     "PolicyRule",
@@ -120,6 +128,8 @@ __all__ = [
     "build_receipt_checkpoint",
     "build_sensor_commitment",
     "known_action",
+    "merkle_proofs",
+    "merkle_redact",
     "evidence_hash_for_commitment",
     "explain_decision",
     "is_agent_id",
@@ -139,8 +149,10 @@ __all__ = [
     "validate_actions",
     "verify_envelope",
     "verify_attenuation",
+    "verify_field",
     "verify_device_attestation",
     "verify_redaction",
+    "verify_merkle_redaction",
     "verify_receipt_checkpoint",
     "verify_revocation_bundle",
     "verify_sensor_commitment",
