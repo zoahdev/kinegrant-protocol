@@ -88,7 +88,8 @@ concurrent consumption, persistent replay state, receipt trust, physical
 constraints, attenuation, delegation, approval tiers, and forbidden
 combinations, receipt-1.0 obligations, obligation compliance, and fleet
 revocation distribution, and signed policy bundles across twenty executable
-cases. Validate
+cases; the policy-trust cases additionally record independent JavaScript/Go
+cross-verification evidence when those toolchains are available. Validate
 the output with
 [`machine-permission-test-evidence.schema.json`](spec/schemas/machine-permission-test-evidence.schema.json).
 Download the checksum-addressed packet and reference evidence from the

@@ -6,6 +6,10 @@
 
 - Added fleet policy distribution (`PolicyDistributor`): one verified signed policy bundle is applied to many registries idempotently (never auto-downgrading) with per-registry acknowledgements in a machine-readable `kinegrant:PolicyDistributionReport`; `verify_policy_distribution_report` re-validates a fleet report against its bundle (policy/bundle/version binding, count integrity, fail-closed); `kinegrant-policy-bundle --distribute` and `--verify-report` are the deployable CLI paths.
 - Conformance suite is now 23/23 with the new L3 `policy_fleet_distribution` mark (fleet applied, upgrades applied, no auto-downgrade).
+- The MPT policy-trust cases (MPT-018/019/020) now record independent
+  JavaScript/Go cross-verification evidence (PASS/FAIL/SKIP) alongside the
+  Python checks, so challenge evidence shows cross-implementation agreement
+  when the toolchains are available.
 
 ## 2.0.0 бк 2026-08-15
 

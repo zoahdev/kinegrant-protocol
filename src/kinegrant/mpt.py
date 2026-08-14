@@ -6,6 +6,8 @@ import hashlib
 import json
 import platform
 import re
+import shutil
+import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
@@ -121,6 +123,114 @@ def _result(
         "passed": passed,
         "evidence": evidence,
     }
+
+
+def _independent_policy_commands() -> list[tuple[str, list[str] | None]]:
+    root = Path(__file__).resolve().parents[2]
+    js_cli = root / "implementations" / "kinegrant-js" / "src" / "cli.mjs"
+    node = shutil.which("node") or str(
+        Path(r"C:\Users\zoah\.cache\codex-runtimes\codex-primary-runtime")
+        / "dependencies"
+        / "node"
+        / "bin"
+        / "node.exe"
+    )
+    node_available = Path(node).is_file() and js_cli.exists()
+    go_dir = root / "implementations" / "kinegrant-go"
+    go_available = shutil.which("go") is not None
+    return [
+        ("kinegrant-js", [node, str(js_cli)] if node_available else None),
+        (
+            "kinegrant-go",
+            ["go", "run", "./cmd/kinegrant-verify"]
+            if go_available
+            else None,
+        ),
+    ]
+
+
+def _independent_policy_evidence(
+    policy_id: str,
+    bundle_v1: dict[str, Any],
+    bundle_v2: dict[str, Any],
+) -> dict[str, Any]:
+    """Cross-verify policy bundles with the JS/Go verifiers when available."""
+    results: dict[str, Any] = {}
+    for tool, command in _independent_policy_commands():
+        if command is None:
+            results[tool] = "SKIP"
+            continue
+        try:
+            with tempfile.TemporaryDirectory() as directory:
+                base = Path(directory)
+                v2_path = base / "bundle-v2.json"
+                authorities_path = base / "authorities.json"
+                bundles_path = base / "bundles.json"
+                revoked_path = base / "revoked.json"
+                v2_path.write_text(json.dumps(bundle_v2), encoding="utf-8")
+                authorities_path.write_text(
+                    json.dumps([bundle_v2["payload"]["issuer"]]),
+                    encoding="utf-8",
+                )
+                bundles_path.write_text(
+                    json.dumps([bundle_v1["payload"], bundle_v2["payload"]]),
+                    encoding="utf-8",
+                )
+                revoked_path.write_text(
+                    json.dumps([f"{policy_id}:2"]),
+                    encoding="utf-8",
+                )
+                verify = subprocess.run(
+                    [
+                        *command,
+                        "verify-policy-bundle",
+                        str(v2_path),
+                        str(authorities_path),
+                        policy_id,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=60,
+                )
+                current = subprocess.run(
+                    [
+                        *command,
+                        "current-policy-version",
+                        str(bundles_path),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=60,
+                )
+                rollback = subprocess.run(
+                    [
+                        *command,
+                        "current-policy-version",
+                        str(bundles_path),
+                        str(revoked_path),
+                    ],
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=60,
+                )
+                ok = (
+                    verify.returncode == 0
+                    and "POLICY BUNDLE VALID" in verify.stdout
+                    and current.returncode == 0
+                    and json.loads(current.stdout).get("version") == 2
+                    and rollback.returncode == 0
+                    and json.loads(rollback.stdout).get("version") == 1
+                )
+                results[tool] = "PASS" if ok else "FAIL"
+        except Exception:
+            results[tool] = "FAIL"
+    return results
 
 
 def _no_grant() -> CaseResult:
@@ -859,6 +969,20 @@ def _policy_bundle_enforced() -> CaseResult:
         )
     ]
     bundle = authority.publish(policy_id, rules, ttl_seconds=3600)
+    bundle_v2 = authority.publish(
+        policy_id,
+        [
+            PolicyRule(
+                policy_id,
+                authority.kid,
+                "urn:kinegrant:mpt:target:1",
+                "allow",
+                ("open",),
+                purposes=("permission-test", "maintenance"),
+            )
+        ],
+        ttl_seconds=3600,
+    )
     bundle_rules = rules_from_bundle(
         bundle,
         trusted_authorities={authority.kid},
@@ -886,6 +1010,11 @@ def _policy_bundle_enforced() -> CaseResult:
             "policy_id": policy_id,
             "bundle_version": bundle["payload"]["version"],
             "matched_policy_ids": list(decision.matched_policy_ids),
+            "independent_verifiers": _independent_policy_evidence(
+                policy_id,
+                bundle,
+                bundle_v2,
+            ),
         },
     )
 
@@ -905,6 +1034,20 @@ def _policy_bundle_tamper_rejected() -> CaseResult:
         )
     ]
     bundle = authority.publish(policy_id, rules, ttl_seconds=3600)
+    bundle_v2 = authority.publish(
+        policy_id,
+        [
+            PolicyRule(
+                policy_id,
+                authority.kid,
+                "urn:kinegrant:mpt:target:1",
+                "allow",
+                ("open",),
+                purposes=("permission-test", "maintenance"),
+            )
+        ],
+        ttl_seconds=3600,
+    )
 
     tampered = dict(bundle)
     tampered["payload"] = dict(bundle["payload"])
@@ -940,6 +1083,11 @@ def _policy_bundle_tamper_rejected() -> CaseResult:
             "tamper_rejected": tamper_rejected,
             "wrong_authority_rejected": authority_rejected,
             "wrong_policy_rejected": policy_rejected,
+            "independent_verifiers": _independent_policy_evidence(
+                policy_id,
+                bundle,
+                bundle_v2,
+            ),
         },
     )
 
@@ -994,6 +1142,11 @@ def _policy_bundle_rollback() -> CaseResult:
             "current_v2": current_v2,
             "rolled_back_to_v1": rolled_back,
             "fail_closed_none": fail_closed,
+            "independent_verifiers": _independent_policy_evidence(
+                policy_id,
+                v1,
+                v2,
+            ),
         },
     )
 
