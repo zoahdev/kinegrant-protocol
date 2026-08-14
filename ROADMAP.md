@@ -255,6 +255,7 @@ alone. Released as v2.0.0 (2026-08-15).
 ## v2.1 - fleet policy operations
 
 - fleet policy distribution (`PolicyDistributor` + `verify_policy_distribution_report`): one signed policy bundle is applied to many registries idempotently (never auto-downgrading) with per-registry acknowledgements and machine-readable fleet reports (landed via PR #84, conformance at 23/23);
+- policy-bundle JavaScript/Go evidence in the Machine Permission Test cases (complete via PR #85);
 - policy-bundle verification in the browser public verifier (needs site source);
 - governance and stability documentation hardening.
 
