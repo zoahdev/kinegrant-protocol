@@ -5,6 +5,7 @@ import {
   currentPolicyVersion,
   verifyMptEvidence,
   verifyPolicyDistributionReport,
+  verifyReceiptEvidencePacket,
   verifyPolicyBundle,
   verifyReceiptChain,
   verifyRevocationBundle,
@@ -66,6 +67,13 @@ try {
     const trustedAuthorities = new Set(load(authoritiesPath));
     await verifyPolicyDistributionReport(report, bundle, trustedAuthorities);
     console.log("POLICY DISTRIBUTION REPORT VALID");
+  } else if (command === "evidence-packet") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyReceiptEvidencePacket(packet);
+    console.log(
+      `EVIDENCE PACKET VALID (${result.receipts} receipts)`
+    );
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
@@ -74,7 +82,8 @@ try {
       "receipts <entries.json> [executors.json] | " +
       "mpt <evidence.json> | " +
       "revocation <bundle.json> <authorities.json> | " +
-      "distribution-report <report.json> <bundle.json> <authorities.json>"
+      "distribution-report <report.json> <bundle.json> <authorities.json> | " +
+      "evidence-packet <packet.json>"
     );
   }
 } catch (error) {

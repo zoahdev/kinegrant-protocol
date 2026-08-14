@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.11.0 - v2.11 first item (unreleased)
+
+- Browser verifier validates self-verifying receipt evidence packets (`verifyReceiptEvidencePacket`: packet digest integrity, receipt structure, unique capability ids, content-addressed receipt ids); the HTML page and Node CLI (`evidence-packet` command) expose it, cross-tested against a Python-exported packet.
+
 ## 2.10.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.10.0 on the

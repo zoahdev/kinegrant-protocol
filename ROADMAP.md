@@ -334,6 +334,14 @@ Exit criterion: a fleet operator can verify a revocation bundle and a policy dis
 
 Exit criterion: an external implementer can reproduce fleet policy distribution and policy analysis from one evidence packet. Released as mpt-v0.5 + v2.10.0 (2026-08-15).
 
+## v2.11 - browser evidence verification
+
+- browser verifier validates self-verifying receipt evidence packets (`kinegrant:ReceiptEvidencePacket` integrity and receipt structure) (complete via PR #106);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can validate an exported receipt evidence packet in the browser without installing anything.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
