@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.7.0 — 2026-08-15
+
+- Milestone release: reference implementation version 1.7.0 on the stable
+  1.0 wire format, adding independent JavaScript/Go cross-verification to
+  the conformance report.
+
 ## 1.6.0 — 2026-08-15
 
 - The conformance report now includes `independent_verification`: the
