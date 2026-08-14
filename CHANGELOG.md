@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added ready-to-send standards submissions (W3C ODRL, IEEE) and GitHub issue
+  templates for bugs, features, and RFC proposals.
 - Added KGP-RFC-0002 (versioned ODRL profile `kgp-v0.2`) draft and CI smoke
   tests for every released CLI.
 - Added the standards-outreach package (`docs/STANDARDS-OUTREACH.md`) and
