@@ -366,6 +366,14 @@ Exit criterion: an external implementer can validate a reproduction report in th
 
 Exit criterion: a fleet operator can validate a revocation distribution report in the browser without installing anything.
 
+## v2.15 - browser standards alignment
+
+- browser verifier maps verified policy bundles to ODRL (`policyBundleToOdrl`, kgp-v0.2 profile) (complete via PR #114);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an ODRL consumer can see the ODRL representation of a verified bundle in the browser.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

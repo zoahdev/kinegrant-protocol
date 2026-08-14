@@ -12,6 +12,7 @@ import {
   verifyAuditCsv,
   verifyReproductionReport,
   verifyRevocationDistributionReport,
+  policyBundleToOdrl,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -104,6 +105,12 @@ try {
     console.log(
       `REVOCATION DISTRIBUTION REPORT VALID (${result.gates} gates, added=${result.added_total})`
     );
+  } else if (command === "bundle-odrl") {
+    const [bundlePath, authoritiesPath] = args;
+    const bundle = load(bundlePath);
+    const trustedAuthorities = new Set(load(authoritiesPath));
+    const document = await policyBundleToOdrl(bundle, trustedAuthorities);
+    console.log(JSON.stringify(document, null, 2));
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
@@ -116,7 +123,8 @@ try {
       "evidence-packet <packet.json> | " +
       "audit-csv <file.csv> | " +
       "reproduction-report <report.json> | " +
-      "revocation-distribution <report.json> [bundle.json] [authorities.json]"
+      "revocation-distribution <report.json> [bundle.json] [authorities.json] | " +
+      "bundle-odrl <bundle.json> <authorities.json>"
     );
   }
 } catch (error) {

@@ -15,7 +15,12 @@ from kinegrant.gate import ActionGate, InMemoryReplayStore
 from kinegrant.models import ActionRequest, PolicyRule
 from kinegrant.mpt import run_machine_permission_test
 from kinegrant.policy import PolicyEngine
-from kinegrant.policy_bundle import PolicyAuthority, PolicyDistributor, PolicyRegistry
+from kinegrant.policy_bundle import (
+    PolicyAuthority,
+    PolicyDistributor,
+    PolicyRegistry,
+    bundle_to_odrl,
+)
 from kinegrant.receipt import ReceiptLog
 from kinegrant.distribution import RevocationDistributor
 from kinegrant.revocation import (
@@ -461,6 +466,53 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             )
             self.assertEqual(verified.returncode, 0, verified.stderr)
             self.assertIn("REVOCATION DISTRIBUTION REPORT VALID", verified.stdout)
+
+    def test_browser_verifier_maps_python_bundle_to_odrl(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:browser:policy:odrl"
+        rules = [
+            PolicyRule(
+                policy_id,
+                authority.kid,
+                "urn:space:browser:door-1",
+                "allow",
+                ("open",),
+                purposes=("delivery",),
+                constraints={"max_force_newtons": 5},
+                obligations=("emitActionReceipt",),
+            )
+        ]
+        bundle = authority.publish(policy_id, rules, ttl_seconds=3600)
+        python_document = bundle_to_odrl(
+            bundle,
+            trusted_authorities={authority.kid},
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            bundle_path = base / "bundle.json"
+            authorities_path = base / "authorities.json"
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            mapped = self._run(
+                "bundle-odrl",
+                str(bundle_path),
+                str(authorities_path),
+            )
+            self.assertEqual(mapped.returncode, 0, mapped.stderr)
+            document = json.loads(mapped.stdout)
+            self.assertEqual(document["uid"], python_document["uid"])
+            self.assertEqual(document["profile"], python_document["profile"])
+            self.assertEqual(
+                len(document["permission"]),
+                len(python_document["permission"]),
+            )
+            self.assertEqual(
+                document["permission"][0]["duty"][0]["action"],
+                "emitActionReceipt",
+            )
 
 
 if __name__ == "__main__":
