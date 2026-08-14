@@ -6,6 +6,7 @@ from .capability import CapabilityIssuer
 from .attenuation import attenuate_capability, verify_attenuation
 from .attestation import build_device_attestation, verify_device_attestation
 from .checkpoint import build_receipt_checkpoint, verify_receipt_checkpoint
+from .conformance import ConformanceMark, ConformanceRunner
 from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
 from .discovery import DiscoveryResolution, ThingActions, ThingRegistry
 from .fuzz import AdapterFuzzHarness
@@ -66,6 +67,7 @@ from .vocabulary import (
     registry,
     validate_actions,
 )
+from .wire import SUPPORTED_WIRE_VERSIONS, check_compatibility, supports
 
 __all__ = [
     "ACTION_TERMS",
@@ -76,6 +78,8 @@ __all__ = [
     "AdapterFuzzHarness",
     "BackedKeyPair",
     "CapabilityIssuer",
+    "ConformanceMark",
+    "ConformanceRunner",
     "Decision",
     "DiscoveryResolution",
     "Ed25519KeyPair",
@@ -103,12 +107,14 @@ __all__ = [
     "SoftwareMLDSA65Backend",
     "SequencePolicy",
     "SequenceVerdict",
+    "SUPPORTED_WIRE_VERSIONS",
     "VerifiedCapability",
     "ForbiddenCombination",
     "agent_id",
     "action_spec",
     "approval_tier_from_risk",
     "attenuate_capability",
+    "check_compatibility",
     "build_revocation_bundle",
     "build_device_attestation",
     "build_receipt_checkpoint",
@@ -129,6 +135,7 @@ __all__ = [
     "registry",
     "target_id",
     "sign_revocation_bundle",
+    "supports",
     "validate_actions",
     "verify_envelope",
     "verify_attenuation",

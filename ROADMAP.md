@@ -103,6 +103,8 @@ Progress on main:
   empty-policy invariants and per-request decision explanations) and a
   deterministic adapter fuzz harness with fail-closed assertions.
 - Governance: vendor-neutral charter and RFC lifecycle documentation.
+- Conformance: executable L1-L4 suite with machine-readable marks, and a
+  wire-format compatibility policy for the 1.0 stabilization path.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.
