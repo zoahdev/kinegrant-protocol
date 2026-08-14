@@ -88,6 +88,9 @@ Progress on main:
 - Simulated two-stack robot demonstration (`kinegrant-robot-demo`) with
   replay, untrusted-issuer, prompt-injection, physical-limit, and
   forbidden-combination fault injection.
+- ROS 2 reference bridge: `Ros2GoalGate` and a deterministic `Sros2PolicyMapping`
+  generator, plus a Matter/OPC UA/ROS 2 bridge demo with adapter-fidelity
+  checks.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.

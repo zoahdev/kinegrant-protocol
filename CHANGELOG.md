@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added the ROS 2 reference bridge (`Ros2GoalGate`, `Sros2PolicyMapping`)
+  and the Matter/OPC UA/ROS 2 bridge demo (`kinegrant-bridge-demo`) with
+  adapter-fidelity checks.
 - Added the simulated two-stack robot demonstration
   (`kinegrant-robot-demo`): a ROS 2-style and a Matter-style stack obey one
   shared policy under replay, untrusted-issuer, prompt-injection,
