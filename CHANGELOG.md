@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 1.1.0 — 2026-08-15
+
+- Milestone release: reference implementation version 1.1.0 on the stable
+  1.0 wire format, with additive receipt 1.0, three known obligations
+  (`emitActionReceipt`, `logAuditEvent`, `preserveEvidence`), fail-closed
+  obligation compliance, the Gatekeeper one-call boundary (including a
+  revocation stage), receipt auditing (`kinegrant-audit`), conformance
+  19/19, the cross-system ROS 2 + MCP demo, ODRL forbidden-combination
+  mapping, the Chinese README, and the security support policy.
+
 ## 1.0.1 — 2026-08-15
 
 - Added the third known obligation `preserveEvidence` (evidence-preservation

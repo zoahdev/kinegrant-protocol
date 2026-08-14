@@ -169,6 +169,18 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
   camera/data consent (runnable examples and deployment guide);
 - neutral governance charter with an interim committee record.
 
+## v1.1 — accountability and audit (complete with v1.1.0)
+
+- additive receipt version 1.0 with obligation execution results and failure
+  reasons;
+- fail-closed obligation compliance with three known obligations
+  (`emitActionReceipt`, `logAuditEvent`, `preserveEvidence`);
+- Gatekeeper one-call deployment boundary (sequence, revocation, gate,
+  actuator, receipt, compliance, journal) used by every demo and trace;
+- receipt auditing (`ReceiptAuditor` + `kinegrant-audit` CLI);
+- conformance suite at 19/19 including obligation and boundary marks;
+- cross-system ROS 2 + MCP demo and ODRL forbidden-combination mapping.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
