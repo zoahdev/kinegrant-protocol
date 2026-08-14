@@ -4,7 +4,7 @@
   "name": "KineGrant Protocol",
   "alternateName": "KGP-001",
   "description": "Experimental authorization and accountability infrastructure for physical AI, with short-lived single-use capabilities, local action gates, replay protection, and signed receipts.",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "dateCreated": "2026-08-10",
   "dateModified": "2026-08-15",
   "codeRepository": "https://github.com/zoahdev/kinegrant-protocol",

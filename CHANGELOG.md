@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.5.0 — 2026-08-15
+
+- Milestone release: reference implementation version 1.5.0 on the stable
+  1.0 wire format, with the Machine Permission Test upgraded to v0.3 (17/17,
+  receipt-1.0 obligations, compliance evasion, fleet revocation
+  distribution) and the v0.1 issuer obligation fix.
+
 ## 1.4.0 — 2026-08-15
 
 - Machine Permission Test upgraded to **v0.3 (17/17)**: three new reproducible

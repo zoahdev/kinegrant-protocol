@@ -204,6 +204,13 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
 - the audit CLI verifies and includes fleet revocation distribution status
   alongside receipt audits.
 
+## v1.5 — verifiable challenge (complete with v1.5.0)
+
+- Machine Permission Test v0.3 with 17 reproducible cases, including receipt
+  1.0 obligations, compliance evasion detection, and fleet revocation
+  distribution;
+- the v0.1 issuer accepts all known obligations.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
