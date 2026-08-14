@@ -146,6 +146,10 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - WoT-style discovery: an authenticated `ThingRegistry` maps Thing
   Descriptions to actions and policy pointers; unauthenticated discovery can
   never carry a granting pointer (see [spec/DISCOVERY.md](spec/DISCOVERY.md)).
+- Simulated two-stack robot demo: `kinegrant-robot-demo` runs a ROS 2-style
+  and a Matter-style stack against one shared policy with replay, untrusted
+  issuer, prompt-injection, physical-limit, and forbidden-combination faults
+  (see [spec/ROBOT-DEMO.md](spec/ROBOT-DEMO.md)).
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies

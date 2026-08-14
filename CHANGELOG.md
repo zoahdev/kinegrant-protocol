@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Added the simulated two-stack robot demonstration
+  (`kinegrant-robot-demo`): a ROS 2-style and a Matter-style stack obey one
+  shared policy under replay, untrusted-issuer, prompt-injection,
+  physical-limit, and forbidden-combination fault injection.
 - Added signed revocation bundles: versioned, content-addressed, chain-linked
   distribution for `RevocationList`, signed by a revocation authority
   (Ed25519 or ML-DSA-65) and verifiable into the gate.

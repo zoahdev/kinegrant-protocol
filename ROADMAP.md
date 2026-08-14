@@ -85,6 +85,9 @@ Progress on main:
   bundles signed by a revocation authority and loadable into the gate.
 - WoT-style discovery service with the authenticated/unauthenticated boundary
   from KGP-001 section 3.
+- Simulated two-stack robot demonstration (`kinegrant-robot-demo`) with
+  replay, untrusted-issuer, prompt-injection, physical-limit, and
+  forbidden-combination fault injection.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.
