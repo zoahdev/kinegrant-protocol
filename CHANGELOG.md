@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added the executable conformance suite (`kinegrant-conformance`, levels
+  L1-L4) and the wire-format compatibility policy.
 - Added static policy analysis (`PolicyInvariants`, `explain_decision`), a
   deterministic adapter fuzz harness, and the governance charter + RFC
   process documents.

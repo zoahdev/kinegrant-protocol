@@ -166,6 +166,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Static policy analysis (`PolicyInvariants`, `explain_decision`) and a
   deterministic adapter fuzzer (`AdapterFuzzHarness`), plus a
   [governance charter](GOVERNANCE.md) and [RFC process](docs/RFC-PROCESS.md).
+- Conformance levels L1-L4 (`kinegrant-conformance`) and a wire-format
+  compatibility policy (see [CONFORMANCE.md](CONFORMANCE.md) and
+  [COMPATIBILITY.md](COMPATIBILITY.md)).
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies
