@@ -2,6 +2,7 @@ include CHANGELOG.md
 include CODE_OF_CONDUCT.md
 include CONTRIBUTING.md
 include FOUNDER_BRIEF_ZH.md
+include README.zh-CN.md
 include ROADMAP.md
 include REPRODUCING.md
 include CITATION.cff

@@ -64,13 +64,40 @@ Every GitHub Actions run also publishes the Python 3.12 packet as a downloadable
 For a release-specific run, check out the tag before installing:
 
 ```bash
-git checkout mpt-v0.1
+git checkout mpt-v0.2
 ```
 
 For a publishable run, keep the checkout clean. The report records the exact Git
 commit and whether tracked files were modified. An explicit commit is rejected
 when it differs from the checked-out Git commit. CI supplies its tested commit
 explicitly.
+
+## Verify a release packet offline
+
+Stable releases (v1.0.0 and later) publish a checksum-addressed packet:
+`SHA256SUMS.txt`, the source archive, the conformance report, and the MPT
+evidence. The packet can be verified without a KineGrant checkout or any
+network access:
+
+```bash
+python scripts/verify_release.py <packet-directory>
+```
+
+The verifier:
+
+- checks every file listed in `SHA256SUMS.txt` against its SHA-256 digest;
+- requires the conformance report to be present and to report overall `PASS`;
+- when MPT evidence is present, runs the independent evidence verifier against
+  it.
+
+It prints `RELEASE PACKET VERIFIED` and exits `0` only when every check passes.
+Any missing file, checksum mismatch, non-PASS report, or invalid evidence exits
+with status `2` and lists each `INVALID` reason.
+
+To run it, download the release assets into one directory and use Python 3.11+
+with `scripts/verify_release.py` from the release source archive. This checks
+the packet itself; it does not claim that a physical machine moved or that a
+deployment is functionally safe.
 
 ## What a PASS means
 
