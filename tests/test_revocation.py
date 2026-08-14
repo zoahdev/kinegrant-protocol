@@ -8,6 +8,12 @@ from kinegrant.gate import ActionGate, InMemoryReplayStore
 from kinegrant.models import ActionRequest, PolicyRule
 from kinegrant.policy import PolicyEngine
 from kinegrant.revocation import RevocationEntry, RevocationList
+from kinegrant.revocation import (
+    build_revocation_bundle,
+    bundle_digest,
+    sign_revocation_bundle,
+    verify_revocation_bundle,
+)
 
 
 class RevocationListTests(unittest.TestCase):
@@ -124,6 +130,117 @@ class GateRevocationTests(unittest.TestCase):
         rl.revoke(v1["payload"]["capability_id"])
         with self.assertRaises(PermissionError):
             self.gate(rl).authorize(v1, self.request)
+
+
+class RevocationBundleTests(unittest.TestCase):
+    def test_sign_and_verify_round_trip(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        rl = RevocationList()
+        rl.revoke("kinegrant:cap:" + "a" * 64, reason="compromise")
+        bundle = build_revocation_bundle(rl, issuer=authority.kid, version=1)
+        envelope = sign_revocation_bundle(bundle, authority)
+        restored = verify_revocation_bundle(
+            envelope,
+            trusted_authorities={authority.kid},
+        )
+        self.assertTrue(restored.is_revoked("kinegrant:cap:" + "a" * 64))
+
+    def test_untrusted_authority_is_rejected(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        other = Ed25519KeyPair.generate()
+        bundle = build_revocation_bundle(RevocationList(), issuer=authority.kid)
+        envelope = sign_revocation_bundle(bundle, authority)
+        with self.assertRaises(ValueError):
+            verify_revocation_bundle(
+                envelope,
+                trusted_authorities={other.kid},
+            )
+
+    def test_tampered_bundle_is_rejected(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        rl = RevocationList()
+        rl.revoke("kinegrant:cap:" + "a" * 64)
+        bundle = build_revocation_bundle(rl, issuer=authority.kid)
+        envelope = sign_revocation_bundle(bundle, authority)
+        envelope["payload"]["revocations"][0]["capability_id"] = (
+            "kinegrant:cap:" + "b" * 64
+        )
+        with self.assertRaises(ValueError):
+            verify_revocation_bundle(envelope)
+
+    def test_previous_digest_chain_is_enforced(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        first = build_revocation_bundle(
+            RevocationList(),
+            issuer=authority.kid,
+            version=1,
+        )
+        first_envelope = sign_revocation_bundle(first, authority)
+        verify_revocation_bundle(first_envelope)
+        second = build_revocation_bundle(
+            RevocationList(),
+            issuer=authority.kid,
+            version=2,
+            previous_bundle_digest=bundle_digest(first),
+        )
+        second_envelope = sign_revocation_bundle(second, authority)
+        verify_revocation_bundle(
+            second_envelope,
+            expected_previous_digest=bundle_digest(first),
+        )
+        with self.assertRaises(ValueError):
+            verify_revocation_bundle(
+                second_envelope,
+                expected_previous_digest="sha256:" + "0" * 64,
+            )
+
+    def test_invalid_bundle_shapes_are_rejected(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        with self.assertRaises(ValueError):
+            build_revocation_bundle(
+                RevocationList(),
+                issuer=authority.kid,
+                version=0,
+            )
+        with self.assertRaises(ValueError):
+            build_revocation_bundle(
+                RevocationList(),
+                issuer=authority.kid,
+                previous_bundle_digest="not-a-digest",
+            )
+
+    def test_bundle_feeds_the_gate(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        issuer = CapabilityIssuer(authority)
+        request = ActionRequest(
+            request_id="req-bundle-1",
+            agent="robot-1",
+            target="door-7",
+            action="open",
+            purpose="delivery",
+        )
+        rule = PolicyRule(
+            policy_id="bundle-rule-1",
+            issuer=authority.kid,
+            target="door-7",
+            effect="allow",
+            actions=("open",),
+        )
+        decision = PolicyEngine(
+            [rule], trusted_policy_issuers={authority.kid}
+        ).evaluate(request)
+        capability = issuer.issue(request, decision, ttl_seconds=30)
+        rl = RevocationList()
+        rl.revoke(capability["payload"]["capability_id"])
+        bundle = build_revocation_bundle(rl, issuer=authority.kid)
+        envelope = sign_revocation_bundle(bundle, authority)
+        loaded = verify_revocation_bundle(envelope, trusted_authorities={authority.kid})
+        gate = ActionGate(
+            trusted_issuers={authority.kid},
+            revocation_list=loaded,
+        )
+        with self.assertRaises(PermissionError):
+            gate.authorize(capability, request)
 
 
 if __name__ == "__main__":

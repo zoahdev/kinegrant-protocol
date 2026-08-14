@@ -141,7 +141,11 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.
 - Offline revocation: `RevocationList` plus `root_capability_id` lets the gate
   reject a revoked capability, and revoking the root revokes the whole
-  delegation chain.
+  delegation chain. Signed, versioned `RevocationBundle`s provide authenticated
+  distribution (see [spec/REVOCATION.md](spec/REVOCATION.md)).
+- WoT-style discovery: an authenticated `ThingRegistry` maps Thing
+  Descriptions to actions and policy pointers; unauthenticated discovery can
+  never carry a granting pointer (see [spec/DISCOVERY.md](spec/DISCOVERY.md)).
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies

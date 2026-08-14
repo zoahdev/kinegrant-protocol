@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Added signed revocation bundles: versioned, content-addressed, chain-linked
+  distribution for `RevocationList`, signed by a revocation authority
+  (Ed25519 or ML-DSA-65) and verifiable into the gate.
+- Added a WoT-style discovery service (`ThingRegistry`) with the
+  authenticated/unauthenticated boundary: unauthenticated discovery cannot
+  carry a granting policy pointer.
 - Added offline delegation revocation: `RevocationList` bundles, gate-side
   checks, and `root_capability_id` chain propagation so revoking a root
   revokes every descendant.
