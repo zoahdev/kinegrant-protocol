@@ -10,6 +10,9 @@ from .gate import VerifiedCapability
 from .models import ActionRequest, isoformat, parse_time, utc_now
 
 _SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_KNOWN_OBLIGATIONS = {"emitActionReceipt"}
+_OBLIGATION_STATUSES = {"satisfied", "pending", "failed"}
+_RECEIPT_VERSIONS = {"0.1", "1.0"}
 
 
 class ReceiptLog:
@@ -30,6 +33,8 @@ class ReceiptLog:
         started_at: datetime | None = None,
         finished_at: datetime | None = None,
         request: ActionRequest | None = None,
+        obligation_results: list[dict[str, Any]] | None = None,
+        failure_reason: str | None = None,
     ) -> dict[str, Any]:
         if not isinstance(capability_payload, VerifiedCapability):
             raise TypeError("receipt input must be a capability consumed by ActionGate")
@@ -40,6 +45,12 @@ class ReceiptLog:
             raise ValueError("a terminal receipt already exists for this capability")
         if evidence_hash is not None and _SHA256_RE.fullmatch(evidence_hash) is None:
             raise ValueError("evidence_hash must be sha256 followed by 64 lowercase hex characters")
+        obligation_results = _validate_obligation_results(obligation_results)
+        if failure_reason is not None and (
+            not isinstance(failure_reason, str) or not failure_reason.strip()
+        ):
+            raise ValueError("failure_reason must be a non-empty string when provided")
+        extended = obligation_results is not None or failure_reason is not None
         started = started_at or utc_now()
         finished = finished_at or utc_now()
         if finished < started:
@@ -62,7 +73,7 @@ class ReceiptLog:
         previous_hash = digest(self._entries[-1]) if self._entries else None
         body = {
             "type": "kinegrant:PhysicalActionReceipt",
-            "version": "0.1",
+            "version": "1.0" if extended else "0.1",
             "executor": self.executor_key.kid,
             "capability_id": capability_id,
             "request_digest": capability_payload["request_digest"],
@@ -83,6 +94,10 @@ class ReceiptLog:
         for field in ("approval_tier", "constraints", "parent_capability_id"):
             if field in capability_payload:
                 body[field] = capability_payload[field]
+        if obligation_results is not None:
+            body["obligation_results"] = obligation_results
+        if failure_reason is not None:
+            body["failure_reason"] = failure_reason
         body["receipt_id"] = content_id("kinegrant:receipt", body)
         envelope = self.executor_key.sign_envelope(body)
         self._entries.append(envelope)
@@ -110,7 +125,9 @@ def verify_receipt_chain(
             return False
         if payload.get("type") != "kinegrant:PhysicalActionReceipt":
             return False
-        if payload.get("version") != "0.1":
+        if payload.get("version") not in _RECEIPT_VERSIONS:
+            return False
+        if payload.get("version") == "1.0" and not _validate_v10_receipt(payload):
             return False
         if payload.get("executor") != envelope.get("kid"):
             return False
@@ -133,4 +150,56 @@ def verify_receipt_chain(
         if payload.get("previous_receipt_hash") != expected:
             return False
         previous = envelope
+    return True
+
+
+def _validate_obligation_results(
+    obligation_results: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]] | None:
+    """Validate optional obligation execution results; return None when absent."""
+    if obligation_results is None:
+        return None
+    if not isinstance(obligation_results, list) or not obligation_results:
+        raise ValueError("obligation_results must be a non-empty list when provided")
+    for item in obligation_results:
+        if not isinstance(item, dict):
+            raise ValueError("obligation_results entries must be objects")
+        unknown = set(item) - {"obligation", "status", "failure_reason"}
+        if unknown:
+            raise ValueError(
+                f"unsupported obligation result fields: {', '.join(sorted(unknown))}"
+            )
+        obligation = item.get("obligation")
+        if obligation not in _KNOWN_OBLIGATIONS:
+            raise ValueError(f"unknown obligation in result: {obligation!r}")
+        status = item.get("status")
+        if status not in _OBLIGATION_STATUSES:
+            raise ValueError(f"invalid obligation status: {status!r}")
+        failure_reason = item.get("failure_reason")
+        if failure_reason is not None and (
+            not isinstance(failure_reason, str) or not failure_reason.strip()
+        ):
+            raise ValueError("obligation failure_reason must be a non-empty string or null")
+        if status == "failed" and (
+            not isinstance(failure_reason, str) or not failure_reason.strip()
+        ):
+            raise ValueError("a failed obligation requires a non-empty failure_reason")
+    return obligation_results
+
+
+def _validate_v10_receipt(payload: Mapping[str, Any]) -> bool:
+    """Validate additive receipt 1.0 fields; return False on any violation."""
+    has_obligations = "obligation_results" in payload
+    has_failure_reason = "failure_reason" in payload
+    if not (has_obligations or has_failure_reason):
+        return False
+    if has_failure_reason:
+        reason = payload["failure_reason"]
+        if not isinstance(reason, str) or not reason.strip():
+            return False
+    if has_obligations:
+        try:
+            _validate_obligation_results(payload["obligation_results"])
+        except ValueError:
+            return False
     return True

@@ -90,6 +90,7 @@ python -m unittest discover -s tests -v
 - 作用域 v0.2 能力支持能力衰减（attenuation）：受信签发者可以派生严格更窄的子能力（目标、动作、目的、生命周期、物理上限），动作门禁可以对照父能力验证子能力。参见 [spec/ATTENUATION.md](spec/ATTENUATION.md)。
 - 审批分级：策略决策携带 `required_approval_tier`（自动 / 操作员确认 / 人工在场），作用域能力绑定该分级。
 - 收据携带 v0.2 能力的授权上下文：审批分级、物理约束、父能力 ID 都记入签名收据，审计时可以看到当时究竟授权了什么。
+- 收据可以按附加方式扩展为版本 `1.0`：可选的 `obligation_results` 记录每项义务（例如“必须发出签名回执”）是已完成、待处理还是失败及失败原因；可选的 `failure_reason` 记录动作尝试失败的原因。普通收据保持字节级一致的 `0.1`；Python、JavaScript 与 Go 三个验证器都接受两个版本（参见 `spec/schemas/receipt-1.0.schema.json`）。
 - 跨主体委派是 opt-in 且有界：一份能力最多授权一个特定被委托人并在收窄范围内使用，被委托人永远不能再次转委。根能力可以用 fleet 级 `delegate_allowlist` 限制被委托人。
 - 离线撤销：`RevocationList` 加 `root_capability_id` 让门禁拒绝已撤销的能力，撤销根即撤销整条委派链。签名、版本化的 `RevocationBundle` 提供可认证的分发。参见 [spec/REVOCATION.md](spec/REVOCATION.md)。
 - WoT 风格发现：带认证的 `ThingRegistry` 将 Thing Description 映射到动作与策略指针；未认证发现永远不能携带授权指针。参见 [spec/DISCOVERY.md](spec/DISCOVERY.md)。

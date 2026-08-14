@@ -42,6 +42,23 @@ build on the protocol, the wire format must stop changing in breaking ways.
 - `check_compatibility` becomes the normative gate for wire versions.
 - Each implementation publishes the versions it supports.
 
+## Receipt 1.0 (additive extension)
+
+Receipts keep the `0.1` shape as the frozen baseline. As an additive
+extension, a receipt MAY use payload `version: "1.0"` to carry two optional
+fields:
+
+- `obligation_results`: execution status for each capability obligation
+  (`satisfied`, `pending`, or `failed`, with an optional `failure_reason`);
+- `failure_reason`: a non-empty reason for a `failed`/`aborted` action.
+
+A `1.0` receipt MUST include at least one of these fields; otherwise it is
+not a `1.0` receipt. `0.1` and `1.0` receipts chain together and verify in
+the reference implementation and the independent JavaScript and Go
+verifiers. The published schema is `spec/schemas/receipt-1.0.schema.json`.
+Future obligations are added by extending the known-obligation set in all
+three implementations behind the same additive policy.
+
 ## Open questions
 
 - Whether `0.2` draft-only fields (e.g., `root_capability_id`) stay required

@@ -136,6 +136,12 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Receipts carry the authorization context of v0.2 capabilities: approval
   tier, physical constraints, and parent capability id are recorded in the
   signed receipt so audits see exactly what was authorized.
+- Receipts can be extended additively as version `1.0`: optional
+  `obligation_results` record whether each obligation (e.g. emit a signed
+  receipt) was satisfied, is pending, or failed with a reason, and an optional
+  `failure_reason` records why an attempted action failed. Plain receipts stay
+  byte-identical `0.1`; the Python, JavaScript, and Go verifiers all accept
+  both versions (see `spec/schemas/receipt-1.0.schema.json`).
 - Cross-agent delegation is opt-in and bounded: a capability may authorize one
   specific delegate for a narrowed scope, and the delegate can never
   re-delegate. Roots can restrict delegates with a fleet `delegate_allowlist`.
