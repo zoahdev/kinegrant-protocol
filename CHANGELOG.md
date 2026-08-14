@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added static policy analysis (`PolicyInvariants`, `explain_decision`), a
+  deterministic adapter fuzz harness, and the governance charter + RFC
+  process documents.
 - Added v0.5 privacy groundwork: rotating ephemeral identifiers and
   selective-disclosure envelopes, plus the executable red-team suite
   (`kinegrant-red-team`, 10 probes).
