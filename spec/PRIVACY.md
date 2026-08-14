@@ -18,6 +18,8 @@ envelope commits to the full document digest. `verify_redaction()` checks that
 the visible fields match the original document exactly and that hidden fields
 are not leaked.
 
-This is **not** a zero-knowledge proof: the verifier needs the full document
-to recompute the digest. It is the draft foundation that a future
-zero-knowledge or accumulator-based scheme can replace.
+The digest envelope is complemented by
+[Merkle selective disclosure](MERKLE-DISCLOSURE.md): a verifier checks
+revealed fields against a root using inclusion proofs, without seeing the
+full document. Neither is a zero-knowledge proof; they are the accumulator
+foundation that a future zero-knowledge scheme can replace.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added Merkle selective disclosure (inclusion proofs without revealing the
+  full document) and a bounded model checker for policy semantics.
 - Added the executable conformance suite (`kinegrant-conformance`, levels
   L1-L4) and the wire-format compatibility policy.
 - Added static policy analysis (`PolicyInvariants`, `explain_decision`), a
