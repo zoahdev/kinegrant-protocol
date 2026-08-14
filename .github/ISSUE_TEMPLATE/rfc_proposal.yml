@@ -1,0 +1,32 @@
+name: RFC proposal
+description: Propose a normative change through the RFC process
+title: "[RFC] "
+labels: ["rfc"]
+body:
+  - type: input
+    id: number
+    attributes:
+      label: RFC number
+      description: Use the next number in docs/rfcs/ (e.g., KGP-RFC-0003)
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation and scope
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security properties
+      description: Explicit security-property changes, compatibility statement, open questions.
+    validations:
+      required: true
+  - type: textarea
+    id: testplan
+    attributes:
+      label: Test plan
+      description: Executable tests per new property.
+    validations:
+      required: true

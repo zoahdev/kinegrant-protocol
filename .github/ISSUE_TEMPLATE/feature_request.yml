@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a new protocol feature, profile, or tooling
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: What real deployment or adversarial scenario motivates this?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should change, and which wire/spec objects are affected?
+    validations:
+      required: true
+  - type: textarea
+    id: testplan
+    attributes:
+      label: Test plan
+      description: At least one executable test per new property.
+    validations:
+      required: true

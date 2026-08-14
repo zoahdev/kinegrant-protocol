@@ -50,11 +50,12 @@ standards can reference.
 
 1. ODRL community: submit the `kgp-v0.2` profile (KGP-RFC-0002,
    `docs/rfcs/0002-odrl-kgp-profile.md`) as a discussion/notes contribution
-   with interop fixtures.
+   with interop fixtures. A ready-to-send draft is in
+   `docs/SUBMISSIONS/odrl-community-submission.md`.
 2. WoT: propose KineGrant as a Thing-behavior profile in the discovery
    discussion.
 3. IEEE: position the action vocabulary and MyTerms bridge as input to
-   consent/risk ontologies.
+   consent/risk ontologies. Draft note: `docs/SUBMISSIONS/ieee-consent-engagement.md`.
 4. ROS 2: publish the `Ros2GoalGate` reference as a community package draft.
 
 ## Contact
