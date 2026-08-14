@@ -14,6 +14,7 @@ import {
   verifyPolicyDistributionReport,
   verifyPolicyBundle,
   verifyReceiptChain,
+  verifyReceiptEvidencePacket,
   verifyRevocationBundle,
 } from "../../../verify/policy-bundle-verifier.js";
 
@@ -196,6 +197,23 @@ function buildRevocationBundle(privateKey, publicKey) {
   return signEnvelope(privateKey, body);
 }
 
+function buildEvidencePacket(privateKey, publicKey) {
+  const receipt = buildReceipt(privateKey, publicKey);
+  const packet = {
+    type: "kinegrant:ReceiptEvidencePacket",
+    schema_version: "0.1",
+    summary: { total: 1, matched: 1, obligation_compliant: 1 },
+    receipts: [receipt.payload],
+  };
+  const unsigned = { ...packet };
+  packet.packet_digest =
+    "sha256:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson(unsigned), "utf8"))
+      .digest("hex");
+  return packet;
+}
+
 test("browser verifier canonicalizes JCS", () => {
   assert.equal(canonicalJson({ b: 1, a: 2 }), '{"a":2,"b":1}');
   assert.equal(canonicalJson({ x: "a\u2028b" }), '{"x":"a\\u2028b"}');
@@ -345,4 +363,13 @@ test("browser verifier validates policy distribution reports", async () => {
   await assert.rejects(() =>
     verifyPolicyDistributionReport(report, bundle, new Set([bundle.kid]))
   );
+});
+
+test("browser verifier validates receipt evidence packets", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const packet = buildEvidencePacket(privateKey, publicKey);
+  const result = await verifyReceiptEvidencePacket(packet);
+  assert.equal(result.receipts, 1);
+  packet.receipts[0].capability_id = "kinegrant:cap:" + "e".repeat(64);
+  await assert.rejects(() => verifyReceiptEvidencePacket(packet));
 });

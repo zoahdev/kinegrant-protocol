@@ -119,7 +119,9 @@ bundle and trusted authorities, verify locally, and select the current policy
 version from a list of payloads with a revocation set; it also verifies
 capabilities (v0.1/v0.2/1.0), receipt chains (v0.1/1.0), and MPT evidence
 (schema 0.5, required cases, summary consistency), revocation bundles, and
-policy distribution reports in the browser.
+policy distribution reports, plus self-verifying receipt evidence packets
+(`kinegrant:ReceiptEvidencePacket` integrity and receipt structure) in the
+browser.
 `verify/verify_policy_bundle.mjs` exposes the same logic as a Node CLI for CI
 cross-checks.
 

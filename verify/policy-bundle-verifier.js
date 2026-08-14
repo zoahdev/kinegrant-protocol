@@ -669,6 +669,66 @@ export async function verifyPolicyDistributionReport(
   return report;
 }
 
+export async function verifyReceiptEvidencePacket(packet) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("evidence packet must be an object");
+  }
+  if (packet.type !== "kinegrant:ReceiptEvidencePacket") {
+    throw new Error("wrong evidence packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported evidence packet version");
+  }
+  if (typeof packet.summary !== "object" || packet.summary === null) {
+    throw new Error("evidence packet summary is invalid");
+  }
+  if (!Array.isArray(packet.receipts)) {
+    throw new Error("evidence packet receipts must be an array");
+  }
+  const seen = new Set();
+  for (const receipt of packet.receipts) {
+    if (typeof receipt !== "object" || receipt === null) {
+      throw new Error("each receipt must be an object");
+    }
+    if (receipt.type !== "kinegrant:PhysicalActionReceipt") {
+      throw new Error("wrong receipt type in evidence packet");
+    }
+    if (receipt.version !== "0.1" && receipt.version !== "1.0") {
+      throw new Error("unsupported receipt version in evidence packet");
+    }
+    if (
+      typeof receipt.capability_id !== "string" ||
+      receipt.capability_id.length === 0
+    ) {
+      throw new Error("receipt capability_id is invalid");
+    }
+    if (seen.has(receipt.capability_id)) {
+      throw new Error("duplicate receipt in evidence packet");
+    }
+    seen.add(receipt.capability_id);
+    const unsigned = { ...receipt };
+    delete unsigned.receipt_id;
+    const expected = await contentId("kinegrant:receipt", unsigned);
+    if (receipt.receipt_id !== expected) {
+      throw new Error("receipt identifier is inconsistent");
+    }
+  }
+  const unsignedPacket = { ...packet };
+  delete unsignedPacket.packet_digest;
+  const expectedDigest =
+    "sha256:" +
+    (await sha256Hex(
+      new TextEncoder().encode(canonicalJson(unsignedPacket))
+    ));
+  if (packet.packet_digest !== expectedDigest) {
+    throw new Error("evidence packet digest is inconsistent");
+  }
+  return {
+    receipts: packet.receipts.length,
+    packet_digest: packet.packet_digest,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -679,5 +739,6 @@ if (typeof globalThis !== "undefined") {
     verifyMptEvidence,
     verifyRevocationBundle,
     verifyPolicyDistributionReport,
+    verifyReceiptEvidencePacket,
   };
 }

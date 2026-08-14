@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链、MPT 证据、撤销包与策略分发报告。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链、MPT 证据、撤销包、策略分发报告与收据证据包。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -90,6 +90,13 @@
     <button id="verify-revocation">验证撤销包</button>
     <button id="verify-distribution">验证分发报告</button>
   </p>
+  <div class="row">
+    <div class="col">
+      <label>收据证据包 JSON（ReceiptAuditor 导出）</label>
+      <textarea id="evidence-packet" placeholder='{ "type": "kinegrant:ReceiptEvidencePacket", "schema_version": "0.1", "summary": {...}, "receipts": [...], "packet_digest": "sha256:..." }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-packet">验证收据证据包</button></p>
   <pre id="output">等待操作…</pre>
 
   <script type="module">
@@ -101,6 +108,7 @@
       verifyReceiptChain,
       verifyMptEvidence,
       verifyPolicyDistributionReport,
+      verifyReceiptEvidencePacket,
       verifyRevocationBundle,
     } from "./policy-bundle-verifier.js";
 
@@ -117,6 +125,7 @@
     const revocationInput = document.getElementById("revocation");
     const distributionReportInput = document.getElementById("distribution-report");
     const distributionBundleInput = document.getElementById("distribution-bundle");
+    const evidencePacketInput = document.getElementById("evidence-packet");
     const output = document.getElementById("output");
 
     function showOk(text) {
@@ -235,6 +244,16 @@
           new Set(authorities)
         );
         showOk("POLICY DISTRIBUTION REPORT VALID");
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-packet").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(evidencePacketInput.value, "收据证据包");
+        const result = await verifyReceiptEvidencePacket(packet);
+        showOk(`EVIDENCE PACKET VALID (${result.receipts} receipts)`);
       } catch (error) {
         showErr("INVALID: " + error.message);
       }

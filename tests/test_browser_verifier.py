@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from kinegrant.capability import CapabilityIssuer
+from kinegrant.audit import ReceiptAuditor
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
 from kinegrant.models import ActionRequest, PolicyRule
@@ -313,6 +314,50 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             )
             self.assertEqual(verified.returncode, 0, verified.stderr)
             self.assertIn("POLICY DISTRIBUTION REPORT VALID", verified.stdout)
+
+    def test_browser_verifier_verifies_python_evidence_packet(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        issuer = CapabilityIssuer(authority)
+        executor = Ed25519KeyPair.generate()
+        log = ReceiptLog(executor)
+        gate = ActionGate(
+            trusted_issuers={authority.kid},
+            replay_store=InMemoryReplayStore(),
+        )
+        for index in range(2):
+            request = ActionRequest(
+                f"urn:kinegrant:browser:request:{index}",
+                "urn:robot:browser:1",
+                "urn:space:browser:door-1",
+                "open",
+                "delivery",
+            )
+            rule = PolicyRule(
+                f"browser-rule-{index}",
+                authority.kid,
+                "urn:space:browser:*",
+                "allow",
+                ("open",),
+            )
+            decision = PolicyEngine(
+                [rule],
+                trusted_policy_issuers={authority.kid},
+            ).evaluate(request)
+            capability = issuer.issue(request, decision, ttl_seconds=300)
+            verified = gate.authorize(capability, request)
+            log.append(verified, result="succeeded", request=request)
+        auditor = ReceiptAuditor(
+            log.entries,
+            trusted_executors={executor.kid},
+        )
+        packet = auditor.export_packet()
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "packet.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("evidence-packet", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("EVIDENCE PACKET VALID", verified.stdout)
 
 
 if __name__ == "__main__":
