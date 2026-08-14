@@ -24,6 +24,7 @@ kinegrant-bridge-demo = "kinegrant.experimental.bridge_demo:main"
 kinegrant-ros2-demo = "kinegrant.experimental.ros2_demo:main"
 kinegrant-audit = "kinegrant.audit:main"
 kinegrant-revoke-distribute = "kinegrant.distribution:main"
+kinegrant-policy-bundle = "kinegrant.policy_bundle:main"
 kinegrant-red-team = "kinegrant.redteam:main"
 kinegrant-conformance = "kinegrant.conformance:main"
 

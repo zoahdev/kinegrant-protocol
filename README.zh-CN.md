@@ -93,11 +93,12 @@ python -m unittest discover -s tests -v
 - 收据可以按附加方式扩展为版本 `1.0`：可选的 `obligation_results` 记录每项义务（例如“必须发出签名回执”）是已完成、待处理还是失败及失败原因；可选的 `failure_reason` 记录动作尝试失败的原因。普通收据保持字节级一致的 `0.1`；Python、JavaScript 与 Go 三个验证器都接受两个版本（参见 `spec/schemas/receipt-1.0.schema.json`）。
 - 义务在事后强制执行：`ObligationCompliance` 检查每项能力义务都有可验证的履行证据（`emitActionReceipt` 必须有签名收据，`logAuditEvent` 必须有审计日志承诺，`preserveEvidence` 必须有证据保全承诺），红队套件新增“隐瞒收据”探针；家庭机器人与摄像头同意两个部署案例都输出合规结论。
 - 三个可运行演示（`kinegrant-robot-demo`、`kinegrant-bridge-demo`、`kinegrant-ros2-demo`）都会在放行后执行义务合规检查并输出 `obligation_compliance_ok`；性能基准也包含合规检查吞吐。
-- 一致性认证套件 L1-L4 现有 21/21 项：含“义务履行”（走 Gatekeeper + 双义务）、“执行边界”（Gatekeeper 全链路：放行/重放拒绝/序列拒绝/撤销拒绝）、“撤销分发”（签名撤销包批量应用到多门禁）与“边界模型检查”（自动验证组合不变量）；一致性报告还会用独立的 JavaScript/Go 验证器交叉核验生成的能力与收据链；已知义务词表可扩展：`emitActionReceipt`（发签名收据）、`logAuditEvent`（写审计日志）、`preserveEvidence`（证据保全）当前均受支持。
+- 一致性认证套件 L1-L4 现有 22/22 项：含“义务履行”（走 Gatekeeper + 双义务）、“执行边界”（Gatekeeper 全链路：放行/重放拒绝/序列拒绝/撤销拒绝）、“撤销分发”（签名撤销包批量应用到多门禁）、“边界模型检查”（自动验证组合不变量）与“策略包信任”（签名策略版本化 + 撤销回滚）；一致性报告还会用独立的 JavaScript/Go 验证器交叉核验生成的能力与收据链；已知义务词表可扩展：`emitActionReceipt`（发签名收据）、`logAuditEvent`（写审计日志）、`preserveEvidence`（证据保全）当前均受支持。
 - 一体化执行门 `Gatekeeper`：序列检查 → 撤销检查 → 门禁验证与一次性消费 → 执行器 → 签名收据 → 义务合规 → 动作日志，一条 `execute()` 调用跑完整条授权边界，每步失败即拒绝并返回机器可读结果。
 - 三个演示与两个部署案例现在都使用 `Gatekeeper` 一体化编排；性能基准包含 `gatekeeper_execute` 吞吐指标。
 - 收据审计接口：`ReceiptAuditor` 验证收据链、按能力/主体/目标/动作/目的/结果/时间过滤、输出机器可读审计摘要，并支持义务合规核验；可导出 CSV 与自校验证据包；`kinegrant-audit` 是可部署的命令行工具（`--csv`/`--packet` 导出，`--distribution-report` 可附带校验车队撤销回执，`--self-test` 供 CI 使用）。
 - 车队级撤销分发：`RevocationDistributor` 在调用方信任的撤销机构下验证一份签名撤销包，并幂等地批量应用到多个门禁，输出逐门禁回执的机器可读报告；`verify_distribution_report` 可复核回执与撤销包的绑定（id/版本、计数自洽、信任机构）；`kinegrant-revoke-distribute` 是可部署的命令行工具。
+- 签名策略包：`PolicyAuthority` 发布带版本号与有效期的签名策略文档；`PolicyRegistry` 在调用方信任的机构下激活策略包，按“最高版本生效”回答当前版本，并在逐版本撤销后自动回滚；`verify_policy_bundle` / `rules_from_bundle` 在签名、机构、时间窗与摘要校验全部通过后把规则交给策略引擎；`kinegrant-policy-bundle` 是可部署的命令行工具。
 - 有界策略决策缓存：`CachedPolicyEngine` 用 LRU 缓存包装策略引擎（命中/未命中统计、策略变更自动失效、未来请求不缓存），适合高频率部署；性能基准包含缓存命中吞吐，三个演示与两个部署案例都走缓存评估。
 - Gatekeeper 边界模型检查：`check_gatekeeper_boundary` 枚举可执行决策空间（放行、序列/门禁/撤销/义务拒绝、执行器失败）并验证组合不变量——执行器只在边界放行后才动、收据紧随门禁消费、动作日志只记完全合规的成功、重放不能二次执行、每次拒绝都带阶段。
 - 安全审计材料包：`python scripts/security_review_kit.py --output kit.json` 生成机器可读审计包——真实运行一致性/MPT/红队/基准/全量测试，记录外部审计师所需的全部命令与材料，并输出由这些结果背书的检查清单；`--packet-dir` 输出带校验和的工具包，`--verify-packet` 可离线复核。
