@@ -350,6 +350,14 @@ Exit criterion: an auditor can validate an exported receipt evidence packet in t
 
 Exit criterion: an auditor can validate an exported audit CSV in the browser without installing anything.
 
+## v2.13 - browser reproduction verification
+
+- browser verifier validates external reproduction reports (`kinegrant:ReproductionReport` structure and verification consistency) (complete via PR #110);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an external implementer can validate a reproduction report in the browser without installing anything.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

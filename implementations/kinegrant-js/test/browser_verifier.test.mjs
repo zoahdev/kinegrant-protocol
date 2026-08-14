@@ -16,6 +16,7 @@ import {
   verifyPolicyBundle,
   verifyReceiptChain,
   verifyReceiptEvidencePacket,
+  verifyReproductionReport,
   verifyRevocationBundle,
 } from "../../../verify/policy-bundle-verifier.js";
 
@@ -215,6 +216,47 @@ function buildEvidencePacket(privateKey, publicKey) {
   return packet;
 }
 
+function buildReproductionReport() {
+  return {
+    schema_version: "0.1",
+    report_id: "urn:kinegrant:reproduction:" + "0".repeat(36),
+    generated_at: new Date().toISOString(),
+    protocol: "KGP-001 Experimental Open Draft 0.1",
+    reference_implementation: "2.12.0",
+    source: { commit: "a".repeat(40), working_tree_dirty: false },
+    environment: {
+      python_version: "3.12",
+      python_implementation: "CPython",
+      platform: "test",
+    },
+    materials: Array.from({ length: 7 }, (_, index) => ({
+      path: "materials/file" + index + ".md",
+      sha256: "sha256:" + String(index).repeat(64),
+    })),
+    artifacts: [
+      {
+        path: "machine-permission-test.evidence.json",
+        media_type: "application/json",
+        bytes: 10,
+        sha256: "sha256:" + "a".repeat(64),
+      },
+      {
+        path: "sample-receipt-v0.1.json",
+        media_type: "application/json",
+        bytes: 10,
+        sha256: "sha256:" + "b".repeat(64),
+      },
+    ],
+    verification: {
+      verifier: "challenge/verify_reproduction.py",
+      required_cases: 22,
+      passed_cases: 22,
+    },
+    overall_result: "PASS",
+    limitations: ["test"],
+  };
+}
+
 test("browser verifier canonicalizes JCS", () => {
   assert.equal(canonicalJson({ b: 1, a: 2 }), '{"a":2,"b":1}');
   assert.equal(canonicalJson({ x: "a\u2028b" }), '{"x":"a\\u2028b"}');
@@ -404,4 +446,13 @@ test("browser verifier validates audit CSV", () => {
   assert.equal(result.rows, 1);
   assert.throws(() => verifyAuditCsv("a,b,c\n1,2,3"));
   assert.throws(() => verifyAuditCsv(AUDIT_CSV_HEADER + "\nonly-one-field"));
+});
+
+test("browser verifier validates reproduction reports", () => {
+  const report = buildReproductionReport();
+  const result = verifyReproductionReport(report);
+  assert.equal(result.passed_cases, 22);
+  assert.equal(result.required_cases, 22);
+  report.verification.passed_cases = 21;
+  assert.throws(() => verifyReproductionReport(report));
 });
