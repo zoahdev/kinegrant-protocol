@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kinegrant.com/schemas/v0.2/action-vocabulary.schema.json",
+  "title": "KineGrant Physical Action Vocabulary",
+  "description": "Machine-readable registry of canonical KGP-001 physical action terms.",
+  "type": "object",
+  "additionalProperties": false,
+  "propertyNames": {
+    "pattern": "^kg\\.action\\.[a-z][a-z0-9_]*$"
+  },
+  "required": [
+    "kg.action.observe",
+    "kg.action.record",
+    "kg.action.touch",
+    "kg.action.grasp",
+    "kg.action.move",
+    "kg.action.open",
+    "kg.action.enter",
+    "kg.action.retain",
+    "kg.action.train_on_data"
+  ],
+  "patternProperties": {
+    "^kg\\.action\\.[a-z][a-z0-9_]*$": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "term",
+        "category",
+        "risk_tier",
+        "requires_target",
+        "requires_purpose",
+        "data_sensitivity",
+        "description"
+      ],
+      "properties": {
+        "term": { "type": "string", "minLength": 1 },
+        "category": {
+          "enum": ["sense", "data", "manipulate", "transform", "access"]
+        },
+        "risk_tier": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "requires_target": { "const": true },
+        "requires_purpose": { "const": true },
+        "data_sensitivity": { "type": "boolean" },
+        "description": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

@@ -8,10 +8,13 @@ from .gate import ActionGate, InMemoryReplayStore, SQLiteReplayStore, VerifiedCa
 from .models import ActionRequest, Decision, PolicyRule
 from .policy import PolicyEngine
 from .receipt import ReceiptLog, verify_receipt_chain
+from .vocabulary import ACTION_TERMS, ActionSpec, action_spec, known_action, registry, validate_actions
 
 __all__ = [
+    "ACTION_TERMS",
     "ActionGate",
     "ActionRequest",
+    "ActionSpec",
     "CapabilityIssuer",
     "Decision",
     "Ed25519KeyPair",
@@ -21,6 +24,10 @@ __all__ = [
     "ReceiptLog",
     "SQLiteReplayStore",
     "VerifiedCapability",
+    "action_spec",
+    "known_action",
+    "registry",
+    "validate_actions",
     "verify_envelope",
     "verify_receipt_chain",
 ]
