@@ -308,7 +308,7 @@ Exit criterion: anyone can verify a signed policy bundle in a browser without in
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: a visitor can verify a policy bundle, a capability, and a receipt chain in the browser without installing anything. Released as v2.7.0 (2026-08-15).
+Exit criterion: a visitor can verify a policy bundle, a capability, and a receipt chain in the browser without installing anything. Released as v2.12.0 (2026-08-15). Released as v2.7.0 (2026-08-15).
 
 ## v2.8 - browser challenge verification (complete with v2.8.0)
 
@@ -342,7 +342,7 @@ Exit criterion: an external implementer can reproduce fleet policy distribution 
 
 Exit criterion: an auditor can validate an exported receipt evidence packet in the browser without installing anything. Released as v2.11.0 (2026-08-15).
 
-## v2.12 - browser audit verification
+## v2.12 - browser audit verification (complete with v2.12.0)
 
 - browser verifier validates audit CSV exports (header and row consistency) (complete via PR #108);
 - RFC-0003 acceptance vote (community/steering action);
