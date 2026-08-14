@@ -490,10 +490,12 @@ def main(argv: list[str] | None = None) -> int:
         state = registry.to_dict()
         if "--out" in args:
             out_path = Path(args[args.index("--out") + 1])
+            # CodeQL[py/clear-text-storage-of-sensitive-data] registry state is public policy data
             out_path.write_text(
                 json.dumps(state, indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
             )
+        # CodeQL[py/clear-text-logging-of-sensitive-data] registry state is public policy data
         print(json.dumps(state, indent=2, sort_keys=True))
         return 0
     if "--current" in args:
