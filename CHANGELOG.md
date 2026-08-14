@@ -6,6 +6,7 @@
 
 - Added `analyze_policy_bundle`: verifies a signed policy bundle (fail-closed) and emits a machine-readable `kinegrant:PolicyBundleAnalysis` with conservative findings (conflicting allow/deny overlaps, duplicate rules, unknown constraints/obligations, rule issuers differing from the bundle signer, unconditional broad allows).
 - `kinegrant-policy-bundle --analyze` exits 1 on error-level findings for CI fail-closed use.
+- Added `policy_bundle_coverage`: bounded request-space evaluation of a verified bundle (allowed/denied/exceptions, per-rule applicability, shadowed allows); `kinegrant-policy-bundle --coverage` exits 1 when exceptions or shadowed allows exist.
 - Added KGP-RFC-0003 draft (policy bundle schema stability).
 
 ## 2.2.0 бк 2026-08-15

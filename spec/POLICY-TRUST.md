@@ -94,7 +94,10 @@ overlapping allow/deny rules (conflict), duplicate rules, unknown
 constraints/obligations, rule issuers that differ from the bundle signer, and
 unconditional broad allows. `kinegrant-policy-bundle --analyze` returns exit
 code 1 when any error-level finding exists, so CI can fail closed on a bad
-bundle.
+bundle. `policy_bundle_coverage` (`--coverage`) additionally evaluates the
+policy engine over a bounded Cartesian request space and reports
+allowed/denied/exceptions, per-rule applicability, and allow rules that never
+win (shadowed by deny-overrides).
 
 ## Non-goals
 
