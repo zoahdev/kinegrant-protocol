@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.14.0 - v2.14 first item (unreleased)
+
+- Browser verifier validates revocation distribution reports (`verifyRevocationDistributionReport`: type/schema, acknowledgement structure, summary consistency, optional revocation-bundle binding); the HTML page and Node CLI (`revocation-distribution` command) expose it, cross-tested against a Python-generated fleet report.
+
 ## 2.13.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.13.0 on the

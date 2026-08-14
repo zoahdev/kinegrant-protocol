@@ -18,6 +18,7 @@ import {
   verifyReceiptEvidencePacket,
   verifyReproductionReport,
   verifyRevocationBundle,
+  verifyRevocationDistributionReport,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const DOMAIN = Buffer.from("KINEGRANT-SIGNED-ENVELOPE-V1\u0000", "utf8");
@@ -257,6 +258,28 @@ function buildReproductionReport() {
   };
 }
 
+function buildRevocationDistributionReport(privateKey, publicKey) {
+  const bundle = buildRevocationBundle(privateKey, publicKey);
+  return {
+    type: "kinegrant:RevocationDistributionReport",
+    schema_version: "0.1",
+    bundle_id: bundle.payload.bundle_id,
+    bundle_version: 1,
+    overall_result: "PASS",
+    summary: { gates: 1, added_total: 1, already_present_total: 0 },
+    acks: [
+      {
+        gate_id: "gate-a",
+        bundle_id: bundle.payload.bundle_id,
+        applied: true,
+        added_count: 1,
+        already_present: 0,
+        detail: "applied",
+      },
+    ],
+  };
+}
+
 test("browser verifier canonicalizes JCS", () => {
   assert.equal(canonicalJson({ b: 1, a: 2 }), '{"a":2,"b":1}');
   assert.equal(canonicalJson({ x: "a\u2028b" }), '{"x":"a\\u2028b"}');
@@ -455,4 +478,26 @@ test("browser verifier validates reproduction reports", () => {
   assert.equal(result.required_cases, 22);
   report.verification.passed_cases = 21;
   assert.throws(() => verifyReproductionReport(report));
+});
+
+test("browser verifier validates revocation distribution reports", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildRevocationBundle(privateKey, publicKey);
+  const report = buildRevocationDistributionReport(privateKey, publicKey);
+  const result = await verifyRevocationDistributionReport(
+    report,
+    bundle,
+    new Set([bundle.kid])
+  );
+  assert.equal(result.gates, 1);
+  assert.equal(result.added_total, 1);
+  report.summary.added_total = 2;
+  await assert.rejects(() =>
+    verifyRevocationDistributionReport(report, bundle, new Set([bundle.kid]))
+  );
+  report.summary.added_total = 1;
+  report.acks[0].bundle_id = "kinegrant:revocation-bundle:" + "0".repeat(64);
+  await assert.rejects(() =>
+    verifyRevocationDistributionReport(report, bundle, new Set([bundle.kid]))
+  );
 });

@@ -17,6 +17,7 @@ from kinegrant.mpt import run_machine_permission_test
 from kinegrant.policy import PolicyEngine
 from kinegrant.policy_bundle import PolicyAuthority, PolicyDistributor, PolicyRegistry
 from kinegrant.receipt import ReceiptLog
+from kinegrant.distribution import RevocationDistributor
 from kinegrant.revocation import (
     RevocationList,
     build_revocation_bundle,
@@ -418,6 +419,48 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             verified = self._run("reproduction-report", str(report_path))
             self.assertEqual(verified.returncode, 0, verified.stderr)
             self.assertIn("REPRODUCTION REPORT VALID", verified.stdout)
+
+    def test_browser_verifier_verifies_python_revocation_distribution(self) -> None:
+        authority = Ed25519KeyPair.generate()
+        revocations = RevocationList()
+        revocations.revoke(
+            "kinegrant:cap:" + "d" * 64,
+            reason="fleet maintenance",
+        )
+        bundle = sign_revocation_bundle(
+            build_revocation_bundle(
+                revocations,
+                issuer=authority.kid,
+            ),
+            authority,
+        )
+        gate_a = RevocationList()
+        gate_b = RevocationList()
+        report = RevocationDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(
+            bundle,
+            {"gate-a": gate_a, "gate-b": gate_b},
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            report_path = base / "report.json"
+            bundle_path = base / "bundle.json"
+            authorities_path = base / "authorities.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            verified = self._run(
+                "revocation-distribution",
+                str(report_path),
+                str(bundle_path),
+                str(authorities_path),
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("REVOCATION DISTRIBUTION REPORT VALID", verified.stdout)
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV 与复现报告。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告与撤销分发报告。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -111,6 +111,14 @@
     </div>
   </div>
   <p><button id="verify-reproduction">验证复现报告</button></p>
+  <div class="row">
+    <div class="col">
+      <label>撤销分发报告 JSON + 可选撤销包 JSON（第二个框，用于绑定校验）</label>
+      <textarea id="revocation-distribution" placeholder='{ "type": "kinegrant:RevocationDistributionReport", ... }'></textarea>
+      <textarea id="revocation-distribution-bundle" placeholder='可选：{ "alg": "EdDSA", "kid": "...", "payload": { "type": "kinegrant:RevocationBundle", ... }, "signature": "..." }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-revocation-distribution">验证撤销分发报告</button></p>
   <pre id="output">等待操作…</pre>
 
   <script type="module">
@@ -126,6 +134,7 @@
       verifyRevocationBundle,
       verifyAuditCsv,
       verifyReproductionReport,
+      verifyRevocationDistributionReport,
     } from "./policy-bundle-verifier.js";
 
     const bundleInput = document.getElementById("bundle");
@@ -144,6 +153,8 @@
     const evidencePacketInput = document.getElementById("evidence-packet");
     const auditCsvInput = document.getElementById("audit-csv");
     const reproductionInput = document.getElementById("reproduction");
+    const revocationDistributionInput = document.getElementById("revocation-distribution");
+    const revocationDistributionBundleInput = document.getElementById("revocation-distribution-bundle");
     const output = document.getElementById("output");
 
     function showOk(text) {
@@ -292,6 +303,27 @@
         const result = verifyReproductionReport(report);
         showOk(
           `REPRODUCTION REPORT VALID (${result.passed_cases}/${result.required_cases})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-revocation-distribution").addEventListener("click", async () => {
+      try {
+        const report = parseJson(revocationDistributionInput.value, "撤销分发报告");
+        const bundleValue = revocationDistributionBundleInput.value.trim();
+        const bundle = bundleValue
+          ? parseJson(bundleValue, "撤销包")
+          : undefined;
+        const authorities = parseJson(authoritiesInput.value, "信任机构");
+        const result = await verifyRevocationDistributionReport(
+          report,
+          bundle,
+          new Set(authorities)
+        );
+        showOk(
+          `REVOCATION DISTRIBUTION REPORT VALID (${result.gates} gates, added=${result.added_total})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

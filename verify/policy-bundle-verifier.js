@@ -937,6 +937,79 @@ export function verifyReproductionReport(report) {
   };
 }
 
+export async function verifyRevocationDistributionReport(
+  report,
+  bundle,
+  trustedAuthorities
+) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("revocation distribution report must be an object");
+  }
+  if (report.type !== "kinegrant:RevocationDistributionReport") {
+    throw new Error("wrong revocation distribution report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported revocation distribution report version");
+  }
+  if (report.overall_result !== "PASS") {
+    throw new Error("revocation distribution report is not PASS");
+  }
+  if (bundle !== undefined && bundle !== null) {
+    const payload = await verifyRevocationBundle(
+      bundle,
+      trustedAuthorities || new Set()
+    );
+    if (report.bundle_id !== payload.bundle_id) {
+      throw new Error("revocation distribution report references a different bundle");
+    }
+    if (report.bundle_version !== payload.version) {
+      throw new Error("revocation distribution report references a different version");
+    }
+  }
+  if (!Array.isArray(report.acks) || report.acks.length === 0) {
+    throw new Error("revocation distribution report has no acknowledgements");
+  }
+  for (const ack of report.acks) {
+    if (typeof ack !== "object" || ack === null) {
+      throw new Error("each acknowledgement must be an object");
+    }
+    if (typeof ack.gate_id !== "string" || ack.gate_id.length === 0) {
+      throw new Error("acknowledgement gate_id is invalid");
+    }
+    if (ack.bundle_id !== report.bundle_id) {
+      throw new Error("acknowledgement references a different bundle");
+    }
+    if (typeof ack.applied !== "boolean") {
+      throw new Error("acknowledgement applied flag is invalid");
+    }
+    if (!Number.isInteger(ack.added_count) || ack.added_count < 0) {
+      throw new Error("acknowledgement added_count is invalid");
+    }
+    if (!Number.isInteger(ack.already_present) || ack.already_present < 0) {
+      throw new Error("acknowledgement already_present is invalid");
+    }
+  }
+  const summary = report.summary;
+  if (typeof summary !== "object" || summary === null) {
+    throw new Error("revocation distribution report summary is invalid");
+  }
+  if (summary.gates !== report.acks.length) {
+    throw new Error("revocation distribution report summary is inconsistent");
+  }
+  if (
+    summary.added_total !==
+      report.acks.reduce((total, ack) => total + ack.added_count, 0) ||
+    summary.already_present_total !==
+      report.acks.reduce((total, ack) => total + ack.already_present, 0)
+  ) {
+    throw new Error("revocation distribution report summary is inconsistent");
+  }
+  return {
+    gates: summary.gates,
+    added_total: summary.added_total,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -950,5 +1023,6 @@ if (typeof globalThis !== "undefined") {
     verifyReceiptEvidencePacket,
     verifyAuditCsv,
     verifyReproductionReport,
+    verifyRevocationDistributionReport,
   };
 }
