@@ -134,6 +134,11 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Receipts carry the authorization context of v0.2 capabilities: approval
   tier, physical constraints, and parent capability id are recorded in the
   signed receipt so audits see exactly what was authorized.
+- Cross-agent delegation is opt-in and bounded: a capability may authorize one
+  specific delegate for a narrowed scope, and the delegate can never
+  re-delegate.
+- Post-quantum signing is available as an experimental parallel to Ed25519 via
+  FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Versioned external profiles: the ODRL adapter supports a KineGrant
   physical-action profile (`kgp-v0.2`) mapping force/velocity/zone/approval
   constraints, and the IEEE 7012 bridge accepts profile/version metadata.

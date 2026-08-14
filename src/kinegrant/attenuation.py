@@ -24,7 +24,7 @@ from fnmatch import fnmatchcase
 from typing import Any
 
 from .canonical import content_id
-from .models import isoformat, parse_time, utc_now
+from .models import ActionRequest, isoformat, parse_time, utc_now
 
 VERSION = "0.2"
 MAX_TTL_SECONDS = 300
@@ -48,7 +48,14 @@ def _require_parent(parent: dict[str, Any]) -> None:
         if field not in parent:
             raise ValueError(f"parent capability is missing {field}")
     if parent.get("version") == "0.2":
-        for field in ("actions", "purposes"):
+        for field in (
+            "actions",
+            "purposes",
+            "delegation_allowed",
+            "max_delegation_depth",
+            "delegate_agent",
+            "delegation_depth",
+        ):
             if field not in parent:
                 raise ValueError(f"parent capability is missing {field}")
     else:
@@ -152,6 +159,8 @@ def attenuate_capability(
     max_force_newtons: int | float | None = None,
     max_velocity_mps: int | float | None = None,
     allowed_zones: list[str] | None = None,
+    delegate_agent: str | None = None,
+    delegate_request: ActionRequest | None = None,
 ) -> dict[str, Any]:
     """Return a strictly narrower unsigned v0.2 capability body."""
     _require_parent(parent)
@@ -195,6 +204,60 @@ def attenuate_capability(
         allowed_zones=allowed_zones,
     )
 
+    parent_delegation_allowed = parent.get("delegation_allowed", False)
+    parent_max_depth = parent.get("max_delegation_depth", 0)
+    parent_delegate = parent.get("delegate_agent")
+    parent_depth = parent.get("delegation_depth", 0)
+    if not isinstance(parent_delegation_allowed, bool):
+        raise ValueError("parent delegation_allowed must be a boolean")
+    if (
+        not isinstance(parent_max_depth, int)
+        or isinstance(parent_max_depth, bool)
+        or not 0 <= parent_max_depth <= 3
+    ):
+        raise ValueError("parent max_delegation_depth must be an integer between 0 and 3")
+    if parent_delegate is not None and (
+        not isinstance(parent_delegate, str) or not parent_delegate
+    ):
+        raise ValueError("parent delegate_agent must be a non-empty string or null")
+    if (
+        not isinstance(parent_depth, int)
+        or isinstance(parent_depth, bool)
+        or not 0 <= parent_depth <= 3
+    ):
+        raise ValueError("parent delegation_depth must be an integer between 0 and 3")
+
+    if delegate_agent is None:
+        child_delegate = parent_delegate
+        child_depth = parent_depth
+        child_delegation_allowed = parent_delegation_allowed
+        child_max_depth = parent_max_depth
+        child_request_digest = parent["request_digest"]
+    else:
+        if not isinstance(delegate_agent, str) or not delegate_agent.strip():
+            raise ValueError("delegate_agent must be a non-empty string")
+        if delegate_agent == parent["agent"]:
+            raise ValueError("delegate_agent must differ from the principal agent")
+        if not parent_delegation_allowed:
+            raise ValueError("parent capability does not allow delegation")
+        if parent_depth >= parent_max_depth:
+            raise ValueError("delegation depth limit reached")
+        if delegate_request is None:
+            raise ValueError("delegate_agent requires a delegate ActionRequest")
+        if delegate_request.agent != delegate_agent:
+            raise ValueError("delegate request agent must match delegate_agent")
+        if not _matches(delegate_request.target, [child_target]):
+            raise ValueError("delegate request target is outside the child scope")
+        if delegate_request.action not in child_actions:
+            raise ValueError("delegate request action is outside the child scope")
+        if delegate_request.purpose not in child_purposes:
+            raise ValueError("delegate request purpose is outside the child scope")
+        child_delegate = delegate_agent
+        child_depth = parent_depth + 1
+        child_delegation_allowed = False
+        child_max_depth = 0
+        child_request_digest = delegate_request.digest
+
     approval_tier = parent.get("approval_tier", 0)
     if not isinstance(approval_tier, int) or isinstance(approval_tier, bool) or not 0 <= approval_tier <= 2:
         raise ValueError("parent approval_tier must be an integer between 0 and 2")
@@ -207,7 +270,7 @@ def attenuate_capability(
         "target": child_target,
         "actions": child_actions,
         "purposes": child_purposes,
-        "request_digest": parent["request_digest"],
+        "request_digest": child_request_digest,
         "policy_digest": parent["policy_digest"],
         "matched_policy_ids": list(parent["matched_policy_ids"]),
         "obligations": list(parent["obligations"]),
@@ -218,6 +281,10 @@ def attenuate_capability(
         "parent_capability_id": parent["capability_id"],
         "constraints": child_constraints,
         "approval_tier": approval_tier,
+        "delegation_allowed": child_delegation_allowed,
+        "max_delegation_depth": child_max_depth,
+        "delegate_agent": child_delegate,
+        "delegation_depth": child_depth,
     }
     body["capability_id"] = content_id("kinegrant:cap", body)
     return body
@@ -240,8 +307,6 @@ def verify_attenuation(
             return False
         if child.get("agent") != parent.get("agent"):
             return False
-        if child.get("request_digest") != parent.get("request_digest"):
-            return False
         if child.get("policy_digest") != parent.get("policy_digest"):
             return False
         child_policies = child.get("matched_policy_ids", [])
@@ -263,6 +328,53 @@ def verify_attenuation(
         if not isinstance(child_purposes, list) or not isinstance(parent_purposes, list):
             return False
         if not child_purposes or any(purpose not in parent_purposes for purpose in child_purposes):
+            return False
+
+        parent_allowed = parent.get("delegation_allowed", False)
+        parent_max_depth = parent.get("max_delegation_depth", 0)
+        parent_delegate = parent.get("delegate_agent")
+        parent_depth = parent.get("delegation_depth", 0)
+        child_allowed = child.get("delegation_allowed", False)
+        child_max_depth = child.get("max_delegation_depth", 0)
+        child_delegate = child.get("delegate_agent")
+        child_depth = child.get("delegation_depth", 0)
+        for value, name in (
+            (parent_allowed, "parent delegation_allowed"),
+            (child_allowed, "child delegation_allowed"),
+        ):
+            if not isinstance(value, bool):
+                return False
+        for value, name in (
+            (parent_max_depth, "parent max_delegation_depth"),
+            (child_max_depth, "child max_delegation_depth"),
+            (parent_depth, "parent delegation_depth"),
+            (child_depth, "child delegation_depth"),
+        ):
+            if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= 3:
+                return False
+        if child_delegate == parent_delegate:
+            if child_depth != parent_depth:
+                return False
+            if child.get("request_digest") != parent.get("request_digest"):
+                return False
+        else:
+            if not parent_allowed:
+                return False
+            if parent_depth >= parent_max_depth:
+                return False
+            if child_depth != parent_depth + 1:
+                return False
+            if not isinstance(child_delegate, str) or not child_delegate:
+                return False
+            if child_delegate == child.get("agent"):
+                return False
+            if child_allowed is not False:
+                return False
+            if child_max_depth != 0:
+                return False
+        if child_max_depth > parent_max_depth:
+            return False
+        if child_allowed and not parent_allowed:
             return False
         if parse_time(child["not_before"]) < parse_time(parent["not_before"]):
             return False

@@ -24,6 +24,11 @@
 - Added a versioned KineGrant ODRL profile (`kgp-v0.2`) that maps
   force/velocity/zone/approval constraints with strict validation, plus
   profile/version metadata in the IEEE 7012 bridge and interop tests.
+- Added opt-in cross-agent delegation to scoped capabilities: a principal can
+  authorize one specific delegate for a narrowed scope with a delegate-bound
+  request digest; delegates cannot re-delegate.
+- Added experimental post-quantum envelopes using FIPS 204 ML-DSA-65
+  (`alg: "ML-DSA-65"`) as a parallel to Ed25519.
 - Published the nine-case KineGrant Machine Permission Test v0.1.
 - Added machine-readable PASS/FAIL evidence, an independent verifier, source
   commit and runner-digest provenance, and CI execution across Python 3.11–3.13.

@@ -52,6 +52,15 @@ class AttenuationTests(unittest.TestCase):
         )
         self.root_payload = self.root["payload"]
 
+    def delegate_request(self, agent: str = "robot-2") -> ActionRequest:
+        return ActionRequest(
+            request_id=f"req-delegate-{agent}",
+            agent=agent,
+            target="door-7",
+            action="open",
+            purpose="delivery",
+        )
+
     def test_root_v02_capability_passes_gate(self) -> None:
         verified = self.gate.authorize(self.root, self.request)
         self.assertEqual(verified["version"], "0.2")
@@ -184,6 +193,106 @@ class AttenuationTests(unittest.TestCase):
             ttl_seconds=15,
         )
         jsonschema.validate(child, schema)
+
+    def test_cross_agent_delegation_with_opt_in(self) -> None:
+        root = self.issuer.issue_scoped(
+            self.request,
+            self.decision,
+            ttl_seconds=30,
+            target="door-*",
+            actions=["open"],
+            purposes=["delivery"],
+            approval_tier=1,
+            delegation_allowed=True,
+            max_delegation_depth=1,
+        )
+        child = self.issuer.issue_attenuated(
+            root,
+            target="door-7",
+            delegate_agent="robot-2",
+            delegate_request=self.delegate_request(),
+        )
+        payload = child["payload"]
+        self.assertEqual(payload["delegate_agent"], "robot-2")
+        self.assertEqual(payload["delegation_depth"], 1)
+        self.assertFalse(payload["delegation_allowed"])
+        self.assertEqual(payload["max_delegation_depth"], 0)
+        verified = self.gate.authorize(child, self.delegate_request())
+        self.assertEqual(verified["agent"], "robot-1")
+        self.assertEqual(verified["delegate_agent"], "robot-2")
+
+    def test_delegation_without_opt_in_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            self.issuer.issue_attenuated(
+                self.root,
+                target="door-7",
+                delegate_agent="robot-2",
+            )
+
+    def test_delegated_child_cannot_redelegate(self) -> None:
+        root = self.issuer.issue_scoped(
+            self.request,
+            self.decision,
+            ttl_seconds=30,
+            target="door-*",
+            actions=["open"],
+            purposes=["delivery"],
+            delegation_allowed=True,
+            max_delegation_depth=2,
+        )
+        child = self.issuer.issue_attenuated(
+            root,
+            target="door-7",
+            delegate_agent="robot-2",
+            delegate_request=self.delegate_request(),
+        )
+        with self.assertRaises(ValueError):
+            self.issuer.issue_attenuated(
+                child,
+                delegate_agent="robot-3",
+            )
+
+    def test_delegated_capability_rejects_principal_agent(self) -> None:
+        root = self.issuer.issue_scoped(
+            self.request,
+            self.decision,
+            ttl_seconds=30,
+            target="door-*",
+            actions=["open"],
+            purposes=["delivery"],
+            delegation_allowed=True,
+            max_delegation_depth=1,
+        )
+        child = self.issuer.issue_attenuated(
+            root,
+            target="door-7",
+            delegate_agent="robot-2",
+            delegate_request=self.delegate_request(),
+        )
+        with self.assertRaises(PermissionError):
+            self.gate.authorize(child, self.request)
+
+    def test_verify_attenuation_rejects_depth_tampering(self) -> None:
+        root = self.issuer.issue_scoped(
+            self.request,
+            self.decision,
+            ttl_seconds=30,
+            target="door-*",
+            actions=["open"],
+            purposes=["delivery"],
+            delegation_allowed=True,
+            max_delegation_depth=1,
+        )
+        child = self.issuer.issue_attenuated(
+            root,
+            target="door-7",
+            delegate_agent="robot-2",
+            delegate_request=self.delegate_request(),
+        )
+        self.assertTrue(verify_attenuation(child["payload"], root["payload"]))
+        tampered = json.loads(json.dumps(child["payload"]))
+        tampered["delegation_depth"] = 2
+        self.assertFalse(verify_attenuation(tampered, root["payload"]))
 
 
 if __name__ == "__main__":
