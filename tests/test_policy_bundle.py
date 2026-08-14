@@ -197,7 +197,10 @@ class PolicyBundleTests(unittest.TestCase):
         registry = PolicyRegistry(trusted_authorities={self.authority.kid})
         registry.activate(self.bundle)
         registry.revoke(self.policy_id, 9, reason="pre-emptive")
-        restored = PolicyRegistry.from_dict(registry.to_dict())
+        restored = PolicyRegistry.from_dict(
+            registry.to_dict(),
+            trusted_authorities={self.authority.kid},
+        )
         self.assertEqual(restored.trusted_authorities, {self.authority.kid})
         self.assertEqual(restored.current(self.policy_id)["version"], 1)
         self.assertTrue(restored.is_revoked(self.policy_id, 9))

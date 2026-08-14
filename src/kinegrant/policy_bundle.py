@@ -305,18 +305,22 @@ class PolicyRegistry:
         return {
             "type": _STATE_TYPE,
             "schema_version": _STATE_VERSION,
-            "trusted_authorities": sorted(self.trusted_authorities),
             "bundles": bundles,
             "revocations": revocations,
         }
 
     @classmethod
-    def from_dict(cls, value: Mapping[str, Any]) -> "PolicyRegistry":
+    def from_dict(
+        cls,
+        value: Mapping[str, Any],
+        *,
+        trusted_authorities: set[str] | None = None,
+    ) -> "PolicyRegistry":
         if value.get("type") != _STATE_TYPE:
             raise ValueError("wrong registry state type")
         if value.get("schema_version") != _STATE_VERSION:
             raise ValueError("unsupported registry state version")
-        registry = cls(trusted_authorities=set(value.get("trusted_authorities", ())))
+        registry = cls(trusted_authorities=trusted_authorities)
         for pid, versions in value.get("bundles", {}).items():
             for version_text, payload in versions.items():
                 version = int(version_text)
@@ -484,18 +488,17 @@ def main(argv: list[str] | None = None) -> int:
             state_path = Path(args[args.index("--registry") + 1])
             if state_path.exists():
                 registry = PolicyRegistry.from_dict(
-                    json.loads(state_path.read_text(encoding="utf-8"))
+                    json.loads(state_path.read_text(encoding="utf-8")),
+                    trusted_authorities=set(authorities),
                 )
         registry.activate(bundle)
         state = registry.to_dict()
         if "--out" in args:
             out_path = Path(args[args.index("--out") + 1])
-            # CodeQL[py/clear-text-storage-of-sensitive-data] registry state is public policy data
             out_path.write_text(
                 json.dumps(state, indent=2, sort_keys=True) + "\n",
                 encoding="utf-8",
             )
-        # CodeQL[py/clear-text-logging-of-sensitive-data] registry state is public policy data
         print(json.dumps(state, indent=2, sort_keys=True))
         return 0
     if "--current" in args:
