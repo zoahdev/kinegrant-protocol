@@ -139,6 +139,12 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   re-delegate.
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
+- Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies
+  requests once a dangerous set of actions has all been observed (e.g. record
+  then train on data), with optional time windows and trigger patterns.
+- Canonical identifiers: agents, targets, and policies use the
+  `urn:kinegrant:<kind>:<namespace>:<local-id>` grammar. See
+  [spec/IDENTITY.md](spec/IDENTITY.md).
 - Versioned external profiles: the ODRL adapter supports a KineGrant
   physical-action profile (`kgp-v0.2`) mapping force/velocity/zone/approval
   constraints, and the IEEE 7012 bridge accepts profile/version metadata.
