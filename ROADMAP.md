@@ -211,6 +211,13 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
   distribution;
 - the v0.1 issuer accepts all known obligations.
 
+## v1.6 — formal boundary checks (complete with v1.6.0)
+
+- Gatekeeper boundary model check (`check_gatekeeper_boundary`) verifies the
+  one-call composition invariants;
+- conformance suite at 21/21 including the `gatekeeper_boundary_modelcheck`
+  mark.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
