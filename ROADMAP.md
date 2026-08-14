@@ -228,6 +228,11 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
 - the security review kit generator runs every evidence suite and emits an
   auditor-ready machine-readable checklist.
 
+## v1.9 — shipped evidence (complete with v1.9.0)
+
+- the security review kit is published as a checksummed, offline-verifiable
+  release asset with every stable release.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
