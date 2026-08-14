@@ -4,6 +4,10 @@
 
 ## 1.6.0 — 2026-08-15
 
+- The conformance report now includes `independent_verification`: the
+  independent JavaScript and Go verifiers cross-check Python-generated
+  capabilities and receipt chains (tools that are unavailable are recorded
+  as skipped).
 - Milestone release: reference implementation version 1.6.0 on the stable
   1.0 wire format, adding the Gatekeeper boundary model check
   (`check_gatekeeper_boundary`) and the `gatekeeper_boundary_modelcheck`
