@@ -325,7 +325,8 @@ func VerifyCapability(envelope map[string]any, request map[string]any, trustedIs
 		return nil, errors.New("capability obligations are invalid")
 	}
 	for _, obligation := range obligations {
-		if !knownObligations[obligation] {
+		obligationName, ok := obligation.(string)
+		if !ok || !knownObligations[obligationName] {
 			return nil, errors.New("capability obligations are invalid")
 		}
 	}
@@ -525,7 +526,8 @@ func validateCommonCapability(payload map[string]any) error {
 		return errors.New("capability obligations are invalid")
 	}
 	for _, obligation := range obligations {
-		if !knownObligations[obligation] {
+		obligationName, ok := obligation.(string)
+		if !ok || !knownObligations[obligationName] {
 			return errors.New("capability obligations are invalid")
 		}
 	}
