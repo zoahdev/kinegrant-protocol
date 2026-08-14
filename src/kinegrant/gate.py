@@ -137,7 +137,7 @@ class ActionGate:
         if version == "0.1":
             if set(payload) != CAPABILITY_FIELDS:
                 raise PermissionError("capability fields do not match the v0.1 schema")
-        elif version == "0.2":
+        elif version in ("0.2", "1.0"):
             if set(payload) != CAPABILITY_FIELDS_V2:
                 raise PermissionError("capability fields do not match the v0.2 schema")
             self._validate_v2_fields(payload)

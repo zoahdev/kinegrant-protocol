@@ -114,6 +114,9 @@ Progress on main:
   stable wire-format RFC draft plus certification-program draft.
 - Deployment cases: runnable home-robot and camera-consent examples with
   policy -> capability -> gate -> receipt traces.
+- Stable wire format: `1.0` capability support in the reference
+  implementation with a published schema; KGP-RFC-0001 accepted (comment
+  window open until v1.0.0).
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.

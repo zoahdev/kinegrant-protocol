@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-SUPPORTED_WIRE_VERSIONS = ("0.1", "0.2")
+SUPPORTED_WIRE_VERSIONS = ("0.1", "0.2", "1.0")
 
 
 def supports(version: str) -> bool:

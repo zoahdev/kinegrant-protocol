@@ -1,6 +1,7 @@
 # KGP-RFC-0001: Stable Wire Format
 
-Status: Draft
+Status: Accepted (implemented in the reference implementation; community
+comment window remains open until the v1.0.0 release)
 Editor: zoahdev
 Related: COMPATIBILITY.md, CONFORMANCE.md
 
@@ -26,6 +27,9 @@ build on the protocol, the wire format must stop changing in breaking ways.
    fields only when a profile says so.
 3. Breaking changes require a new major version and an RFC.
 4. `0.1` and `0.2` continue to verify forever, but new features target `1.0`.
+   The reference implementation now issues and verifies `1.0` capabilities
+   (`CapabilityIssuer.issue_scoped(wire_version="1.0")`) with the frozen
+   object shape and a published `capability-1.0` schema.
 
 ## Security properties
 

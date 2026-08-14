@@ -182,6 +182,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Runnable deployment examples: home-robot delivery and camera-consent traces
   with full policy -> capability -> gate -> receipt flows (see
   [docs/DEPLOYMENT-CASES.md](docs/DEPLOYMENT-CASES.md)).
+- Stable wire format: the reference implementation issues and verifies `1.0`
+  capabilities (frozen scoped shape), with `capability-1.0` schema and
+  KGP-RFC-0001 accepted. Reference implementation version is now `0.2.0`.
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies
