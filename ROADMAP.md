@@ -326,13 +326,13 @@ Exit criterion: a visitor can validate a Machine Permission Test evidence file i
 
 Exit criterion: a fleet operator can verify a revocation bundle and a policy distribution report in the browser without installing anything. Released as v2.9.0 (2026-08-15).
 
-## v2.10 - reproducible fleet operations
+## v2.10 - reproducible fleet operations (complete with v2.10.0)
 
 - Machine Permission Test v0.5 with 22 reproducible cases: new MPT-021 fleet policy distribution (upgrades without downgrades) and MPT-022 policy bundle analysis (conflict detection + coverage) (complete via PR #104);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: an external implementer can reproduce fleet policy distribution and policy analysis from one evidence packet.
+Exit criterion: an external implementer can reproduce fleet policy distribution and policy analysis from one evidence packet. Released as mpt-v0.5 + v2.10.0 (2026-08-15).
 
 ## Success metrics
 
