@@ -74,11 +74,15 @@ both deployment traces (home-robot, camera-consent) now run through
   action, first/last timestamps);
 - `compliance_for(capability)` checks that the capability's obligations are
   fulfilled by the chain.
+- `export_csv()` renders matched receipts for spreadsheets and archives;
+- `export_packet()` builds a self-verifying evidence packet
+  (`kinegrant:ReceiptEvidencePacket` with a content-addressed digest).
 
 Auditing is fail-closed: queries on an invalid chain are rejected unless the
 auditor explicitly opts out (`strict=False`), and obligation checks require a
 non-empty executor trust set. The `kinegrant-audit` CLI wraps this for
-operators (`--self-test` validates the tool itself).
+operators (`--csv FILE` / `--packet FILE` export the matched set;
+`--self-test` validates the tool itself).
 
 ## 7. Revocation distribution
 

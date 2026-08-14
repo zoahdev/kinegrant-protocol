@@ -161,6 +161,7 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Receipt audit interface: `ReceiptAuditor` verifies the receipt chain,
   filters receipts by capability/agent/target/action/purpose/result/time,
   produces a machine-readable summary, and checks obligation compliance;
+  it also exports CSV and self-verifying evidence packets, and
   `kinegrant-audit` exposes it as a deployable CLI (`--self-test` for CI).
 - Fleet revocation distribution: `RevocationDistributor` verifies one signed
   revocation bundle under the caller-supplied authorities and applies it to

@@ -96,7 +96,7 @@ python -m unittest discover -s tests -v
 - 一致性认证套件 L1-L4 现有 19/19 项：含“义务履行”（走 Gatekeeper + 双义务）与“执行边界”（Gatekeeper 全链路：放行/重放拒绝/序列拒绝/撤销拒绝）；已知义务词表可扩展：`emitActionReceipt`（发签名收据）、`logAuditEvent`（写审计日志）、`preserveEvidence`（证据保全）当前均受支持。
 - 一体化执行门 `Gatekeeper`：序列检查 → 撤销检查 → 门禁验证与一次性消费 → 执行器 → 签名收据 → 义务合规 → 动作日志，一条 `execute()` 调用跑完整条授权边界，每步失败即拒绝并返回机器可读结果。
 - 三个演示与两个部署案例现在都使用 `Gatekeeper` 一体化编排；性能基准包含 `gatekeeper_execute` 吞吐指标。
-- 收据审计接口：`ReceiptAuditor` 验证收据链、按能力/主体/目标/动作/目的/结果/时间过滤、输出机器可读审计摘要，并支持义务合规核验；`kinegrant-audit` 是可部署的命令行工具（`--self-test` 供 CI 使用）。
+- 收据审计接口：`ReceiptAuditor` 验证收据链、按能力/主体/目标/动作/目的/结果/时间过滤、输出机器可读审计摘要，并支持义务合规核验；可导出 CSV 与自校验证据包；`kinegrant-audit` 是可部署的命令行工具（`--csv`/`--packet` 导出，`--self-test` 供 CI 使用）。
 - 车队级撤销分发：`RevocationDistributor` 在调用方信任的撤销机构下验证一份签名撤销包，并幂等地批量应用到多个门禁，输出逐门禁回执的机器可读报告；`kinegrant-revoke-distribute` 是可部署的命令行工具。
 - 跨主体委派是 opt-in 且有界：一份能力最多授权一个特定被委托人并在收窄范围内使用，被委托人永远不能再次转委。根能力可以用 fleet 级 `delegate_allowlist` 限制被委托人。
 - 离线撤销：`RevocationList` 加 `root_capability_id` 让门禁拒绝已撤销的能力，撤销根即撤销整条委派链。签名、版本化的 `RevocationBundle` 提供可认证的分发。参见 [spec/REVOCATION.md](spec/REVOCATION.md)。

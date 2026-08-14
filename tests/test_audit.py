@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import tempfile
 import unittest
@@ -8,6 +9,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from kinegrant.audit import ReceiptAuditor, main
+from kinegrant.canonical import canonical_json
 from kinegrant.capability import CapabilityIssuer
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
@@ -149,6 +151,62 @@ class ReceiptAuditorTests(unittest.TestCase):
             )
             exit_code = main([str(receipts_path), str(executors_path)])
             self.assertEqual(exit_code, 0)
+
+    def test_export_csv_contains_matched_rows(self) -> None:
+        csv_text = self.auditor.export_csv()
+        lines = csv_text.splitlines()
+        self.assertEqual(len(lines), 4)  # header + 3 receipts
+        self.assertIn("receipt_id", lines[0])
+        capability_id = self.capabilities["r1"]["payload"]["capability_id"]
+        self.assertTrue(any(capability_id in line for line in lines[1:]))
+        filtered = self.auditor.export_csv(result="failed")
+        self.assertEqual(len(filtered.splitlines()), 2)
+        self.assertIn("actuator timeout", filtered)
+
+    def test_export_packet_is_self_verifying(self) -> None:
+        packet = self.auditor.export_packet()
+        self.assertEqual(packet["type"], "kinegrant:ReceiptEvidencePacket")
+        self.assertEqual(packet["summary"]["total"], 3)
+        self.assertEqual(len(packet["receipts"]), 3)
+        unsigned = {
+            key: value for key, value in packet.items() if key != "packet_digest"
+        }
+        expected = "sha256:" + hashlib.sha256(canonical_json(unsigned)).hexdigest()
+        self.assertEqual(packet["packet_digest"], expected)
+        filtered = self.auditor.export_packet(agent="robot-2")
+        self.assertEqual(len(filtered["receipts"]), 1)
+
+    def test_cli_exports_csv_and_packet_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            receipts_path = base / "receipts.json"
+            executors_path = base / "executors.json"
+            csv_path = base / "audit.csv"
+            packet_path = base / "packet.json"
+            receipts_path.write_text(
+                json.dumps(list(self.log.entries)),
+                encoding="utf-8",
+            )
+            executors_path.write_text(
+                json.dumps([self.executor.kid]),
+                encoding="utf-8",
+            )
+            exit_code = main(
+                [
+                    str(receipts_path),
+                    str(executors_path),
+                    "--csv",
+                    str(csv_path),
+                    "--packet",
+                    str(packet_path),
+                ]
+            )
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(csv_path.exists())
+            self.assertTrue(packet_path.exists())
+            packet = json.loads(packet_path.read_text(encoding="utf-8"))
+            self.assertEqual(packet["type"], "kinegrant:ReceiptEvidencePacket")
+            self.assertEqual(len(packet["receipts"]), 3)
 
 
 if __name__ == "__main__":

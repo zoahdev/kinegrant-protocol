@@ -10,6 +10,9 @@ caller-supplied executor trust set.
 
 from __future__ import annotations
 
+import csv
+import hashlib
+import io
 import json
 import sys
 from dataclasses import dataclass
@@ -18,6 +21,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .capability import CapabilityIssuer
+from .canonical import canonical_json
 from .compliance import ObligationCompliance, ObligationComplianceVerdict
 from .crypto import Ed25519KeyPair, verify_envelope
 from .gate import ActionGate, InMemoryReplayStore
@@ -164,6 +168,118 @@ class ReceiptAuditor:
             trusted_executors=executors,
         )
 
+    def export_csv(
+        self,
+        *,
+        capability_id: str | None = None,
+        agent: str | None = None,
+        target: str | None = None,
+        action: str | None = None,
+        purpose: str | None = None,
+        result: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        strict: bool = True,
+    ) -> str:
+        """Render matched receipts as CSV for spreadsheets and archives."""
+        payloads = self.query(
+            capability_id=capability_id,
+            agent=agent,
+            target=target,
+            action=action,
+            purpose=purpose,
+            result=result,
+            since=since,
+            until=until,
+            strict=strict,
+        )
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(
+            [
+                "receipt_id",
+                "capability_id",
+                "agent",
+                "target",
+                "action",
+                "purpose",
+                "result",
+                "started_at",
+                "finished_at",
+                "evidence_hash",
+                "previous_receipt_hash",
+                "failure_reason",
+                "obligation_results",
+            ]
+        )
+        for payload in payloads:
+            obligation_results = payload.get("obligation_results")
+            writer.writerow(
+                [
+                    payload.get("receipt_id", ""),
+                    payload.get("capability_id", ""),
+                    payload.get("agent", ""),
+                    payload.get("target", ""),
+                    payload.get("action", ""),
+                    payload.get("purpose", ""),
+                    payload.get("result", ""),
+                    payload.get("started_at", ""),
+                    payload.get("finished_at", ""),
+                    payload.get("evidence_hash") or "",
+                    payload.get("previous_receipt_hash") or "",
+                    payload.get("failure_reason") or "",
+                    (
+                        json.dumps(
+                            obligation_results,
+                            sort_keys=True,
+                            ensure_ascii=False,
+                        )
+                        if obligation_results is not None
+                        else ""
+                    ),
+                ]
+            )
+        return buffer.getvalue()
+
+    def export_packet(
+        self,
+        *,
+        capability_id: str | None = None,
+        agent: str | None = None,
+        target: str | None = None,
+        action: str | None = None,
+        purpose: str | None = None,
+        result: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+        strict: bool = True,
+    ) -> dict[str, Any]:
+        """Build a self-verifying evidence packet of matched receipts."""
+        payloads = self.query(
+            capability_id=capability_id,
+            agent=agent,
+            target=target,
+            action=action,
+            purpose=purpose,
+            result=result,
+            since=since,
+            until=until,
+            strict=strict,
+        )
+        packet: dict[str, Any] = {
+            "type": "kinegrant:ReceiptEvidencePacket",
+            "schema_version": "0.1",
+            "summary": self.summary(strict=strict),
+            "receipts": [dict(payload) for payload in payloads],
+        }
+        unsigned = {
+            key: value for key, value in packet.items() if key != "packet_digest"
+        }
+        packet["packet_digest"] = (
+            "sha256:" + hashlib.sha256(canonical_json(unsigned)).hexdigest()
+        )
+        return packet
+
 
 def _self_test() -> int:
     authority = Ed25519KeyPair.generate()
@@ -209,7 +325,7 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "usage: kinegrant-audit <receipts.json> <executors.json> "
             "[--capability-id ID] [--agent ID] [--action ACTION] "
-            "[--result RESULT]",
+            "[--result RESULT] [--csv FILE] [--packet FILE]",
             file=sys.stderr,
         )
         return 2
@@ -234,5 +350,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     report = dict(auditor.summary())
     report["matched"] = len(matched)
+    csv_path = flag("--csv")
+    if csv_path:
+        target = Path(csv_path)
+        target.write_text(auditor.export_csv(), encoding="utf-8")
+        report["csv"] = str(target)
+    packet_path = flag("--packet")
+    if packet_path:
+        target = Path(packet_path)
+        target.write_text(
+            json.dumps(auditor.export_packet(), indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        report["packet"] = str(target)
     print(json.dumps(report, indent=2, sort_keys=True))
     return 0
