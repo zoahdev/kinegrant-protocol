@@ -69,7 +69,7 @@ python -m unittest discover -s tests -v
 
 ## Machine Permission Test（机器权限测试）
 
-可复现的 [Machine Permission Test](challenge/README.md) 输出严格的 JSON 证据，并带显式的 `PASS` 或 `FAIL`。它覆盖二十个可执行用例：无授权拒绝、一次性授权、重放、请求绑定、签发者与过期检查、并发消费、持久化重放状态、收据信任、物理约束、能力衰减、委派、审批分级、禁止组合、收据 1.0 义务、合规逃逸检测、车队撤销分发、签名策略包接受与强制、策略包篡改/错误机构/错误策略拒绝、策略版本回滚与无当前版本时 fail-closed；策略信任用例还会记录独立的 JavaScript/Go 交叉核验证据（工具链缺失记为 SKIP）。验证结果可以用
+可复现的 [Machine Permission Test](challenge/README.md) 输出严格的 JSON 证据，并带显式的 `PASS` 或 `FAIL`。它覆盖二十二个可执行用例：无授权拒绝、一次性授权、重放、请求绑定、签发者与过期检查、并发消费、持久化重放状态、收据信任、物理约束、能力衰减、委派、审批分级、禁止组合、收据 1.0 义务、合规逃逸检测、车队撤销分发、签名策略包接受与强制、策略包篡改/错误机构/错误策略拒绝、策略版本回滚与无当前版本时 fail-closed、车队策略分发（升级且不降级）、策略包分析（冲突检测 + 覆盖检查）；策略信任用例还会记录独立的 JavaScript/Go 交叉核验证据（工具链缺失记为 SKIP）。验证结果可以用
 [`machine-permission-test-evidence.schema.json`](spec/schemas/machine-permission-test-evidence.schema.json) 校验。
 
 从 [`mpt-v0.2` 发布](https://github.com/zoahdev/kinegrant-protocol/releases/tag/mpt-v0.2) 下载校验和寻址的数据包与参考证据。基于浏览器的[公开验证器](https://kinegrant.com/verify)在本地检查 MPT 证据，并可以验证发布的 [`sample-receipt-v0.1.json`](examples/sample-receipt-v0.1.json) 的 Ed25519 签名、内容寻址 ID 与调用者提供的执行方信任锚。仅凭签名有效并不等于执行方可信，也不等于物理动作真实发生。
@@ -115,7 +115,7 @@ python -m unittest discover -s tests -v
 - 一致性等级 L1-L4（`kinegrant-conformance`）与线格式兼容性政策（参见 [CONFORMANCE.md](CONFORMANCE.md) 与 [COMPATIBILITY.md](COMPATIBILITY.md)）。
 - 独立 JavaScript 验证器（`kinegrant-js`）：验证 JCS、Ed25519 信封、v0.1 能力与 Python 参考实现签发的收据链（参见 [implementations/README.md](implementations/README.md)）。
 - 独立 Go 验证器（`kinegrant-go`，仅标准库）在 CI 中与 Python 参考实现交叉测试，外加首份稳定线格式 RFC 草案（[docs/rfcs/0001-stable-wire-format.md](docs/rfcs/0001-stable-wire-format.md)）与[认证程序草案](CERTIFICATION.md)。
-- 可运行的部署示例：家庭机器人送货与摄像头同意场景，包含完整策略 → 能力 → 门禁 → 收据流程（参见 [docs/DEPLOYMENT-CASES.md](docs/DEPLOYMENT-CASES.md)）；[策略包生命周期示例](examples/policy-bundle/README.md) 一条轨迹走完“发布 → 生效 → ODRL → 车队分发 → 审计 → 撤销回滚”。另附[独立离线浏览器验证页](verify/policy-bundle-verifier.html)：零依赖、纯前端验证签名策略包、当前版本选择、能力、收据链、MPT 证据、撤销包与策略分发报告，可部署到任何静态站点。
+- 可运行的部署示例：家庭机器人送货与摄像头同意场景，包含完整策略 → 能力 → 门禁 → 收据流程（参见 [docs/DEPLOYMENT-CASES.md](docs/DEPLOYMENT-CASES.md)）；[策略包生命周期示例](examples/policy-bundle/README.md) 一条轨迹走完“发布 → 生效 → ODRL → 车队分发 → 审计 → 撤销回滚”。另附[独立离线浏览器验证页](verify/policy-bundle-verifier.html)：零依赖、纯前端验证签名策略包、当前版本选择、能力、收据链、MPT 证据（v0.5）、撤销包与策略分发报告，可部署到任何静态站点。
 - 稳定线格式：参考实现现在签发并验证 `1.0` 能力（冻结的作用域形状），`capability-1.0` Schema 已发布，KGP-RFC-0001 已 Accepted；JavaScript 与 Go 验证器接受 `0.2`/`1.0` 作用域能力。参考实现版本为 `2.9.0`。标准组织外联材料在 [docs/STANDARDS-OUTREACH.md](docs/STANDARDS-OUTREACH.md)。
 - 发布包可以离线验证：`python scripts/verify_release.py <数据包目录>`（校验和、一致性报告与 MPT 证据），`python benchmarks/bench.py` 输出机器可读的策略、签发、门禁、收据与 JCS 吞吐基准。
 - 后量子签名：作为 Ed25519 的实验性并行方案，支持 FIPS 204 ML-DSA-65 信封（`alg: "ML-DSA-65"`）。

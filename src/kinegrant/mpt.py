@@ -28,7 +28,10 @@ from .models import ActionRequest, PolicyRule, parse_time
 from .policy import PolicyEngine
 from .policy_bundle import (
     PolicyAuthority,
+    PolicyDistributor,
     PolicyRegistry,
+    analyze_policy_bundle,
+    policy_bundle_coverage,
     rules_from_bundle,
     verify_policy_bundle,
 )
@@ -1151,6 +1154,145 @@ def _policy_bundle_rollback() -> CaseResult:
     )
 
 
+def _policy_fleet_distribution() -> CaseResult:
+    authority = PolicyAuthority(Ed25519KeyPair.generate())
+    policy_id = "urn:kinegrant:mpt:policy:fleet-021"
+    rules_v1 = [
+        PolicyRule(
+            policy_id,
+            authority.kid,
+            "urn:kinegrant:mpt:target:1",
+            "allow",
+            ("open",),
+            purposes=("permission-test",),
+        )
+    ]
+    v1 = authority.publish(policy_id, rules_v1, ttl_seconds=3600)
+    rules_v2 = [
+        PolicyRule(
+            policy_id,
+            authority.kid,
+            "urn:kinegrant:mpt:target:1",
+            "allow",
+            ("open",),
+            purposes=("permission-test", "maintenance"),
+        )
+    ]
+    v2 = authority.publish(policy_id, rules_v2, ttl_seconds=3600)
+    gate_a = PolicyRegistry(trusted_authorities={authority.kid})
+    gate_b = PolicyRegistry(trusted_authorities={authority.kid})
+    initial = PolicyDistributor(
+        trusted_authorities={authority.kid}
+    ).distribute(v1, {"gate-a": gate_a, "gate-b": gate_b})
+    upgrade = PolicyDistributor(
+        trusted_authorities={authority.kid}
+    ).distribute(v2, {"gate-a": gate_a, "gate-b": gate_b})
+    noop = PolicyDistributor(
+        trusted_authorities={authority.kid}
+    ).distribute(v1, {"gate-a": gate_a})
+    passed = (
+        initial["overall_result"] == "PASS"
+        and initial["summary"]["applied_total"] == 2
+        and upgrade["summary"]["applied_total"] == 2
+        and noop["summary"]["already_present_total"] == 1
+        and gate_a.current(policy_id)["version"] == 2
+        and gate_b.current(policy_id)["version"] == 2
+    )
+    return _result(
+        "MPT-021",
+        "Fleet policy distribution upgrades without downgrades",
+        "PASS fleet report, both gates upgraded, no downgrade applied",
+        f"initial={initial['summary']['applied_total']} "
+        f"upgrade={upgrade['summary']['applied_total']} "
+        f"noop={noop['summary']['already_present_total']}",
+        passed,
+        {
+            "initial_applied": initial["summary"]["applied_total"],
+            "upgrade_applied": upgrade["summary"]["applied_total"],
+            "downgrade_noop": noop["summary"]["already_present_total"],
+            "gate_a_version": gate_a.current(policy_id)["version"],
+            "gate_b_version": gate_b.current(policy_id)["version"],
+        },
+    )
+
+
+def _policy_bundle_analysis() -> CaseResult:
+    authority = PolicyAuthority(Ed25519KeyPair.generate())
+    policy_id = "urn:kinegrant:mpt:policy:analysis-022"
+    clean = authority.publish(
+        policy_id,
+        [
+            PolicyRule(
+                policy_id,
+                authority.kid,
+                "urn:kinegrant:mpt:target:1",
+                "allow",
+                ("open",),
+                purposes=("permission-test",),
+            )
+        ],
+        ttl_seconds=3600,
+    )
+    conflicting = authority.publish(
+        policy_id + "-conflict",
+        [
+            PolicyRule(
+                policy_id,
+                authority.kid,
+                "urn:kinegrant:mpt:target:1",
+                "allow",
+                ("open",),
+            ),
+            PolicyRule(
+                policy_id + "-deny",
+                authority.kid,
+                "urn:kinegrant:mpt:target:1",
+                "deny",
+                ("open",),
+            ),
+        ],
+        ttl_seconds=3600,
+    )
+    clean_analysis = analyze_policy_bundle(
+        clean,
+        trusted_authorities={authority.kid},
+    )
+    conflict_analysis = analyze_policy_bundle(
+        conflicting,
+        trusted_authorities={authority.kid},
+    )
+    coverage = policy_bundle_coverage(
+        clean,
+        trusted_authorities={authority.kid},
+        targets=("urn:kinegrant:mpt:target:1",),
+    )
+    conflict_found = any(
+        finding["code"] == "conflicting_effect"
+        for finding in conflict_analysis["findings"]
+    )
+    passed = (
+        clean_analysis["overall_result"] == "PASS"
+        and conflict_analysis["overall_result"] == "FAIL"
+        and conflict_found
+        and coverage["overall_result"] == "PASS"
+    )
+    return _result(
+        "MPT-022",
+        "Policy bundle analysis detects conflicts and coverage passes",
+        "PASS analysis for clean bundle, FAIL with conflict for overlapping rules, PASS coverage",
+        f"clean={clean_analysis['overall_result']} "
+        f"conflict={conflict_analysis['overall_result']} "
+        f"coverage={coverage['overall_result']}",
+        passed,
+        {
+            "clean_analysis": clean_analysis["overall_result"],
+            "conflict_analysis": conflict_analysis["overall_result"],
+            "conflicting_effect_found": conflict_found,
+            "coverage": coverage["overall_result"],
+        },
+    )
+
+
 CASES: tuple[tuple[str, Callable[[], CaseResult]], ...] = (
     ("MPT-001", _no_grant),
     ("MPT-002", _valid_once),
@@ -1172,6 +1314,8 @@ CASES: tuple[tuple[str, Callable[[], CaseResult]], ...] = (
     ("MPT-018", _policy_bundle_enforced),
     ("MPT-019", _policy_bundle_tamper_rejected),
     ("MPT-020", _policy_bundle_rollback),
+    ("MPT-021", _policy_fleet_distribution),
+    ("MPT-022", _policy_bundle_analysis),
 )
 
 
@@ -1196,7 +1340,7 @@ def run_machine_permission_test(*, source_commit: str | None = None) -> dict[str
     passed = sum(case["passed"] for case in results)
     failed = len(results) - passed
     return {
-    "schema_version": "0.4",
+    "schema_version": "0.5",
         "run_id": f"urn:kinegrant:mpt:run:{uuid4()}",
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "protocol": "KGP-001 Experimental Open Draft 0.1",

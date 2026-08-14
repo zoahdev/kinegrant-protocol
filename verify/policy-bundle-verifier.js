@@ -496,14 +496,14 @@ export async function verifyReceiptChain(entries, trustedExecutors) {
 }
 
 const MPT_REQUIRED_CASES = new Set(
-  Array.from({ length: 20 }, (_, index) => `MPT-${String(index + 1).padStart(3, "0")}`)
+  Array.from({ length: 22 }, (_, index) => `MPT-${String(index + 1).padStart(3, "0")}`)
 );
 
 export function verifyMptEvidence(evidence) {
   if (typeof evidence !== "object" || evidence === null || Array.isArray(evidence)) {
     throw new Error("MPT evidence must be an object");
   }
-  if (evidence.schema_version !== "0.4") {
+  if (evidence.schema_version !== "0.5") {
     throw new Error("unsupported MPT evidence schema version");
   }
   if (!Array.isArray(evidence.cases) || evidence.cases.length === 0) {

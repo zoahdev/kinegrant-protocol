@@ -63,8 +63,8 @@
       "required": ["verifier", "required_cases", "passed_cases"],
       "properties": {
         "verifier": {"const": "challenge/verify_reproduction.py"},
-        "required_cases": {"const": 20},
-        "passed_cases": {"type": "integer", "minimum": 0, "maximum": 20}
+        "required_cases": {"const": 22},
+        "passed_cases": {"type": "integer", "minimum": 0, "maximum": 22}
       }
     },
     "overall_result": {"enum": ["PASS", "FAIL"]},
