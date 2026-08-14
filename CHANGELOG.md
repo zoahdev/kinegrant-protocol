@@ -11,6 +11,13 @@
 - Added fail-closed physical constraints to policy rules: `max_force_newtons`,
   `max_velocity_mps`, and `allowed_zones`, validated against request context
   and published in the PolicyRule schema.
+- Added scoped v0.2 capabilities and same-agent attenuation
+  (`attenuation.py`): child capabilities can only narrow target patterns,
+  action/purpose lists, lifetime, and physical constraints; the gate can
+  verify a child against its parent envelope.
+- Added approval tiers: `min_approval_tier` policy constraints,
+  decision-level `required_approval_tier`, and tier binding in v0.2
+  capabilities with a published v0.2 capability schema.
 - Published the nine-case KineGrant Machine Permission Test v0.1.
 - Added machine-readable PASS/FAIL evidence, an independent verifier, source
   commit and runner-digest provenance, and CI execution across Python 3.11–3.13.
