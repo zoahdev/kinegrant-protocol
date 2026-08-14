@@ -171,6 +171,10 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Conformance levels L1-L4 (`kinegrant-conformance`) and a wire-format
   compatibility policy (see [CONFORMANCE.md](CONFORMANCE.md) and
   [COMPATIBILITY.md](COMPATIBILITY.md)).
+- Independent JavaScript verifier (`kinegrant-js`) that verifies JCS,
+  Ed25519 envelopes, v0.1 capabilities, and receipt chains signed by the
+  Python reference implementation (see
+  [implementations/README.md](implementations/README.md)).
 - Post-quantum signing is available as an experimental parallel to Ed25519 via
   FIPS 204 ML-DSA-65 envelopes (`alg: "ML-DSA-65"`).
 - Forbidden combinations: an `ActionJournal` plus `SequencePolicy` denies

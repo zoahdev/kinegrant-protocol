@@ -40,6 +40,8 @@ jobs:
           retention-days: 30
       - name: ESP32-C3 evidence verifier dry run
         run: python proof/verify_esp32c3_evidence.py proof/esp32-c3/physical-proof-evidence.template.json --allow-not-run
+      - name: JavaScript verifier tests
+        run: node --test implementations/kinegrant-js/test/
 
   package:
     runs-on: ubuntu-latest
