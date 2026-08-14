@@ -28,6 +28,46 @@ fail-closed rule: unknown restrictions are rejected, never widened.
 Without the profile marker, these leftOperands are rejected by the adapter.
 With the marker, values are validated strictly; malformed values are rejected.
 
+## Duty obligations
+
+ODRL `duty` actions map to KineGrant capability obligations. The profile
+currently recognizes exactly one obligation:
+
+| ODRL duty action | KineGrant obligation |
+| --- | --- |
+| `emitActionReceipt` | `emitActionReceipt` (must produce a signed receipt) |
+
+Unknown duty actions are **rejected**, never silently dropped: dropping an
+obligation would widen permission. A policy rule whose decision carries an
+obligation issues a capability that binds the obligation, and the action gate
+rejects capabilities with obligations it does not know.
+
+## Forbidden combinations (`kg:prohibitedCombination`)
+
+ODRL 2.2 cannot natively express cross-action invariants such as "once this
+space has been recorded, training on it is forbidden". The profile adds a
+top-level `kg:prohibitedCombination` member (only valid with the profile
+marker) that maps to KineGrant `ForbiddenCombination`/`SequencePolicy` rules:
+
+```json
+{
+  "uid": "urn:kinegrant:combo:record-train",
+  "patterns": [{"action": "record", "target": "space-*"}],
+  "windowSeconds": 3600,
+  "trigger": {"action": "train_on_data", "target": "space-*"}
+}
+```
+
+- `patterns` is a non-empty list of `{action, target}` glob pairs that must
+  never all be observed in the deployment's action journal;
+- `windowSeconds` (optional) limits how recent journal entries must be;
+- `trigger` (optional) narrows which requests are denied once the combination
+  is complete; without it every subsequent request is denied.
+
+`odrl_to_sequence_policy()` builds a fail-closed `SequencePolicy`, and
+`rules_to_odrl()` serializes KineGrant rules plus forbidden combinations back
+into a profile document for a faithful round trip.
+
 ## Semantics
 
 - an `allow` permission applies only when the request proves compliance with
@@ -67,9 +107,10 @@ With the marker, values are validated strictly; malformed values are rejected.
 
 - `tests/test_profiles_interop.py` covers mapping, enforcement, fail-closed
   rejection without the profile, and invalid values;
+- `tests/test_odrl_sequences.py` covers duty obligations (known/unknown),
+  forbidden-combination parsing and enforcement, and ODRL round trips;
 - fuzz harness (`kinegrant.fuzz.AdapterFuzzHarness`) includes the ODRL adapter.
 
 ## Open questions
 
-- whether to add ODRL `duty` obligations beyond `emitActionReceipt`;
 - whether `prohibition` should support lower bounds (e.g., `minForce`).

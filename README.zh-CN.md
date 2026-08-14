@@ -95,6 +95,7 @@ python -m unittest discover -s tests -v
 - WoT 风格发现：带认证的 `ThingRegistry` 将 Thing Description 映射到动作与策略指针；未认证发现永远不能携带授权指针。参见 [spec/DISCOVERY.md](spec/DISCOVERY.md)。
 - 模拟双栈机器人演示：`kinegrant-robot-demo` 让 ROS 2 风格与 Matter 风格两个技术栈服从同一份策略，并注入重放、不可信签发者、提示注入、物理超限与禁止组合故障。参见 [spec/ROBOT-DEMO.md](spec/ROBOT-DEMO.md)。
 - 参考桥接：面向 ROS 2 形态集成的 `Ros2GoalGate` + `Sros2PolicyMapping`，以及覆盖 Matter、OPC UA、ROS 2 适配器并带适配器保真检查的 `kinegrant-bridge-demo`。参见 [spec/ROS2-BRIDGE.md](spec/ROS2-BRIDGE.md)。
+- 跨系统动作门禁演示：`kinegrant-ros2-demo` 让 ROS 2 风格技术栈与 MCP 风格智能体工具调用栈（`kinegrant.adapters.mcp`）服从同一份策略、门禁、签名收据日志与序列策略，并注入重放、不可信签发者、目的、物理超限与禁止组合故障（参见 [spec/ROS2-BRIDGE.md](spec/ROS2-BRIDGE.md)）。
 - 硬件信任基础：`TrustedClock`、绑定进收据的签名传感器证据承诺、公证收据检查点、硬件密钥签名后端与带测量启动声明的设备证明。参见 [spec/HARDWARE-TRUST.md](spec/HARDWARE-TRUST.md)。
 - 隐私基础：轮换临时标识符与带 Merkle 包含证明的选择性披露信封（参见 [spec/PRIVACY.md](spec/PRIVACY.md)、[spec/MERKLE-DISCLOSURE.md](spec/MERKLE-DISCLOSURE.md)），外加可执行的红队套件 `kinegrant-red-team`，覆盖重放、篡改、混淆代理、冲突、降级、时钟、撤销、委派、适配器与序列攻击（参见 [spec/RED-TEAM.md](spec/RED-TEAM.md)）。
 - 静态策略分析（`PolicyInvariants`、`explain_decision`）与确定性适配器模糊器（`AdapterFuzzHarness`），外加[治理章程](GOVERNANCE.md)与 [RFC 流程](docs/RFC-PROCESS.md)。
@@ -107,7 +108,7 @@ python -m unittest discover -s tests -v
 - 后量子签名：作为 Ed25519 的实验性并行方案，支持 FIPS 204 ML-DSA-65 信封（`alg: "ML-DSA-65"`）。
 - 禁止组合：`ActionJournal` + `SequencePolicy` 在危险动作集合全部出现后拒绝后续请求（例如先录像再训练数据），支持可选时间窗与触发模式。
 - 规范标识符：主体、目标与策略使用 `urn:kinegrant:<kind>:<namespace>:<local-id>` 语法。参见 [spec/IDENTITY.md](spec/IDENTITY.md)。
-- 版本化外部 profile：ODRL 适配器支持 KineGrant 物理动作 profile（`kgp-v0.2`），映射力/速度/区域/审批约束；IEEE 7012 桥接受 profile/version 元数据。未知约束仍然 fail-closed。
+- 版本化外部 profile：ODRL 适配器支持 KineGrant 物理动作 profile（`kgp-v0.2`），映射力/速度/区域/审批约束与 `emitActionReceipt` 义务，并提供 `kg:prohibitedCombination` 扩展表达跨动作禁止组合；`rules_to_odrl()` 可以把规则反序列化回 profile 文档形成忠实往返。IEEE 7012 桥接受 profile/version 元数据。未知约束与未知义务仍然 fail-closed。
 
 ## 仓库地图
 

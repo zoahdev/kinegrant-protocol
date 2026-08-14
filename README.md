@@ -154,6 +154,11 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   integration, and `kinegrant-bridge-demo` covering Matter, OPC UA, and ROS 2
   adapters with adapter-fidelity checks (see
   [spec/ROS2-BRIDGE.md](spec/ROS2-BRIDGE.md)).
+- Cross-system action-gate demo: `kinegrant-ros2-demo` runs a ROS 2-style
+  stack and an MCP-style agent tool-call stack (`kinegrant.adapters.mcp`)
+  against one shared policy, gate, signed receipt log, and sequence policy,
+  with replay, untrusted-issuer, purpose, physical-limit, and forbidden-
+  combination faults (see [spec/ROS2-BRIDGE.md](spec/ROS2-BRIDGE.md)).
 - Hardware-trust groundwork: `TrustedClock`, signed sensor-evidence
   commitments bound into receipts, notarized receipt checkpoints, signing
   backends for hardware keys, and device attestations with measured-boot
@@ -202,8 +207,11 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   [spec/IDENTITY.md](spec/IDENTITY.md).
 - Versioned external profiles: the ODRL adapter supports a KineGrant
   physical-action profile (`kgp-v0.2`) mapping force/velocity/zone/approval
-  constraints, and the IEEE 7012 bridge accepts profile/version metadata.
-  Unknown constraints still fail closed.
+  constraints and `emitActionReceipt` duty obligations, plus a
+  `kg:prohibitedCombination` extension for cross-action forbidden
+  combinations; `rules_to_odrl()` serializes rules back into profile
+  documents for a faithful round trip. The IEEE 7012 bridge accepts
+  profile/version metadata. Unknown constraints and duties still fail closed.
 
 ## Repository map
 
