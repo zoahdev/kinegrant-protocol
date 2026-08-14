@@ -95,6 +95,10 @@ Progress on main:
   commitments bound into receipts, notarized receipt checkpoints, signing
   backends for hardware keys, and device attestations with measured-boot
   claims.
+- Privacy groundwork: rotating ephemeral identifiers and selective-disclosure
+  envelopes; an executable red-team corpus covering replay, mutation,
+  confused deputy, conflict, downgrade, clock, revocation, delegation,
+  adapter, and sequence attacks.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.

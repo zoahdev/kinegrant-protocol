@@ -32,7 +32,9 @@ from .keys import (
 )
 from .models import ActionRequest, Decision, PolicyRule
 from .policy import PolicyEngine
+from .privacy import RotatingIdentifierRegistry, redact, verify_redaction
 from .receipt import ReceiptLog, verify_receipt_chain
+from .redteam import RED_TEAM_CASES, RedTeamSuite
 from .revocation import (
     RevocationEntry,
     RevocationList,
@@ -79,7 +81,10 @@ __all__ = [
     "MLDSA65KeyPair",
     "PolicyEngine",
     "PolicyRule",
+    "RED_TEAM_CASES",
     "ReceiptLog",
+    "RedTeamSuite",
+    "RotatingIdentifierRegistry",
     "RevocationEntry",
     "RevocationList",
     "SensorReading",
@@ -114,6 +119,7 @@ __all__ = [
     "random_agent_id",
     "random_policy_id",
     "random_target_id",
+    "redact",
     "registry",
     "target_id",
     "sign_revocation_bundle",
@@ -121,6 +127,7 @@ __all__ = [
     "verify_envelope",
     "verify_attenuation",
     "verify_device_attestation",
+    "verify_redaction",
     "verify_receipt_checkpoint",
     "verify_revocation_bundle",
     "verify_sensor_commitment",
