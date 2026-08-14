@@ -4,6 +4,9 @@
 
 ## 1.1.0 — 2026-08-15
 
+- Receipt auditing now exports CSV (`ReceiptAuditor.export_csv`) and
+  self-verifying evidence packets (`export_packet` with a content-addressed
+  digest); `kinegrant-audit` gained `--csv FILE` and `--packet FILE`.
 - Added fleet revocation distribution (`kinegrant.distribution.
   RevocationDistributor`) and the `kinegrant-revoke-distribute` CLI: one
   verified signed revocation bundle is applied idempotently to many gates,
