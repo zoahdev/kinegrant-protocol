@@ -13,7 +13,7 @@ import random
 from typing import Any, Callable, Mapping
 
 from .adapters.ieee7012 import myterms_to_rules
-from .adapters.odrl import odrl_to_rules
+from .adapters.odrl import odrl_forbidden_combinations, odrl_to_rules
 from .adapters.wot import describe_wot_actions
 
 
@@ -33,6 +33,23 @@ def _seed_documents() -> dict[str, dict[str, Any]]:
                     "constraint": [
                         {"leftOperand": "purpose", "operator": "eq", "rightOperand": "delivery"}
                     ],
+                }
+            ],
+        },
+        "odrl-sequence": {
+            "@context": "http://www.w3.org/ns/odrl/2/",
+            "@type": "Offer",
+            "uid": "urn:kinegrant:fuzz:odrl-seq:1",
+            "profile": "https://kinegrant.com/profiles/odrl/kgp-v0.2",
+            "assigner": "trusted",
+            "kg:prohibitedCombination": [
+                {
+                    "uid": "urn:kinegrant:fuzz:combo:1",
+                    "patterns": [
+                        {"action": "record", "target": "urn:kinegrant:fuzz:target:*"},
+                    ],
+                    "windowSeconds": 3600,
+                    "trigger": {"action": "train_on_data", "target": "urn:kinegrant:fuzz:target:*"},
                 }
             ],
         },
@@ -90,6 +107,7 @@ def _mutate(rng: random.Random, value: Any, depth: int = 0) -> Any:
 
 ADAPTERS: dict[str, Callable[[Mapping[str, Any]], object]] = {
     "odrl": odrl_to_rules,
+    "odrl-sequence": odrl_forbidden_combinations,
     "ieee7012": myterms_to_rules,
     "wot": describe_wot_actions,
 }

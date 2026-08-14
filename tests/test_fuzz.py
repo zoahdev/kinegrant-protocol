@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from kinegrant.fuzz import AdapterFuzzHarness
+from kinegrant.fuzz import ADAPTERS, AdapterFuzzHarness
 
 
 class AdapterFuzzTests(unittest.TestCase):
@@ -12,7 +12,7 @@ class AdapterFuzzTests(unittest.TestCase):
         self.assertEqual(first["overall_result"], "PASS")
         self.assertEqual(first["summary"]["clean"], first["summary"]["total"])
         self.assertEqual(first["cases"], second["cases"])
-        self.assertEqual(len(first["cases"]), 30)  # 3 adapters x 10 iterations
+        self.assertEqual(len(first["cases"]), len(ADAPTERS) * 10)
 
     def test_different_seeds_give_different_cases(self) -> None:
         first = AdapterFuzzHarness(seed=1, iterations=5).run()

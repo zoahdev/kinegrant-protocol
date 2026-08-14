@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Added the cross-system ROS 2 + MCP action-gate demo (`kinegrant-ros2-demo`)
+  and the MCP tool-call adapter (`kinegrant.adapters.mcp`): one shared policy,
+  gate, signed receipt log, and sequence policy govern a ROS 2-style stack and
+  an MCP-style agent stack, with replay, untrusted-issuer, purpose,
+  physical-limit, and forbidden-combination fault injection.
+- Extended the ODRL `kgp-v0.2` profile adapter: known `emitActionReceipt`
+  duties map to obligations (unknown duties fail closed), a
+  `kg:prohibitedCombination` extension maps to `SequencePolicy` rules, and
+  `rules_to_odrl()` serializes rules and forbidden combinations back into
+  profile documents for a faithful round trip; the deterministic adapter
+  fuzz harness now covers the sequence mapping.
 - Added the complete Chinese README (`README.zh-CN.md`) and refreshed the
   English README to the v1.0.0 / stable wire format 1.0 status; Machine
   Permission Test packet links now point at the `mpt-v0.2` release.
