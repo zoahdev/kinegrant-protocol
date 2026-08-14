@@ -149,7 +149,8 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   camera-consent deployment traces include the compliance verdict, all three
   runnable demos (`kinegrant-robot-demo`, `kinegrant-bridge-demo`,
   `kinegrant-ros2-demo`) report `obligation_compliance_ok`, the conformance
-  suite L1-L4 includes an `obligation_compliance` mark (18/18), and the
+  suite L1-L4 includes `obligation_compliance` and `gatekeeper_boundary`
+  marks (19/19), and the
   micro-benchmarks include obligation compliance throughput.
 - One-call deployment boundary: `Gatekeeper` composes sequence check, gate
   verification and one-time consumption, actuator execution, signed receipt,
