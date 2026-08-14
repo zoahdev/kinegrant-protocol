@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- JavaScript and Go verifiers now accept `0.2`/`1.0` scoped capabilities,
+  giving three-way stable-format interoperability in CI.
 - Added stable wire format `1.0`: reference implementation issues and verifies
   frozen-scoped capabilities, published `capability-1.0` schema, and KGP-RFC-0001
   accepted (comment window open). Reference implementation version bumped to

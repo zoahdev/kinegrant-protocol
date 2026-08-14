@@ -117,6 +117,8 @@ Progress on main:
 - Stable wire format: `1.0` capability support in the reference
   implementation with a published schema; KGP-RFC-0001 accepted (comment
   window open until v1.0.0).
+- Three-way stable-format interoperability: JavaScript and Go verifiers accept
+  `0.2`/`1.0` scoped capabilities cross-tested against Python in CI.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.

@@ -10,6 +10,14 @@ const CAPABILITY_FIELDS = new Set([
   "request_digest", "policy_digest", "matched_policy_ids", "obligations",
   "issued_at", "not_before", "expires_at", "nonce", "capability_id",
 ]);
+const CAPABILITY_FIELDS_V2 = new Set([
+  ...CAPABILITY_FIELDS,
+  "actions", "purposes", "parent_capability_id", "constraints", "approval_tier",
+  "delegation_allowed", "max_delegation_depth", "delegate_agent", "delegation_depth",
+  "root_capability_id", "delegate_allowlist",
+]);
+CAPABILITY_FIELDS_V2.delete("action");
+CAPABILITY_FIELDS_V2.delete("purpose");
 
 function b64urlDecode(value) {
   if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error("invalid base64url");
@@ -69,6 +77,17 @@ function digestOfObject(value) {
 
 export function verifyCapability(envelope, request, trustedIssuers) {
   const payload = verifyEnvelope(envelope);
+  const version = payload.version;
+  if (version === "0.1") {
+    return verifyCapabilityV1(payload, envelope, request, trustedIssuers);
+  }
+  if (version === "0.2" || version === "1.0") {
+    return verifyCapabilityV2(payload, envelope, request, trustedIssuers);
+  }
+  throw new Error("unsupported capability version");
+}
+
+function verifyCapabilityV1(payload, envelope, request, trustedIssuers) {
   const fields = new Set(Object.keys(payload));
   if (fields.size !== CAPABILITY_FIELDS.size ||
       [...fields].some((key) => !CAPABILITY_FIELDS.has(key))) {
@@ -122,6 +141,129 @@ export function verifyCapability(envelope, request, trustedIssuers) {
     throw new Error("capability identifier is inconsistent");
   }
   return payload;
+}
+
+function globMatch(pattern, value) {
+  if (pattern === "*") return true;
+  const escaped = pattern.split("*").map((part) =>
+    part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  ).join(".*");
+  return new RegExp(`^${escaped}$`).test(value);
+}
+
+function verifyCapabilityV2(payload, envelope, request, trustedIssuers) {
+  const fields = new Set(Object.keys(payload));
+  if (fields.size !== CAPABILITY_FIELDS_V2.size ||
+      [...fields].some((key) => !CAPABILITY_FIELDS_V2.has(key))) {
+    throw new Error("capability fields do not match the scoped schema");
+  }
+  if (payload.type !== "kinegrant:PhysicalActionCapability") {
+    throw new Error("wrong capability type");
+  }
+  if (payload.issuer !== envelope.kid) {
+    throw new Error("capability issuer does not match signing key");
+  }
+  if (!trustedIssuers.has(payload.issuer)) {
+    throw new Error("untrusted capability issuer");
+  }
+  const requestDigest = digestOfObject(request);
+  if (payload.request_digest !== requestDigest) {
+    throw new Error("capability does not authorize this request");
+  }
+  if (payload.agent !== request.agent) {
+    throw new Error("capability agent mismatch");
+  }
+  if (!globMatch(payload.target, request.target)) {
+    throw new Error("capability target scope mismatch");
+  }
+  if (!Array.isArray(payload.actions) || !payload.actions.includes(request.action)) {
+    throw new Error("capability action scope mismatch");
+  }
+  if (!Array.isArray(payload.purposes) || !payload.purposes.includes(request.purpose)) {
+    throw new Error("capability purpose scope mismatch");
+  }
+  const parentId = payload.parent_capability_id;
+  if (parentId !== null && (typeof parentId !== "string" || parentId.length === 0)) {
+    throw new Error("capability parent id must be a string or null");
+  }
+  const constraints = payload.constraints;
+  if (typeof constraints !== "object" || constraints === null || Array.isArray(constraints)) {
+    throw new Error("capability constraints must be an object");
+  }
+  for (const name of ["max_force_newtons", "max_velocity_mps"]) {
+    const value = constraints[name];
+    if (value !== undefined && (typeof value !== "number" || value < 0)) {
+      throw new Error(`capability ${name} must be a non-negative number`);
+    }
+  }
+  const zones = constraints.allowed_zones;
+  if (zones !== undefined && (!Array.isArray(zones) || zones.length === 0 ||
+      zones.some((zone) => typeof zone !== "string" || zone.length === 0))) {
+    throw new Error("capability allowed_zones must be a non-empty list");
+  }
+  const tier = payload.approval_tier;
+  if (!Number.isInteger(tier) || tier < 0 || tier > 2) {
+    throw new Error("capability approval_tier must be an integer between 0 and 2");
+  }
+  if (typeof payload.delegation_allowed !== "boolean") {
+    throw new Error("capability delegation_allowed must be a boolean");
+  }
+  const maxDepth = payload.max_delegation_depth;
+  if (!Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > 3) {
+    throw new Error("capability max_delegation_depth must be an integer between 0 and 3");
+  }
+  const depth = payload.delegation_depth;
+  if (!Number.isInteger(depth) || depth < 0 || depth > 3) {
+    throw new Error("capability delegation_depth must be an integer between 0 and 3");
+  }
+  const delegate = payload.delegate_agent;
+  if (delegate !== null && (typeof delegate !== "string" || delegate.length === 0)) {
+    throw new Error("capability delegate_agent must be a non-empty string or null");
+  }
+  if (typeof payload.root_capability_id !== "string" || payload.root_capability_id.length === 0) {
+    throw new Error("capability root_capability_id must be a non-empty string");
+  }
+  const allowlist = payload.delegate_allowlist;
+  if (allowlist !== null && (!Array.isArray(allowlist) ||
+      allowlist.some((item) => typeof item !== "string" || item.length === 0))) {
+    throw new Error("capability delegate_allowlist must be a list or null");
+  }
+  validateCommon(payload, request, envelope);
+  return payload;
+}
+
+function validateCommon(payload, request, envelope) {
+  const now = Date.now();
+  const issuedAt = parseTime(payload.issued_at);
+  const notBefore = parseTime(payload.not_before);
+  const expiresAt = parseTime(payload.expires_at);
+  if (notBefore < issuedAt || expiresAt <= notBefore) {
+    throw new Error("invalid capability time window");
+  }
+  if (expiresAt - notBefore > 300_000) {
+    throw new Error("capability lifetime exceeds protocol maximum");
+  }
+  if (now < notBefore) throw new Error("capability is not active yet");
+  if (now >= expiresAt) throw new Error("capability has expired");
+  if (typeof payload.nonce !== "string" || payload.nonce.length < 20) {
+    throw new Error("capability nonce is invalid");
+  }
+  if (!Array.isArray(payload.matched_policy_ids) || payload.matched_policy_ids.length === 0) {
+    throw new Error("capability has no matching policy");
+  }
+  if (!Array.isArray(payload.obligations) ||
+      payload.obligations.some((item) => item !== "emitActionReceipt")) {
+    throw new Error("capability obligations are invalid");
+  }
+  if (!/^sha256:[0-9a-f]{64}$/.test(payload.policy_digest || "")) {
+    throw new Error("capability policy digest is invalid");
+  }
+  const unsigned = { ...payload };
+  delete unsigned.capability_id;
+  delete unsigned.root_capability_id;
+  if (payload.capability_id !== contentId("kinegrant:cap", unsigned)) {
+    throw new Error("capability identifier is inconsistent");
+  }
 }
 
 export function verifyReceiptChain(entries, trustedExecutors) {

@@ -78,6 +78,46 @@ function buildCapability(privateKey, publicKey, request, { ttlSeconds = 300 } = 
   return signEnvelope(privateKey, body);
 }
 
+function buildScopedCapability(privateKey, publicKey, request, version = "1.0") {
+  const now = new Date();
+  const issuedAt = now.toISOString().replace(/\.\d{3}Z$/, "Z");
+  const expiresAt = new Date(now.getTime() + 300_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const body = {
+    type: "kinegrant:PhysicalActionCapability",
+    version,
+    issuer: kidOf(publicKey),
+    agent: request.agent,
+    target: "urn:kinegrant:interop:target:*",
+    actions: ["open", "close"],
+    purposes: ["delivery"],
+    request_digest: "sha256:" + createHash("sha256")
+      .update(canonicalJson(request)).digest("hex"),
+    policy_digest: "sha256:" + "0".repeat(64),
+    matched_policy_ids: ["policy-1"],
+    obligations: ["emitActionReceipt"],
+    issued_at: issuedAt,
+    not_before: issuedAt,
+    expires_at: expiresAt,
+    nonce: "n".repeat(24),
+    parent_capability_id: null,
+    constraints: {},
+    approval_tier: 0,
+    delegation_allowed: false,
+    max_delegation_depth: 0,
+    delegate_agent: null,
+    delegation_depth: 0,
+    delegate_allowlist: null,
+  };
+  const unsigned = { ...body };
+  body.capability_id = contentId("kinegrant:cap", unsigned);
+  body.root_capability_id = body.capability_id;
+  const unsignedWithRoot = { ...body };
+  delete unsignedWithRoot.capability_id;
+  delete unsignedWithRoot.root_capability_id;
+  body.capability_id = contentId("kinegrant:cap", unsignedWithRoot);
+  return signEnvelope(privateKey, body);
+}
+
 test("capability verification accepts a valid v0.1 capability", () => {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
   const request = {
@@ -112,6 +152,24 @@ test("capability verification rejects a tampered request binding", () => {
   const envelope = buildCapability(privateKey, publicKey, request);
   const other = { ...request, request_id: "req-other" };
   assert.throws(() => verifyCapability(envelope, other, new Set([envelope.kid])));
+});
+
+test("scoped capability verification accepts a v1.0 capability", () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const request = {
+    type: "kinegrant:ActionRequest",
+    version: "0.1",
+    request_id: "req-scoped",
+    agent: "robot-1",
+    target: "urn:kinegrant:interop:target:door-7",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const envelope = buildScopedCapability(privateKey, publicKey, request, "1.0");
+  const payload = verifyCapability(envelope, request, new Set([envelope.kid]));
+  assert.equal(payload.version, "1.0");
 });
 
 test("receipt chain round trip", () => {
