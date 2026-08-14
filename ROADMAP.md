@@ -91,6 +91,8 @@ Progress on main:
 - ROS 2 reference bridge: `Ros2GoalGate` and a deterministic `Sros2PolicyMapping`
   generator, plus a Matter/OPC UA/ROS 2 bridge demo with adapter-fidelity
   checks.
+- Hardware-trust groundwork: monotonic `TrustedClock`, signed sensor-evidence
+  commitments bound into receipts, and notarized receipt checkpoints.
 - Experimental ML-DSA-65 (FIPS 204) post-quantum envelopes alongside Ed25519.
 - Forbidden combinations and cross-action sequence policy with an append-only
   action journal, time windows, and trigger patterns.

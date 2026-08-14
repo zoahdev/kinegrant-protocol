@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added v0.4 hardware-trust groundwork: `TrustedClock` (rejects backwards and
+  anomalous-jumping time), signed sensor-evidence commitments bound into
+  receipts, and notarized receipt checkpoints.
 - Added the ROS 2 reference bridge (`Ros2GoalGate`, `Sros2PolicyMapping`)
   and the Matter/OPC UA/ROS 2 bridge demo (`kinegrant-bridge-demo`) with
   adapter-fidelity checks.
