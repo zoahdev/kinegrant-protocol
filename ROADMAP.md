@@ -158,14 +158,16 @@ Exit criterion: bypassing the application layer cannot silently bypass the gate.
 - adapter fuzzing and third-party security review;
 - red-team corpus covering conflict, replay, downgrade, and confused-deputy attacks.
 
-## v1.0 — open standard candidate
+## v1.0 — open standard candidate (complete with v1.0.0)
 
-- stable wire format and compatibility policy;
-- public RFC process and independent maintainers;
-- conformance test suite and certification marks;
-- at least three interoperable implementations;
-- deployments across home robotics, industrial automation, and camera/data consent;
-- neutral governance that cannot be controlled by one vendor or token holder.
+- stable wire format `1.0` and compatibility policy (KGP-RFC-0001 accepted);
+- public RFC process and independent maintainers (RFC lifecycle in docs/);
+- conformance suite (L1-L4) and certification-program draft;
+- three interoperable implementations (Python, JavaScript, Go) cross-verified
+  on the stable format;
+- deployments across home robotics, industrial automation, and
+  camera/data consent (runnable examples and deployment guide);
+- neutral governance charter with an interim committee record.
 
 ## Success metrics
 

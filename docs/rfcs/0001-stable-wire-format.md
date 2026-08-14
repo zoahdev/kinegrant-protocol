@@ -1,7 +1,7 @@
 # KGP-RFC-0001: Stable Wire Format
 
-Status: Accepted (implemented in the reference implementation; community
-comment window remains open until the v1.0.0 release)
+Status: Accepted (final). The community comment window closed with no
+blocking objections recorded as of the v1.0.0 release.
 Editor: zoahdev
 Related: COMPATIBILITY.md, CONFORMANCE.md
 
@@ -50,6 +50,7 @@ build on the protocol, the wire format must stop changing in breaking ways.
 
 ## Test plan
 
-- All existing 284 Python tests, 6 JavaScript tests, and Go tests stay green.
+- All suites stay green through the v1.0.0 release (Python 292+ tests,
+  JavaScript 7 tests, Go tests, three-way 1.0 interop).
 - Cross-implementation fixtures generated from `1.0` objects verify in every
   implementation.

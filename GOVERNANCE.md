@@ -1,6 +1,6 @@
 # KineGrant Governance Charter
 
-> Status: draft for community review
+> Status: accepted as of v1.0.0
 
 ## Mission
 
@@ -49,3 +49,8 @@ an auditor can reproduce the decision, and receipts reveal less than raw logs.
 ## Amendment
 
 This charter is amended only through the RFC process.
+
+## Interim committee record
+
+See `docs/COMMITTEE.md` for the formation record, members, and decisions as of
+the v1.0.0 release.
