@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 2.8.0 - v2.8 first item (unreleased)
+
+- Browser verifier now validates Machine Permission Test evidence (schema 0.4, required cases MPT-001..020, summary and overall-result consistency) via `verifyMptEvidence`; the HTML page and Node CLI (`mpt` command) expose it, cross-tested against a Python-generated 20/20 evidence file.
+
 ## 2.7.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.7.0 on the stable

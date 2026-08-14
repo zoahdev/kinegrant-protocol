@@ -495,6 +495,66 @@ export async function verifyReceiptChain(entries, trustedExecutors) {
   return true;
 }
 
+const MPT_REQUIRED_CASES = new Set(
+  Array.from({ length: 20 }, (_, index) => `MPT-${String(index + 1).padStart(3, "0")}`)
+);
+
+export function verifyMptEvidence(evidence) {
+  if (typeof evidence !== "object" || evidence === null || Array.isArray(evidence)) {
+    throw new Error("MPT evidence must be an object");
+  }
+  if (evidence.schema_version !== "0.4") {
+    throw new Error("unsupported MPT evidence schema version");
+  }
+  if (!Array.isArray(evidence.cases) || evidence.cases.length === 0) {
+    throw new Error("MPT evidence has no cases");
+  }
+  const identifiers = evidence.cases.map((caseItem) => caseItem.id);
+  if (new Set(identifiers).size !== identifiers.length) {
+    throw new Error("MPT case identifiers must be unique");
+  }
+  const missing = [...MPT_REQUIRED_CASES].filter(
+    (required) => !identifiers.includes(required)
+  );
+  if (missing.length > 0) {
+    throw new Error("missing required MPT cases: " + missing.join(", "));
+  }
+  for (const caseItem of evidence.cases) {
+    if (typeof caseItem !== "object" || caseItem === null) {
+      throw new Error("each MPT case must be an object");
+    }
+    for (const field of ["id", "name", "expected", "observed"]) {
+      if (typeof caseItem[field] !== "string" || caseItem[field].length === 0) {
+        throw new Error(`MPT case ${field} is invalid`);
+      }
+    }
+    if (typeof caseItem.passed !== "boolean") {
+      throw new Error("MPT case passed flag is invalid");
+    }
+  }
+  const passed = evidence.cases.filter((caseItem) => caseItem.passed).length;
+  const failed = evidence.cases.length - passed;
+  const summary = evidence.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    summary.total !== evidence.cases.length ||
+    summary.passed !== passed ||
+    summary.failed !== failed
+  ) {
+    throw new Error("MPT summary is inconsistent with case results");
+  }
+  const expectedResult = failed === 0 ? "PASS" : "FAIL";
+  if (evidence.overall_result !== expectedResult) {
+    throw new Error("MPT overall_result is inconsistent with case results");
+  }
+  return {
+    run_id: evidence.run_id,
+    overall_result: evidence.overall_result,
+    summary: evidence.summary,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -502,5 +562,6 @@ if (typeof globalThis !== "undefined") {
     currentPolicyVersion,
     verifyCapability,
     verifyReceiptChain,
+    verifyMptEvidence,
   };
 }

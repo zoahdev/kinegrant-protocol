@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   verifyCapability,
   currentPolicyVersion,
+  verifyMptEvidence,
   verifyPolicyBundle,
   verifyReceiptChain,
 } from "./policy-bundle-verifier.js";
@@ -43,12 +44,20 @@ try {
     const trustedExecutors = executorsPath ? new Set(load(executorsPath)) : null;
     await verifyReceiptChain(entries, trustedExecutors);
     console.log("RECEIPT CHAIN VALID");
+  } else if (command === "mpt") {
+    const [evidencePath] = args;
+    const evidence = load(evidencePath);
+    const result = verifyMptEvidence(evidence);
+    console.log(
+      `MPT EVIDENCE VALID (${result.overall_result}: ${result.summary.passed}/${result.summary.total})`
+    );
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
       "current <bundles.json> [revoked.json] | " +
       "capability <envelope.json> <request.json> <issuers.json> | " +
-      "receipts <entries.json> [executors.json]"
+      "receipts <entries.json> [executors.json] | " +
+      "mpt <evidence.json>"
     );
   }
 } catch (error) {
