@@ -1478,6 +1478,36 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_bridge_demo_reports(self) -> None:
+        for module in (
+            "kinegrant.experimental.ros2_demo",
+            "kinegrant.experimental.bridge_demo",
+        ):
+            proc = subprocess.run(
+                [sys.executable, "-m", module],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            self.assertEqual(proc.returncode, 0, proc.stderr[:1000])
+            report = json.loads(proc.stdout)
+            with tempfile.TemporaryDirectory() as directory:
+                base = Path(directory)
+                report_path = base / "bridge.json"
+                report_path.write_text(json.dumps(report), encoding="utf-8")
+                verified = self._run("bridge", str(report_path))
+                self.assertEqual(verified.returncode, 0, verified.stderr)
+                self.assertIn("BRIDGE DEMO REPORT VALID", verified.stdout)
+                tampered = dict(report)
+                tampered["summary"] = dict(report["summary"])
+                tampered["summary"]["passed"] -= 1
+                tampered_path = base / "tampered.json"
+                tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+                rejected = self._run("bridge", str(tampered_path))
+                self.assertEqual(rejected.returncode, 2)
+                self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

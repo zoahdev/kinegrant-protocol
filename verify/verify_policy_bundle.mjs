@@ -32,6 +32,7 @@ import {
   sensorEvidenceHash,
   verifyReceiptCheckpoint,
   verifyDeviceAttestation,
+  verifyBridgeDemoReport,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -307,6 +308,14 @@ try {
         `boot_counter=${result.boot_counter}, firmware=${result.firmware_digest}, ` +
         `${result.stages} measured-boot stages)`
     );
+  } else if (command === "bridge") {
+    const [reportPath] = args;
+    const report = load(reportPath);
+    const result = verifyBridgeDemoReport(report);
+    console.log(
+      `BRIDGE DEMO REPORT VALID (${result.type}: ${result.overall_result}, ` +
+        `${result.summary.passed}/${result.summary.total} outcomes)`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -348,7 +357,8 @@ try {
       "lifecycle <trace.json> <bundle.json> <authorities.json> | " +
       "sensor <commitment.json> | " +
       "checkpoint <checkpoint.json> | " +
-      "attestation <attestation.json>"
+      "attestation <attestation.json> | " +
+      "bridge <report.json>"
     );
   }
 } catch (error) {

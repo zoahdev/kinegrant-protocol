@@ -40,6 +40,7 @@ import {
   sensorEvidenceHash,
   verifyReceiptCheckpoint,
   verifyDeviceAttestation,
+  verifyBridgeDemoReport,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -331,6 +332,41 @@ function buildAttestation(privateKey, publicKey) {
       .update(Buffer.from(canonicalJson(unsigned), "utf8"))
       .digest("hex");
   return signEnvelope(privateKey, body);
+}
+
+function buildBridgeOutcomes(includePurpose = true) {
+  const specs = [
+    {
+      scenario: "allow-open",
+      stack: "ros2",
+      action: "open",
+      allowed: true,
+      expected: "ALLOW",
+      obligation: true,
+    },
+    {
+      scenario: "deny-replay",
+      stack: "ros2",
+      action: "open",
+      allowed: false,
+      expected: "DENY",
+      obligation: null,
+    },
+  ];
+  return specs.map((spec) => {
+    const outcome = {
+      scenario: spec.scenario,
+      stack: spec.stack,
+      action: spec.action,
+      allowed: spec.allowed,
+      reason: spec.allowed ? "allow" : "denied",
+      expected: spec.expected,
+      obligation_compliant: spec.obligation,
+      passed: spec.allowed === (spec.expected === "ALLOW"),
+    };
+    if (includePurpose) outcome.purpose = "delivery";
+    return outcome;
+  });
 }
 
 function buildReceipt(privateKey, publicKey, { capabilityId, previous = null } = {}) {
@@ -1379,4 +1415,39 @@ test("browser verifier validates device attestations", async () => {
   const bad = JSON.parse(JSON.stringify(attestation));
   bad.payload.boot_counter = -1;
   await assert.rejects(() => verifyDeviceAttestation(bad));
+});
+
+test("browser verifier validates bridge demo reports", () => {
+  const report = {
+    type: "kinegrant:Ros2McpDemoReport",
+    schema_version: "0.1",
+    overall_result: "PASS",
+    summary: { total: 2, passed: 2, failed: 0 },
+    receipt_count: 2,
+    receipts_verified: true,
+    obligation_compliance_ok: true,
+    outcomes: buildBridgeOutcomes(),
+    limitations: ["software demonstration only"],
+  };
+  let result = verifyBridgeDemoReport(report);
+  assert.equal(result.overall_result, "PASS");
+  report.summary.passed = 1;
+  assert.throws(() => verifyBridgeDemoReport(report));
+  report.summary.passed = 2;
+  report.receipt_count = 1;
+  assert.throws(() => verifyBridgeDemoReport(report));
+  report.receipt_count = 2;
+  report.overall_result = "FAIL";
+  assert.throws(() => verifyBridgeDemoReport(report));
+  report.overall_result = "PASS";
+  const bridge = {
+    ...report,
+    type: "kinegrant:BridgeDemoReport",
+    fidelity_ok: true,
+    outcomes: buildBridgeOutcomes(false),
+  };
+  delete bridge.receipt_count;
+  delete bridge.receipts_verified;
+  result = verifyBridgeDemoReport(bridge);
+  assert.equal(result.type, "kinegrant:BridgeDemoReport");
 });
