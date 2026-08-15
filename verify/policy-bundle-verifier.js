@@ -4084,6 +4084,159 @@ export async function verifyFleetDeviceExport(
   };
 }
 
+const END_TO_END_AUDIT_KEYS = [
+  "fleet_export",
+  "generated_at",
+  "lifecycle_report",
+  "overall_result",
+  "policy_bundle",
+  "revocation_bundle",
+  "schema_version",
+  "summary",
+  "trusted_authorities",
+  "type",
+];
+const END_TO_END_AUDIT_SUMMARY_KEYS = [
+  "artifacts_total",
+  "cross_references_ok",
+  "devices_total",
+  "fleet_verified",
+  "lifecycle_verified",
+  "phases_total",
+  "policy_shared",
+];
+
+export async function verifyEndToEndAuditExport(
+  packet,
+  {
+    trustedAuthorities,
+    trustedIssuers,
+    trustedExecutors,
+    trustedSensors,
+    trustedNotaries,
+    trustedDevices,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("end-to-end audit export packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== END_TO_END_AUDIT_KEYS.join(",")) {
+    throw new Error("end-to-end audit export packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:EndToEndAuditExportPacket") {
+    throw new Error("wrong end-to-end audit export packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported end-to-end audit export packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "end-to-end audit export packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("end-to-end audit export packet overall_result must be PASS");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "end-to-end audit export packet trusted_authorities must be a non-empty string array"
+    );
+  }
+
+  const trustedAuthoritiesSet = new Set(packet.trusted_authorities);
+  const policyPayload = await verifyPolicyBundle(
+    packet.policy_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+  const lifecycle = await verifyFullLifecycleReport(
+    packet.lifecycle_report,
+    packet.policy_bundle,
+    packet.revocation_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+  const fleet = await verifyFleetDeviceExport(packet.fleet_export, {
+    trustedAuthorities,
+    trustedIssuers,
+    trustedExecutors,
+    trustedSensors,
+    trustedNotaries,
+    trustedDevices,
+    now,
+  });
+
+  if (fleet.policy_id !== policyPayload.policy_id) {
+    throw new Error("fleet export does not share the lifecycle policy");
+  }
+  if (
+    typeof packet.fleet_export.policy_bundle !== "object" ||
+    packet.fleet_export.policy_bundle === null ||
+    packet.fleet_export.policy_bundle.payload?.bundle_id !== policyPayload.bundle_id
+  ) {
+    throw new Error("fleet export does not share the lifecycle policy bundle");
+  }
+  if (
+    packet.lifecycle_report.policy_id !== policyPayload.policy_id ||
+    packet.lifecycle_report.bundle_id !== policyPayload.bundle_id
+  ) {
+    throw new Error("lifecycle report does not bind to the shared policy bundle");
+  }
+  const fleetTrust = [...packet.fleet_export.trusted_policy_issuers].sort();
+  if (fleetTrust.some((item) => !trustedAuthoritiesSet.has(item))) {
+    throw new Error(
+      "fleet export trust anchors are not covered by the audit export trusted_authorities"
+    );
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("end-to-end audit export packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    END_TO_END_AUDIT_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("end-to-end audit export packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 5 + fleet.devices_total,
+    phases_total: lifecycle.phases,
+    devices_total: fleet.devices_total,
+    policy_shared: true,
+    lifecycle_verified: true,
+    fleet_verified: true,
+    cross_references_ok: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(
+        `end-to-end audit export packet summary ${key} is inconsistent`
+      );
+    }
+  }
+  return {
+    valid: true,
+    policy_id: policyPayload.policy_id,
+    phases_total: lifecycle.phases,
+    devices_total: fleet.devices_total,
+    artifacts_total: summary.artifacts_total,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -4507,6 +4660,7 @@ if (typeof globalThis !== "undefined") {
     verifyHardwareTrustPacket,
     verifyDeviceToPolicyExport,
     verifyFleetDeviceExport,
+    verifyEndToEndAuditExport,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,

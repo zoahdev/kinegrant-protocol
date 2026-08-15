@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 2.40.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.40.0 on the
+  stable 1.0 wire format, adding end-to-end audit export verification
+  to the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:EndToEndAuditExportPacket`
+  (`verifyEndToEndAuditExport`: the full publish -> distribute -> audit
+  -> revoke lifecycle report and the multi-device fleet export are both
+  re-verified and must share the same policy bundle and trust anchors;
+  summary counts and flags must be consistent; fail-closed on any
+  inconsistency); the HTML page and Node CLI (`end-to-end-audit`
+  command) expose it, cross-tested against a Python-built packet.
+
 ## 2.39.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.39.0 on the
