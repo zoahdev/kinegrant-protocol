@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 2.59.0 2026-08-15
+
+- Milestone release: reference implementation version 2.59.0 on the
+  stable 1.0 wire format, adding red team report verification to the
+  browser verifier.
+
+- Browser verifier re-verifies `kinegrant:RedTeamReport`
+  (`verifyRedTeamReport`: all 11 required RT-001..RT-011 cases must be
+  present with unique identifiers; each case must carry the exact
+  id/category/name/expected/observed/passed/detail fields; expected
+  must be DENY and observed must be DENY or ALLOW/ERROR; the passed
+  flag must exactly match observed; summary counts and overall_result
+  must be consistent; fail-closed on any inconsistency); the HTML
+  page and Node CLI (`red-team` command) expose it, cross-tested
+  against Python-built red team reports.
+
 ## 2.58.0 2026-08-15
 
 - Milestone release: reference implementation version 2.58.0 on the

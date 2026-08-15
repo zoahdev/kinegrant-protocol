@@ -4049,6 +4049,28 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_red_team_report(self) -> None:
+        from kinegrant.redteam import RedTeamSuite
+
+        report = RedTeamSuite().run()
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            report_path = base / "red-team.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            verified = self._run("red-team", str(report_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("RED TEAM REPORT VALID", verified.stdout)
+
+            tampered = dict(report)
+            tampered["cases"] = [dict(item) for item in report["cases"]]
+            tampered["cases"][0]["passed"] = False
+            tampered["summary"] = dict(report["summary"], passed=10, failed=1)
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("red-team", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
