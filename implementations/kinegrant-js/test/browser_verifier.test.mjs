@@ -25,6 +25,8 @@ import {
   validateIdentitySyntax,
   verifyPolicyAnalysisReport,
   verifyDelegationChain,
+  evaluateSequencePolicy,
+  verifySequenceCheckReport,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const DOMAIN = Buffer.from("KINEGRANT-SIGNED-ENVELOPE-V1\u0000", "utf8");
@@ -724,5 +726,78 @@ test("browser verifier validates delegation chains", async () => {
   });
   await assert.rejects(() =>
     verifyDelegationChain([root, badChild], new Set([root.kid]), delegateRequest)
+  );
+});
+
+test("browser verifier evaluates forbidden combinations and verifies reports", async () => {
+  const now = new Date("2026-08-15T00:10:00Z").getTime();
+  const policy = {
+    combinations: [
+      {
+        combination_id: "forbid-camera",
+        patterns: [
+          ["record", "*"],
+          ["train_on_data", "*"],
+        ],
+        trigger: ["train_on_data", "*"],
+      },
+    ],
+  };
+  const journal = [
+    { action: "record", target: "cam-1", at: "2026-08-15T00:08:00Z" },
+    { action: "train_on_data", target: "cam-1", at: "2026-08-15T00:09:00Z" },
+  ];
+  const deniedRequest = {
+    type: "kinegrant:ActionRequest",
+    version: "0.1",
+    request_id: "req-train",
+    agent: "robot-1",
+    target: "cam-1",
+    action: "train_on_data",
+    purpose: "training",
+    issued_at: "2026-08-15T00:10:00Z",
+    context: {},
+  };
+  const allowedRequest = {
+    ...deniedRequest,
+    request_id: "req-open",
+    action: "open",
+    purpose: "delivery",
+  };
+  const denied = evaluateSequencePolicy(policy, deniedRequest, journal, { now });
+  assert.equal(denied.allowed, false);
+  assert.equal(denied.reason, "forbidden_combination");
+  assert.deepEqual(denied.matched_combination_ids, ["forbid-camera"]);
+  const allowed = evaluateSequencePolicy(policy, allowedRequest, journal, { now });
+  assert.equal(allowed.allowed, true);
+  assert.equal(allowed.reason, "sequence_allowed");
+  const report = {
+    type: "kinegrant:SequenceCheckReport",
+    schema_version: "0.1",
+    policy_id: "forbid-camera-policy",
+    request_digest:
+      "sha256:" +
+      createHash("sha256")
+        .update(Buffer.from(canonicalJson(deniedRequest), "utf8"))
+        .digest("hex"),
+    journal_digest:
+      "sha256:" +
+      createHash("sha256")
+        .update(Buffer.from(canonicalJson(journal), "utf8"))
+        .digest("hex"),
+    checked_at: "2026-08-15T00:10:00Z",
+    verdict: denied,
+  };
+  const result = await verifySequenceCheckReport(
+    report,
+    policy,
+    deniedRequest,
+    journal,
+    { now }
+  );
+  assert.equal(result.allowed, false);
+  report.verdict = { ...denied, allowed: true };
+  await assert.rejects(() =>
+    verifySequenceCheckReport(report, policy, deniedRequest, journal, { now })
   );
 });

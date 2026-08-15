@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,7 +14,7 @@ from kinegrant.audit import ReceiptAuditor
 from kinegrant.canonical import content_id
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
-from kinegrant.models import ActionRequest, PolicyRule
+from kinegrant.models import ActionRequest, PolicyRule, isoformat
 from kinegrant.mpt import run_machine_permission_test
 from kinegrant.policy import PolicyEngine
 from kinegrant.policy_bundle import (
@@ -28,6 +29,7 @@ from kinegrant.distribution import RevocationDistributor
 from kinegrant.vocabulary import ACTION_TERMS
 from kinegrant.obligations import KNOWN_OBLIGATIONS
 from kinegrant.identity import agent_id, policy_id, target_id
+from kinegrant.sequence import ActionJournal, ForbiddenCombination, SequencePolicy
 from kinegrant.revocation import (
     RevocationList,
     build_revocation_bundle,
@@ -738,6 +740,116 @@ class BrowserVerifierInteropTests(unittest.TestCase):
                 str(bad_chain_path),
                 str(request_path),
                 str(issuers_path),
+            )
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
+    def test_browser_verifier_verifies_python_sequence_check(self) -> None:
+        journal = ActionJournal()
+        journal.record(
+            "record",
+            "cam-1",
+            at=datetime(2026, 8, 15, 0, 8, tzinfo=timezone.utc),
+        )
+        journal.record(
+            "train_on_data",
+            "cam-1",
+            at=datetime(2026, 8, 15, 0, 9, tzinfo=timezone.utc),
+        )
+        policy = SequencePolicy(
+            [
+                ForbiddenCombination(
+                    "forbid-camera",
+                    (("record", "*"), ("train_on_data", "*")),
+                    trigger=("train_on_data", "*"),
+                )
+            ]
+        )
+        request = ActionRequest(
+            "req-train-1",
+            "robot-1",
+            "cam-1",
+            "train_on_data",
+            "training",
+        )
+        verdict = policy.evaluate(request, journal)
+        self.assertFalse(verdict.allowed)
+        entries = [
+            {"action": entry.action, "target": entry.target, "at": isoformat(entry.at)}
+            for entry in journal.entries
+        ]
+        report = {
+            "type": "kinegrant:SequenceCheckReport",
+            "schema_version": "0.1",
+            "policy_id": "forbid-camera-policy",
+            "request_digest": request.digest,
+            "journal_digest": content_id("sha256", entries),
+            "checked_at": "2026-08-15T00:10:00Z",
+            "verdict": verdict.to_dict(),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            report_path = base / "sequence-report.json"
+            policy_path = base / "sequence-policy.json"
+            request_path = base / "sequence-request.json"
+            journal_path = base / "sequence-journal.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            policy_path.write_text(
+                json.dumps(
+                    {
+                        "combinations": [
+                            {
+                                "combination_id": combination.combination_id,
+                                "patterns": [
+                                    list(pattern)
+                                    for pattern in combination.patterns
+                                ],
+                                "window_seconds": combination.window_seconds,
+                                "trigger": (
+                                    list(combination.trigger)
+                                    if combination.trigger is not None
+                                    else None
+                                ),
+                            }
+                            for combination in policy.combinations
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            request_path.write_text(
+                json.dumps(request.to_dict()),
+                encoding="utf-8",
+            )
+            journal_path.write_text(json.dumps(entries), encoding="utf-8")
+            verified = self._run(
+                "sequence",
+                str(report_path),
+                str(policy_path),
+                str(request_path),
+                str(journal_path),
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("SEQUENCE CHECK VALID", verified.stdout)
+            evaluated = self._run(
+                "sequence-eval",
+                str(policy_path),
+                str(request_path),
+                str(journal_path),
+            )
+            self.assertEqual(evaluated.returncode, 0, evaluated.stderr)
+            self.assertIn("SEQUENCE EVAL (allowed=false", evaluated.stdout)
+            tampered = dict(report)
+            tampered["verdict"] = dict(report["verdict"])
+            tampered["verdict"]["allowed"] = True
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run(
+                "sequence",
+                str(tampered_path),
+                str(policy_path),
+                str(request_path),
+                str(journal_path),
             )
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)

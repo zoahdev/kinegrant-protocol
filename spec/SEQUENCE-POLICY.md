@@ -34,3 +34,13 @@ valid". A deployment composes them in order:
 
 Like every other KineGrant boundary, unknown or unparsable combinations are
 rejected rather than guessed.
+
+## Browser verification
+
+The browser verifier recomputes the same semantics locally:
+`evaluateSequencePolicy(policy, request, journal)` returns the verdict without
+trusting any party, and `verifySequenceCheckReport` re-checks a
+`kinegrant:SequenceCheckReport` (request and journal digests, verdict
+consistency, matched combination ids) against the supplied policy, request,
+and journal; the Node CLI exposes both (`sequence` and `sequence-eval`
+commands), cross-tested against the Python `SequencePolicy`.

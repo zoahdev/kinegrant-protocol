@@ -1704,6 +1704,249 @@ export async function verifyDelegationChain(
   };
 }
 
+const SEQUENCE_COMBINATION_FIELDS = new Set([
+  "combination_id",
+  "patterns",
+  "window_seconds",
+  "trigger",
+]);
+
+function validateSequencePolicy(policy) {
+  if (typeof policy !== "object" || policy === null || Array.isArray(policy)) {
+    throw new Error("sequence policy must be an object");
+  }
+  if (!Array.isArray(policy.combinations)) {
+    throw new Error("sequence policy combinations must be an array");
+  }
+  const ids = [];
+  for (const combination of policy.combinations) {
+    if (
+      typeof combination !== "object" ||
+      combination === null ||
+      Array.isArray(combination)
+    ) {
+      throw new Error("each forbidden combination must be an object");
+    }
+    if (
+      Object.keys(combination).some(
+        (key) => !SEQUENCE_COMBINATION_FIELDS.has(key)
+      )
+    ) {
+      throw new Error(
+        "forbidden combination has unknown fields: " +
+          Object.keys(combination).join(", ")
+      );
+    }
+    if (
+      typeof combination.combination_id !== "string" ||
+      combination.combination_id.length === 0
+    ) {
+      throw new Error("combination_id must be a non-empty string");
+    }
+    ids.push(combination.combination_id);
+    if (!Array.isArray(combination.patterns) || combination.patterns.length === 0) {
+      throw new Error("patterns must be a non-empty array");
+    }
+    for (const pattern of combination.patterns) {
+      if (
+        !Array.isArray(pattern) ||
+        pattern.length !== 2 ||
+        typeof pattern[0] !== "string" ||
+        pattern[0].length === 0 ||
+        typeof pattern[1] !== "string" ||
+        pattern[1].length === 0
+      ) {
+        throw new Error("each pattern must be [action, target] of non-empty strings");
+      }
+    }
+    const windowSeconds = combination.window_seconds;
+    if (
+      windowSeconds !== undefined &&
+      windowSeconds !== null &&
+      (!Number.isInteger(windowSeconds) || windowSeconds < 1)
+    ) {
+      throw new Error("window_seconds must be a positive integer or null");
+    }
+    const trigger = combination.trigger;
+    if (trigger !== undefined && trigger !== null) {
+      if (
+        !Array.isArray(trigger) ||
+        trigger.length !== 2 ||
+        typeof trigger[0] !== "string" ||
+        trigger[0].length === 0 ||
+        typeof trigger[1] !== "string" ||
+        trigger[1].length === 0
+      ) {
+        throw new Error("trigger must be [action, target] of non-empty strings or null");
+      }
+    }
+  }
+  if (new Set(ids).size !== ids.length) {
+    throw new Error("combination_id values must be unique");
+  }
+  return policy;
+}
+
+function validateJournal(journal) {
+  if (!Array.isArray(journal)) {
+    throw new Error("journal must be an array");
+  }
+  for (const entry of journal) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      throw new Error("each journal entry must be an object");
+    }
+    const keys = Object.keys(entry).sort().join(",");
+    if (keys !== "action,at,target") {
+      throw new Error("journal entry must have exactly action, target, and at");
+    }
+    if (typeof entry.action !== "string" || entry.action.length === 0) {
+      throw new Error("journal entry action must be a non-empty string");
+    }
+    if (typeof entry.target !== "string" || entry.target.length === 0) {
+      throw new Error("journal entry target must be a non-empty string");
+    }
+    if (typeof entry.at !== "string" || !/Z$|[+-]\d{2}:\d{2}$/.test(entry.at)) {
+      throw new Error(
+        "journal entry at must be a timezone-aware ISO timestamp"
+      );
+    }
+    parseTime(entry.at);
+  }
+}
+
+export function evaluateSequencePolicy(policy, request, journal, { now } = {}) {
+  validateSequencePolicy(policy);
+  if (typeof request !== "object" || request === null || Array.isArray(request)) {
+    throw new Error("request must be an object");
+  }
+  for (const field of ["action", "target"]) {
+    if (typeof request[field] !== "string" || request[field].length === 0) {
+      throw new Error(`request ${field} must be a non-empty string`);
+    }
+  }
+  validateJournal(journal);
+  const current = now !== undefined ? now : Date.now();
+  const matched = [];
+  for (const combination of policy.combinations) {
+    const windowSeconds = combination.window_seconds ?? null;
+    const cutoff = windowSeconds === null ? null : current - windowSeconds * 1000;
+    const complete = combination.patterns.every(([actionPattern, targetPattern]) =>
+      journal.some((entry) => {
+        const at = parseTime(entry.at);
+        if (cutoff !== null && at < cutoff) return false;
+        return (
+          globMatch(actionPattern, entry.action) &&
+          globMatch(targetPattern, entry.target)
+        );
+      })
+    );
+    if (!complete) continue;
+    const trigger = combination.trigger ?? null;
+    const denies =
+      trigger === null ||
+      (globMatch(trigger[0], request.action) &&
+        globMatch(trigger[1], request.target));
+    if (denies) matched.push(combination.combination_id);
+  }
+  return {
+    allowed: matched.length === 0,
+    reason: matched.length > 0 ? "forbidden_combination" : "sequence_allowed",
+    matched_combination_ids: matched,
+  };
+}
+
+export async function verifySequenceCheckReport(
+  report,
+  policy,
+  request,
+  journal,
+  { now } = {}
+) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("sequence check report must be an object");
+  }
+  if (report.type !== "kinegrant:SequenceCheckReport") {
+    throw new Error("wrong sequence check report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported sequence check report version");
+  }
+  if (report.policy_id !== undefined && report.policy_id !== null) {
+    if (typeof report.policy_id !== "string" || report.policy_id.length === 0) {
+      throw new Error("sequence check report policy_id must be a non-empty string or null");
+    }
+  }
+  const requestDigest = await digestOfObject(request);
+  if (report.request_digest !== requestDigest) {
+    throw new Error("sequence check report does not bind this request");
+  }
+  const journalDigest =
+    "sha256:" +
+    (await sha256Hex(new TextEncoder().encode(canonicalJson(journal))));
+  if (report.journal_digest !== journalDigest) {
+    throw new Error("sequence check report does not bind this journal");
+  }
+  if (
+    typeof report.checked_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(report.checked_at)
+  ) {
+    throw new Error(
+      "sequence check report checked_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(report.checked_at);
+  const verdict = evaluateSequencePolicy(policy, request, journal, { now });
+  const reported = report.verdict;
+  if (typeof reported !== "object" || reported === null || Array.isArray(reported)) {
+    throw new Error("sequence check report verdict must be an object");
+  }
+  const verdictFields = new Set([
+    "allowed",
+    "reason",
+    "matched_combination_ids",
+  ]);
+  if (Object.keys(reported).some((key) => !verdictFields.has(key))) {
+    throw new Error(
+      "sequence check report verdict has unknown fields: " +
+        Object.keys(reported).join(", ")
+    );
+  }
+  if (typeof reported.allowed !== "boolean") {
+    throw new Error("sequence check report verdict allowed must be a boolean");
+  }
+  if (reported.reason !== verdict.reason) {
+    throw new Error("sequence check report reason is inconsistent");
+  }
+  if (reported.allowed !== verdict.allowed) {
+    throw new Error("sequence check report verdict is inconsistent");
+  }
+  if (
+    !Array.isArray(reported.matched_combination_ids) ||
+    reported.matched_combination_ids.some(
+      (id) => typeof id !== "string" || id.length === 0
+    )
+  ) {
+    throw new Error(
+      "sequence check report matched_combination_ids must be a string array"
+    );
+  }
+  if (
+    reported.matched_combination_ids.join(",") !==
+    verdict.matched_combination_ids.join(",")
+  ) {
+    throw new Error(
+      "sequence check report matched combinations are inconsistent"
+    );
+  }
+  return {
+    valid: true,
+    policy_id: report.policy_id ?? null,
+    allowed: verdict.allowed,
+    reason: verdict.reason,
+    matched_combination_ids: verdict.matched_combination_ids,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -1724,5 +1967,7 @@ if (typeof globalThis !== "undefined") {
     validateIdentitySyntax,
     verifyPolicyAnalysisReport,
     verifyDelegationChain,
+    evaluateSequencePolicy,
+    verifySequenceCheckReport,
   };
 }

@@ -105,6 +105,10 @@ is accepted only when it exactly matches.
 Scoped delegation chains can be verified end to end in the browser
 (`verifyDelegationChain`): signatures, per-hop attenuation
 (`verifyAttenuation`), and terminal request binding are all checked locally.
+Forbidden combinations are recomputed in the browser as well
+(`evaluateSequencePolicy` / `verifySequenceCheckReport`): the journal and
+request digests are bound and the verdict is re-derived without trusting the
+report generator.
 
 ## Audit aggregation
 
