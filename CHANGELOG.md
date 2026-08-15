@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.25.0 - v2.25 first item (unreleased)
+## 2.25.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.25.0 on the
+  stable 1.0 wire format, adding security review kit verification to the
+  browser verifier.
 
 - Browser verifier re-verifies `kinegrant:SecurityReviewKit` artifacts
   (`verifySecurityReviewKit`: check statuses, MPT schema binding, benchmark
