@@ -288,8 +288,8 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   dependencies), plus combined fleet operations reports (policy + revocation
   distribution), benchmark report re-verification, and one-stop policy
   lifecycle traces, plus sensor evidence commitments and receipt checkpoints
-  and device attestations (zero dependencies; host `verify/` anywhere and
-  link the page).
+  and device attestations, plus ROS2/MCP and adapter bridge demo reports
+  (zero dependencies; host `verify/` anywhere and link the page).
 - Stable wire format: the reference implementation issues and verifies `1.0`
   capabilities (frozen scoped shape), with `capability-1.0` schema and
   KGP-RFC-0001 accepted, and the JavaScript and Go verifiers accept `0.2`/`1.0`

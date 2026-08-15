@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.32.0 - v2.32 first item (unreleased)
+
+- Browser verifier re-verifies v0.3 bridge demo reports
+  (`verifyBridgeDemoReport`: `kinegrant:Ros2McpDemoReport` and
+  `kinegrant:BridgeDemoReport` outcome structure, expected/allowed/passed
+  consistency, summary counts, bridge flags, overall result; fail-closed on
+  any inconsistency); the HTML page and Node CLI (`bridge` command) expose
+  it, cross-tested against the Python ROS2 and bridge demo runners.
+
 ## 2.31.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.31.0 on the

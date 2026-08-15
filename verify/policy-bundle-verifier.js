@@ -3389,6 +3389,159 @@ export async function verifyDeviceAttestation(
   };
 }
 
+const BRIDGE_REPORT_TYPES = new Set([
+  "kinegrant:Ros2McpDemoReport",
+  "kinegrant:BridgeDemoReport",
+]);
+const BRIDGE_OUTCOME_KEYS = [
+  "action",
+  "allowed",
+  "expected",
+  "obligation_compliant",
+  "passed",
+  "purpose",
+  "reason",
+  "scenario",
+  "stack",
+];
+const BRIDGE_OUTCOME_KEYS_WITHOUT_PURPOSE = [
+  "action",
+  "allowed",
+  "expected",
+  "obligation_compliant",
+  "passed",
+  "reason",
+  "scenario",
+  "stack",
+];
+
+export function verifyBridgeDemoReport(report) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("bridge demo report must be an object");
+  }
+  if (!BRIDGE_REPORT_TYPES.has(report.type)) {
+    throw new Error("wrong bridge demo report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported bridge demo report version");
+  }
+  if (!Array.isArray(report.outcomes) || report.outcomes.length === 0) {
+    throw new Error("bridge demo report outcomes must be a non-empty array");
+  }
+  let passed = 0;
+  for (const outcome of report.outcomes) {
+    if (typeof outcome !== "object" || outcome === null || Array.isArray(outcome)) {
+      throw new Error("each bridge demo outcome must be an object");
+    }
+    const outcomeKeys = Object.keys(outcome).sort().join(",");
+    if (
+      outcomeKeys !== BRIDGE_OUTCOME_KEYS.join(",") &&
+      outcomeKeys !== BRIDGE_OUTCOME_KEYS_WITHOUT_PURPOSE.join(",")
+    ) {
+      throw new Error("bridge demo outcome fields are invalid");
+    }
+    for (const field of ["scenario", "stack", "action", "reason"]) {
+      if (typeof outcome[field] !== "string" || outcome[field].length === 0) {
+        throw new Error(`bridge demo outcome ${field} must be a non-empty string`);
+      }
+    }
+    if (
+      outcome.purpose !== undefined &&
+      (typeof outcome.purpose !== "string" || outcome.purpose.length === 0)
+    ) {
+      throw new Error("bridge demo outcome purpose must be a non-empty string");
+    }
+    if (outcome.expected !== "ALLOW" && outcome.expected !== "DENY") {
+      throw new Error("bridge demo outcome expected must be ALLOW or DENY");
+    }
+    if (typeof outcome.allowed !== "boolean" || typeof outcome.passed !== "boolean") {
+      throw new Error("bridge demo outcome allowed and passed must be booleans");
+    }
+    if (
+      outcome.obligation_compliant !== null &&
+      typeof outcome.obligation_compliant !== "boolean"
+    ) {
+      throw new Error("bridge demo outcome obligation_compliant must be null or a boolean");
+    }
+    if (outcome.allowed && outcome.obligation_compliant === null) {
+      throw new Error("allowed bridge demo outcomes require an obligation_compliant flag");
+    }
+    const expectedPassed = outcome.allowed === (outcome.expected === "ALLOW");
+    if (outcome.passed !== expectedPassed) {
+      throw new Error("bridge demo outcome passed flag is inconsistent");
+    }
+    if (outcome.passed) passed += 1;
+  }
+  const summary = report.summary;
+  if (typeof summary !== "object" || summary === null || Array.isArray(summary)) {
+    throw new Error("bridge demo report summary must be an object");
+  }
+  const summaryKeys = Object.keys(summary).sort().join(",");
+  if (summaryKeys !== "failed,passed,total") {
+    throw new Error("bridge demo report summary fields are invalid");
+  }
+  if (
+    summary.total !== report.outcomes.length ||
+    summary.passed !== passed ||
+    summary.failed !== report.outcomes.length - passed
+  ) {
+    throw new Error("bridge demo report summary is inconsistent");
+  }
+  let expectedResult =
+    passed === report.outcomes.length ? "PASS" : "FAIL";
+  if (
+    report.receipts_verified !== undefined &&
+    report.receipts_verified !== true
+  ) {
+    expectedResult = "FAIL";
+  }
+  if (
+    report.obligation_compliance_ok !== undefined &&
+    report.obligation_compliance_ok !== true
+  ) {
+    expectedResult = "FAIL";
+  }
+  if (
+    report.fidelity_ok !== undefined &&
+    report.fidelity_ok !== true
+  ) {
+    expectedResult = "FAIL";
+  }
+  if (report.receipts_verified !== undefined) {
+    if (typeof report.receipts_verified !== "boolean") {
+      throw new Error("bridge demo report receipts_verified must be a boolean");
+    }
+  }
+  if (report.receipt_count !== undefined) {
+    if (!Number.isInteger(report.receipt_count) || report.receipt_count < 0) {
+      throw new Error("bridge demo report receipt_count must be a non-negative integer");
+    }
+    if (
+      report.type === "kinegrant:Ros2McpDemoReport" &&
+      expectedResult === "PASS" &&
+      report.receipt_count !== 2
+    ) {
+      expectedResult = "FAIL";
+    }
+  }
+  if (report.overall_result !== expectedResult) {
+    throw new Error("bridge demo report overall_result is inconsistent");
+  }
+  if (!Array.isArray(report.limitations)) {
+    throw new Error("bridge demo report limitations must be an array");
+  }
+  if (report.limitations.some((item) => typeof item !== "string")) {
+    throw new Error("bridge demo report limitations must be strings");
+  }
+  return {
+    valid: true,
+    type: report.type,
+    overall_result: report.overall_result,
+    summary: report.summary,
+    outcomes: report.outcomes.length,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -3423,5 +3576,6 @@ if (typeof globalThis !== "undefined") {
     sensorEvidenceHash,
     verifyReceiptCheckpoint,
     verifyDeviceAttestation,
+    verifyBridgeDemoReport,
   };
 }

@@ -163,6 +163,12 @@ cross-tested against the Python v0.4 sensor-evidence and checkpoint builders.
 ordered measured-boot stages, content-addressed attestation id, and optional
 trusted-device checks, cross-tested against the Python v0.4 device
 attestation builder.
+v0.3 bridge demo reports (`kinegrant:Ros2McpDemoReport` and
+`kinegrant:BridgeDemoReport`) are re-verified in the browser as well
+(`verifyBridgeDemoReport`): outcome structure (with or without the purpose
+field), expected/allowed/passed consistency, summary counts, bridge flags,
+and the overall result, cross-tested against the Python ROS2 and bridge demo
+runners.
 
 ## Audit aggregation
 
