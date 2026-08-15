@@ -54,6 +54,7 @@ import {
   verifyCrossImplementationReport,
   verifyPolicyTemplateAudit,
   verifyObligationBatchAudit,
+  verifySros2PolicyMapping,
   verifyRuleCoverageAudit,
   verifyRedTeamReport,
   verifyRobotDemoReport,
@@ -533,6 +534,14 @@ try {
       `RULE COVERAGE AUDIT VALID (policy=${result.policy_id}, rules=${result.rules_total}, ` +
         `covered=${result.covered_rules}, uncovered=${result.uncovered_rules})`
     );
+  } else if (command === "sros2-mapping") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifySros2PolicyMapping(packet);
+    console.log(
+      `SROS2 POLICY MAPPING VALID (policy=${result.policy_id}, rules=${result.rules_total}, ` +
+        `declarations=${result.declarations_total})`
+    );
   } else if (command === "red-team") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -647,6 +656,7 @@ try {
       "cross-implementation <packet.json> | " +
       "policy-template <packet.json> | " +
       "obligation-batch <packet.json> | " +
+      "sros2-mapping <packet.json> | " +
       "rule-coverage <packet.json> | " +
       "red-team <report.json> | " +
       "robot-demo <report.json> | " +
