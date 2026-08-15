@@ -51,6 +51,7 @@ import {
   verifyComplianceTimeline,
   verifyObligationFulfillment,
   verifySelectiveDisclosure,
+  verifyIdentifierRotation,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -2918,6 +2919,69 @@ test("browser verifier validates selective disclosure proofs", async () => {
     verifySelectiveDisclosure({
       ...packet,
       summary: { ...packet.summary, proofs_verified: 1 },
+    })
+  );
+});
+
+test("browser verifier validates identifier rotation chains", async () => {
+  const packet = {
+    type: "kinegrant:IdentifierRotationPacket",
+    schema_version: "0.1",
+    namespace: "robot-a",
+    static_id: "robot-1",
+    generated_at: "2026-08-15T02:00:00Z",
+    overall_result: "PASS",
+    rotations: [
+      {
+        ephemeral_id: "urn:kinegrant:ephemeral:robot-a:000000000000000000000001",
+        issued_at: "2026-08-15T00:10:00Z",
+        status: "revoked",
+        revoked_at: "2026-08-15T00:20:00Z",
+      },
+      {
+        ephemeral_id: "urn:kinegrant:ephemeral:robot-a:000000000000000000000002",
+        issued_at: "2026-08-15T00:30:00Z",
+        status: "active",
+        revoked_at: null,
+      },
+    ],
+    summary: {
+      artifacts_total: 3,
+      rotations_total: 2,
+      active_total: 1,
+      revoked_total: 1,
+      statuses_ok: true,
+      chain_complete: true,
+    },
+  };
+  const result = await verifyIdentifierRotation(packet);
+  assert.equal(result.rotations_total, 2);
+  assert.equal(result.active_total, 1);
+
+  await assert.rejects(() =>
+    verifyIdentifierRotation({
+      ...packet,
+      rotations: [
+        { ...packet.rotations[0], status: "active", revoked_at: null },
+        packet.rotations[1],
+      ],
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyIdentifierRotation({
+      ...packet,
+      rotations: [
+        packet.rotations[0],
+        { ...packet.rotations[1], issued_at: "2026-08-15T00:05:00Z" },
+      ],
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyIdentifierRotation({
+      ...packet,
+      summary: { ...packet.summary, active_total: 2 },
     })
   );
 });

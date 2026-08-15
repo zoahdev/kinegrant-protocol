@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.47.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.47.0 on the
+  stable 1.0 wire format, adding identifier rotation verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:IdentifierRotationPacket`
+  (`verifyIdentifierRotation`: rotation entries must follow the ephemeral
+  id grammar for the namespace, have strictly increasing issue times,
+  unique ids, and exactly one active identifier which must be the latest
+  entry; revoked entries require a revoked_at after issued_at; summary
+  counts and flags must be consistent; fail-closed on any inconsistency);
+  the HTML page and Node CLI (`identifier-rotation` command) expose it,
+  cross-tested against the Python rotating identifier registry.
+
 ## 2.46.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.46.0 on the
