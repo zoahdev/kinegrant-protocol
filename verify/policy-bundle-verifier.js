@@ -7711,6 +7711,201 @@ export async function verifyObligationBatchAudit(
   };
 }
 
+const RULE_COVERAGE_KEYS = [
+  "coverage",
+  "generated_at",
+  "overall_result",
+  "policy_bundle",
+  "requests",
+  "schema_version",
+  "summary",
+  "trusted_authorities",
+  "type",
+];
+const RULE_COVERAGE_SUMMARY_KEYS = [
+  "artifacts_total",
+  "coverage_complete",
+  "covered_rules",
+  "policy_bound",
+  "requests_matched",
+  "requests_total",
+  "rules_total",
+  "uncovered_rules",
+];
+const RULE_COVERAGE_ENTRY_KEYS = [
+  "covered_rule_ids",
+  "requests_matched",
+  "uncovered_rule_ids",
+];
+
+function ruleMatches(rule, request) {
+  return (
+    globMatch(rule.target, request.target) &&
+    (rule.actions ?? ["*"]).some((action) => globMatch(action, request.action)) &&
+    (rule.subjects ?? ["*"]).some((subject) => globMatch(subject, request.agent)) &&
+    (rule.purposes ?? ["*"]).some((purpose) => globMatch(purpose, request.purpose))
+  );
+}
+
+export async function verifyRuleCoverageAudit(
+  packet,
+  {
+    trustedAuthorities,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("rule coverage audit packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== RULE_COVERAGE_KEYS.join(",")) {
+    throw new Error("rule coverage audit packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:RuleCoverageAuditPacket") {
+    throw new Error("wrong rule coverage audit packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported rule coverage audit packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "rule coverage audit packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("rule coverage audit packet overall_result must be PASS");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "rule coverage audit packet trusted_authorities must be a non-empty string array"
+    );
+  }
+
+  const policyPayload = await verifyPolicyBundle(
+    packet.policy_bundle,
+    new Set(packet.trusted_authorities),
+    { now }
+  );
+  if (!Array.isArray(packet.requests) || packet.requests.length === 0) {
+    throw new Error("rule coverage audit packet requests must be a non-empty array");
+  }
+  const requestIds = new Set();
+  for (const request of packet.requests) {
+    if (
+      typeof request !== "object" ||
+      request === null ||
+      Array.isArray(request) ||
+      request.type !== "kinegrant:ActionRequest" ||
+      request.version !== "0.1" ||
+      typeof request.request_id !== "string" ||
+      request.request_id.length === 0 ||
+      typeof request.agent !== "string" ||
+      typeof request.target !== "string" ||
+      typeof request.action !== "string" ||
+      typeof request.purpose !== "string"
+    ) {
+      throw new Error("rule coverage request must be a valid v0.1 action request");
+    }
+    if (requestIds.has(request.request_id)) {
+      throw new Error("request ids must be unique");
+    }
+    requestIds.add(request.request_id);
+  }
+
+  const covered = new Set();
+  let requestsMatched = 0;
+  for (const request of packet.requests) {
+    const matchedRules = policyPayload.rules.filter((rule) =>
+      ruleMatches(rule, request)
+    );
+    if (matchedRules.length > 0) {
+      requestsMatched += 1;
+      for (const rule of matchedRules) {
+        covered.add(rule.policy_id);
+      }
+    }
+  }
+  const allRuleIds = new Set(
+    policyPayload.rules.map((rule) => rule.policy_id)
+  );
+  const uncovered = [...allRuleIds].filter((id) => !covered.has(id));
+  const sortIds = (ids) => [...ids].sort();
+  const computedCoverage = {
+    covered_rule_ids: sortIds([...covered]),
+    uncovered_rule_ids: sortIds(uncovered),
+    requests_matched: requestsMatched,
+  };
+
+  const coverage = packet.coverage;
+  if (
+    typeof coverage !== "object" ||
+    coverage === null ||
+    Array.isArray(coverage) ||
+    Object.keys(coverage).sort().join(",") !== RULE_COVERAGE_ENTRY_KEYS.join(",")
+  ) {
+    throw new Error("rule coverage fields are invalid");
+  }
+  for (const key of ["covered_rule_ids", "uncovered_rule_ids"]) {
+    if (
+      !Array.isArray(coverage[key]) ||
+      coverage[key].some((item) => typeof item !== "string") ||
+      sortIds(coverage[key]).join(",") !== computedCoverage[key].join(",")
+    ) {
+      throw new Error(`rule coverage ${key} does not match the requests`);
+    }
+  }
+  if (
+    !Number.isInteger(coverage.requests_matched) ||
+    coverage.requests_matched !== computedCoverage.requests_matched
+  ) {
+    throw new Error("rule coverage requests_matched is inconsistent");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("rule coverage audit packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    RULE_COVERAGE_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("rule coverage audit packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 4,
+    requests_total: packet.requests.length,
+    rules_total: allRuleIds.size,
+    covered_rules: covered.size,
+    uncovered_rules: uncovered.length,
+    requests_matched: requestsMatched,
+    coverage_complete: true,
+    policy_bound: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`rule coverage audit packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    policy_id: policyPayload.policy_id,
+    rules_total: allRuleIds.size,
+    covered_rules: covered.size,
+    uncovered_rules: uncovered.length,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -8152,6 +8347,7 @@ if (typeof globalThis !== "undefined") {
     verifyCrossImplementationReport,
     verifyPolicyTemplateAudit,
     verifyObligationBatchAudit,
+    verifyRuleCoverageAudit,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,

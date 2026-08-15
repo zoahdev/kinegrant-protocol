@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 2.58.0 2026-08-15
+
+- Milestone release: reference implementation version 2.58.0 on the
+  stable 1.0 wire format, adding rule coverage audit verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:RuleCoverageAuditPacket`
+  (`verifyRuleCoverageAudit`: every request must be a valid v0.1
+  action request with unique request ids; rules are matched by
+  target/action/subject/purpose glob semantics identical to the
+  Python policy engine; covered rule ids, uncovered rule ids, and
+  requests_matched must exactly match a recomputation from the
+  signed bundle; summary counts and completeness flags must be
+  consistent; fail-closed on any inconsistency); the HTML page and
+  Node CLI (`rule-coverage` command) expose it, cross-tested against
+  Python-built rule coverage packets.
+
 ## 2.57.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.57.0 on the

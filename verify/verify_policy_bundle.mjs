@@ -54,6 +54,7 @@ import {
   verifyCrossImplementationReport,
   verifyPolicyTemplateAudit,
   verifyObligationBatchAudit,
+  verifyRuleCoverageAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -523,6 +524,14 @@ try {
       `OBLIGATION BATCH AUDIT VALID (device=${result.device_id}, ` +
         `${result.entries_total} entries, ${result.obligations_covered}/${result.obligations_required} obligations)`
     );
+  } else if (command === "rule-coverage") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyRuleCoverageAudit(packet);
+    console.log(
+      `RULE COVERAGE AUDIT VALID (policy=${result.policy_id}, rules=${result.rules_total}, ` +
+        `covered=${result.covered_rules}, uncovered=${result.uncovered_rules})`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -629,6 +638,7 @@ try {
       "cross-implementation <packet.json> | " +
       "policy-template <packet.json> | " +
       "obligation-batch <packet.json> | " +
+      "rule-coverage <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +
