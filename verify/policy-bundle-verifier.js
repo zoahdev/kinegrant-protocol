@@ -6721,6 +6721,181 @@ export async function verifyPolicyImpactAudit(
   };
 }
 
+const CROSS_DOMAIN_KEYS = [
+  "cross_references",
+  "domains",
+  "generated_at",
+  "overall_result",
+  "schema_version",
+  "summary",
+  "type",
+];
+const CROSS_DOMAIN_SUMMARY_KEYS = [
+  "artifacts_total",
+  "bundles_bound",
+  "cross_consistent",
+  "domain_ids_unique",
+  "domains_total",
+  "references_total",
+  "references_verified",
+];
+const CROSS_DOMAIN_DOMAIN_KEYS = [
+  "domain_id",
+  "policy_bundle",
+  "trusted_authorities",
+];
+const CROSS_DOMAIN_REFERENCE_KEYS = [
+  "from_domain_id",
+  "kind",
+  "policy_id",
+  "to_domain_id",
+  "verified",
+];
+const CROSS_DOMAIN_KINDS = new Set([
+  "delegation",
+  "shared_subject",
+  "shared_target",
+]);
+
+export async function verifyCrossDomainAudit(packet, { now } = {}) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("cross domain audit packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== CROSS_DOMAIN_KEYS.join(",")) {
+    throw new Error("cross domain audit packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:CrossDomainAuditPacket") {
+    throw new Error("wrong cross domain audit packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported cross domain audit packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "cross domain audit packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("cross domain audit packet overall_result must be PASS");
+  }
+  if (!Array.isArray(packet.domains) || packet.domains.length === 0) {
+    throw new Error("cross domain audit packet domains must be a non-empty array");
+  }
+
+  const domainIds = new Set();
+  const policyByDomain = new Map();
+  for (const domain of packet.domains) {
+    if (
+      typeof domain !== "object" ||
+      domain === null ||
+      Array.isArray(domain) ||
+      Object.keys(domain).sort().join(",") !== CROSS_DOMAIN_DOMAIN_KEYS.join(",")
+    ) {
+      throw new Error("domain entry fields are invalid");
+    }
+    if (typeof domain.domain_id !== "string" || domain.domain_id.length === 0) {
+      throw new Error("domain_id must be non-empty");
+    }
+    if (domainIds.has(domain.domain_id)) {
+      throw new Error("domain ids must be unique");
+    }
+    domainIds.add(domain.domain_id);
+    if (
+      !Array.isArray(domain.trusted_authorities) ||
+      domain.trusted_authorities.length === 0 ||
+      domain.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+    ) {
+      throw new Error("domain trusted_authorities must be a non-empty string array");
+    }
+    const payload = await verifyPolicyBundle(
+      domain.policy_bundle,
+      new Set(domain.trusted_authorities),
+      { now }
+    );
+    policyByDomain.set(domain.domain_id, payload.policy_id);
+  }
+
+  if (
+    !Array.isArray(packet.cross_references) ||
+    packet.cross_references.length === 0
+  ) {
+    throw new Error(
+      "cross domain audit packet cross_references must be a non-empty array"
+    );
+  }
+  for (const reference of packet.cross_references) {
+    if (
+      typeof reference !== "object" ||
+      reference === null ||
+      Array.isArray(reference) ||
+      Object.keys(reference).sort().join(",") !==
+        CROSS_DOMAIN_REFERENCE_KEYS.join(",")
+    ) {
+      throw new Error("cross reference fields are invalid");
+    }
+    if (!domainIds.has(reference.from_domain_id)) {
+      throw new Error("cross reference from_domain_id does not exist");
+    }
+    if (!domainIds.has(reference.to_domain_id)) {
+      throw new Error("cross reference to_domain_id does not exist");
+    }
+    if (reference.from_domain_id === reference.to_domain_id) {
+      throw new Error("cross reference must connect two different domains");
+    }
+    if (!CROSS_DOMAIN_KINDS.has(reference.kind)) {
+      throw new Error("cross reference kind is unknown");
+    }
+    if (
+      typeof reference.policy_id !== "string" ||
+      reference.policy_id !== policyByDomain.get(reference.to_domain_id)
+    ) {
+      throw new Error("cross reference policy_id does not match the target domain");
+    }
+    if (reference.verified !== true) {
+      throw new Error("cross reference verified must be true");
+    }
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("cross domain audit packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    CROSS_DOMAIN_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("cross domain audit packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 2,
+    domains_total: packet.domains.length,
+    references_total: packet.cross_references.length,
+    references_verified: packet.cross_references.length,
+    domain_ids_unique: true,
+    bundles_bound: true,
+    cross_consistent: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`cross domain audit packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    domains_total: packet.domains.length,
+    references_total: packet.cross_references.length,
+    domain_ids: [...domainIds],
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -7157,6 +7332,7 @@ if (typeof globalThis !== "undefined") {
     verifyDenialExplainability,
     verifyPolicyDiffAudit,
     verifyPolicyImpactAudit,
+    verifyCrossDomainAudit,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,

@@ -57,6 +57,7 @@ import {
   verifyDenialExplainability,
   verifyPolicyDiffAudit,
   verifyPolicyImpactAudit,
+  verifyCrossDomainAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -165,11 +166,11 @@ function buildBundle(
     obligations = [],
     extraRules = [],
     previousVersionDigest = null,
+    policyId = "urn:policy:browser",
   } = {}
 ) {
   const now = Date.now();
   const kid = kidOf(publicKey);
-  const policyId = "urn:policy:browser";
   const body = {
     type: "kinegrant:PolicyBundle",
     schema_version: "0.1",
@@ -3459,6 +3460,87 @@ test("browser verifier validates policy impact audits", async () => {
     verifyPolicyImpactAudit({
       ...packet,
       summary: { ...packet.summary, impact_complete: false },
+    })
+  );
+});
+
+test("browser verifier validates cross domain audits", async () => {
+  const keyA = generateKeyPairSync("ed25519");
+  const keyB = generateKeyPairSync("ed25519");
+  const bundleA = buildBundle(keyA.privateKey, keyA.publicKey, {
+    policyId: "urn:policy:domain-a",
+  });
+  const bundleB = buildBundle(keyB.privateKey, keyB.publicKey, {
+    policyId: "urn:policy:domain-b",
+  });
+  const packet = {
+    type: "kinegrant:CrossDomainAuditPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T02:00:00Z",
+    overall_result: "PASS",
+    domains: [
+      {
+        domain_id: "domain-a",
+        trusted_authorities: [bundleA.kid],
+        policy_bundle: bundleA,
+      },
+      {
+        domain_id: "domain-b",
+        trusted_authorities: [bundleB.kid],
+        policy_bundle: bundleB,
+      },
+    ],
+    cross_references: [
+      {
+        from_domain_id: "domain-a",
+        to_domain_id: "domain-b",
+        kind: "delegation",
+        policy_id: "urn:policy:domain-b",
+        verified: true,
+      },
+    ],
+    summary: {
+      artifacts_total: 2,
+      domains_total: 2,
+      references_total: 1,
+      references_verified: 1,
+      domain_ids_unique: true,
+      bundles_bound: true,
+      cross_consistent: true,
+    },
+  };
+  const result = await verifyCrossDomainAudit(packet);
+  assert.equal(result.domains_total, 2);
+  assert.equal(result.references_total, 1);
+
+  await assert.rejects(() =>
+    verifyCrossDomainAudit({
+      ...packet,
+      cross_references: [
+        {
+          ...packet.cross_references[0],
+          policy_id: "urn:policy:wrong",
+        },
+      ],
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyCrossDomainAudit({
+      ...packet,
+      cross_references: [
+        {
+          ...packet.cross_references[0],
+          to_domain_id: "domain-ghost",
+        },
+      ],
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyCrossDomainAudit({
+      ...packet,
+      summary: { ...packet.summary, references_verified: 0 },
     })
   );
 });

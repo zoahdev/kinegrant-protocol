@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.53.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.53.0 on the
+  stable 1.0 wire format, adding cross domain audit verification to the
+  browser verifier.
+
+- Browser verifier re-verifies `kinegrant:CrossDomainAuditPacket`
+  (`verifyCrossDomainAudit`: every domain's signed bundle is verified
+  against its own trust anchors; domain ids must be unique; every cross
+  reference must connect two existing domains, use a known kind, point
+  at the target domain's actual policy id, and be marked verified;
+  summary counts and flags must be consistent; fail-closed on any
+  inconsistency); the HTML page and Node CLI (`cross-domain` command)
+  expose it, cross-tested against Python-published domain pairs.
+
 ## 2.52.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.52.0 on the
