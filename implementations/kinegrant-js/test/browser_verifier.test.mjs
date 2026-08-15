@@ -46,6 +46,7 @@ import {
   verifyFleetDeviceExport,
   verifyEndToEndAuditExport,
   verifyRevocationReissueClosure,
+  verifyUnifiedAuditExport,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -2131,6 +2132,275 @@ test("browser verifier validates revocation-reissue closure packets", async () =
     verifyRevocationReissueClosure({
       ...packet,
       summary: { ...packet.summary, closure_complete: false },
+    })
+  );
+});
+
+test("browser verifier validates unified audit export packets", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  const bundlePayload = bundle.payload;
+  const request = {
+    type: "kinegrant:ActionRequest",
+    version: "0.1",
+    request_id: "req-1",
+    agent: "robot-1",
+    target: "urn:space:door-1",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const expectedPolicyDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        Buffer.from(
+          canonicalJson({
+            rules: bundlePayload.rules,
+            trusted_policy_issuers: [bundlePayload.issuer].sort(),
+          }),
+          "utf8"
+        )
+      )
+      .digest("hex");
+  const capabilityOptions = {
+    policyDigest: expectedPolicyDigest,
+    matchedPolicyIds: [bundlePayload.policy_id],
+  };
+  const revokedCapability = buildScopedCapability(
+    privateKey,
+    publicKey,
+    request,
+    { ...capabilityOptions, nonce: "old-nonce-value-000000000000" }
+  );
+  const reissuedCapability = buildScopedCapability(
+    privateKey,
+    publicKey,
+    request,
+    { ...capabilityOptions, nonce: "new-nonce-value-000000000000" }
+  );
+  const revokedId = revokedCapability.payload.capability_id;
+  const revocationBundle = buildRevocationBundle(privateKey, publicKey, {
+    capabilityId: revokedId,
+  });
+  const closureReceipt = buildReceipt(privateKey, publicKey, {
+    capabilityId: reissuedCapability.payload.capability_id,
+    requestDigest: reissuedCapability.payload.request_digest,
+    evidenceHash: "sha256:" + "a".repeat(64),
+    target: request.target,
+  });
+  const closure = {
+    type: "kinegrant:RevocationReissueClosurePacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T03:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: [bundlePayload.issuer],
+    trusted_policy_issuers: [bundlePayload.issuer],
+    policy_bundle: bundle,
+    revocation_bundle: revocationBundle,
+    revoked_capability_id: revokedId,
+    request,
+    reissued_capability: reissuedCapability,
+    gate_log: {
+      revoked_denied: {
+        allowed: false,
+        reason: "revoked",
+        checked_at: "2026-08-15T00:20:00Z",
+        capability_id: revokedId,
+        policy_digest: expectedPolicyDigest,
+      },
+      reissued_allowed: {
+        allowed: true,
+        reason: "allow",
+        checked_at: "2026-08-15T00:30:00Z",
+        capability_id: reissuedCapability.payload.capability_id,
+        policy_digest: expectedPolicyDigest,
+      },
+    },
+    receipt: closureReceipt,
+    summary: {
+      artifacts_total: 8,
+      policy_verified: true,
+      revocation_verified: true,
+      revoked_capability_revoked: true,
+      deny_recorded: true,
+      reissue_verified: true,
+      allow_recorded: true,
+      receipt_bound: true,
+      closure_complete: true,
+    },
+  };
+  const distribution = {
+    type: "kinegrant:PolicyDistributionReport",
+    schema_version: "0.1",
+    policy_id: "urn:policy:browser",
+    bundle_id: bundlePayload.bundle_id,
+    bundle_version: 1,
+    overall_result: "PASS",
+    summary: { registries: 1, applied_total: 1, already_present_total: 0 },
+    acks: [
+      {
+        gate_id: "gate-a",
+        policy_id: "urn:policy:browser",
+        bundle_id: bundlePayload.bundle_id,
+        applied: true,
+        current_before: null,
+        current_after: 1,
+        detail: "policy bundle activated",
+      },
+    ],
+  };
+  const audit = {
+    type: "kinegrant:PolicyAuditSummary",
+    schema_version: "0.1",
+    overall_result: "PASS",
+    summary: {
+      bundles_total: 1,
+      verified: 1,
+      failed: 0,
+      analysis_failures: 0,
+      coverage_failures: 0,
+      findings_by_code: {},
+      allowed: 0,
+      denied: 1,
+      exceptions: 0,
+      shadowed_allows: 0,
+    },
+    bundles: [
+      {
+        label: "fleet-a",
+        verified: true,
+        policy_id: "urn:policy:browser",
+        bundle_version: 1,
+        analysis_result: "PASS",
+        coverage_result: "PASS",
+        error_findings: [],
+        shadowed_allows: [],
+        error: null,
+      },
+    ],
+    independent_verification: {
+      schema_version: "0.1",
+      overall_result: "PASS",
+      checks: [
+        {
+          tool: "kinegrant-js",
+          detail: "cross-verified",
+          capability: "PASS",
+          receipts: "SKIP",
+          policy_bundle: "PASS",
+          policy_current_version: "PASS",
+        },
+      ],
+    },
+    limitations: ["self-assessment"],
+  };
+  const revocation = {
+    type: "kinegrant:RevocationDistributionReport",
+    schema_version: "0.1",
+    bundle_id: revocationBundle.payload.bundle_id,
+    bundle_version: 1,
+    overall_result: "PASS",
+    summary: { gates: 1, added_total: 1, already_present_total: 0 },
+    acks: [
+      {
+        gate_id: "gate-a",
+        bundle_id: revocationBundle.payload.bundle_id,
+        applied: true,
+        added_count: 1,
+        already_present: 0,
+        detail: "applied",
+      },
+    ],
+  };
+  const lifecycleReport = {
+    type: "kinegrant:FullLifecycleReport",
+    schema_version: "0.1",
+    policy_id: "urn:policy:browser",
+    bundle_id: bundlePayload.bundle_id,
+    bundle_version: 1,
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    summary: { phases_total: 4, passed: 4, failed: 0 },
+    policy_distribution: distribution,
+    audit_summary: audit,
+    revocation_distribution: revocation,
+  };
+  const device1 = generateKeyPairSync("ed25519");
+  const device2 = generateKeyPairSync("ed25519");
+  const first = await buildDeviceToPolicyPacket(
+    privateKey,
+    publicKey,
+    device1.privateKey,
+    device1.publicKey,
+    { deviceId: "device:a-1", requestId: "req-1", bundle }
+  );
+  const second = await buildDeviceToPolicyPacket(
+    privateKey,
+    publicKey,
+    device2.privateKey,
+    device2.publicKey,
+    { deviceId: "device:a-2", requestId: "req-2", bundle }
+  );
+  const fleetExport = {
+    type: "kinegrant:FleetDeviceExportPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T02:00:00Z",
+    overall_result: "PASS",
+    trusted_policy_issuers: [bundlePayload.issuer],
+    policy_bundle: bundle,
+    devices: [first.packet, second.packet],
+    summary: {
+      devices_total: 2,
+      policy_shared: true,
+      devices_verified: 2,
+      device_ids_unique: true,
+      cross_references_ok: true,
+    },
+  };
+  const packet = {
+    type: "kinegrant:UnifiedAuditExportPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T04:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: [bundlePayload.issuer],
+    policy_bundle: bundle,
+    revocation_bundle: revocationBundle,
+    lifecycle_report: lifecycleReport,
+    fleet_export: fleetExport,
+    closure,
+    summary: {
+      artifacts_total: 8,
+      phases_total: 4,
+      devices_total: 2,
+      policy_shared: true,
+      lifecycle_verified: true,
+      fleet_verified: true,
+      closure_verified: true,
+      cross_references_ok: true,
+    },
+  };
+  const result = await verifyUnifiedAuditExport(packet);
+  assert.equal(result.policy_id, "urn:policy:browser");
+  assert.equal(result.phases_total, 4);
+  assert.equal(result.devices_total, 2);
+  assert.equal(result.closure_revoked, revokedId);
+
+  const otherBundle = buildBundle(privateKey, publicKey);
+  await assert.rejects(() =>
+    verifyUnifiedAuditExport({
+      ...packet,
+      closure: {
+        ...packet.closure,
+        policy_bundle: otherBundle,
+      },
+    })
+  );
+  await assert.rejects(() =>
+    verifyUnifiedAuditExport({
+      ...packet,
+      summary: { ...packet.summary, closure_verified: false },
     })
   );
 });

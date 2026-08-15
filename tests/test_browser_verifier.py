@@ -2325,6 +2325,209 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_unified_audit_export_packet(
+        self,
+    ) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        issuer = CapabilityIssuer(key)
+        policy_id = "urn:kinegrant:policy:unified:1"
+        rule = PolicyRule(
+            "unified-rule-1",
+            key.kid,
+            "urn:space:browser:*",
+            "allow",
+            ("open",),
+            purposes=("delivery",),
+        )
+        bundle = authority.publish(
+            policy_id,
+            [rule],
+            ttl_seconds=3600,
+        )
+        request = ActionRequest(
+            "urn:kinegrant:browser:request:unified",
+            "urn:robot:browser:1",
+            "urn:space:browser:door-1",
+            "open",
+            "delivery",
+        )
+        decision = PolicyEngine(
+            [rule],
+            trusted_policy_issuers={key.kid},
+        ).evaluate(request)
+        revoked_capability = issuer.issue(request, decision, ttl_seconds=300)
+        revoked_id = revoked_capability["payload"]["capability_id"]
+        revocations = RevocationList()
+        revocations.revoke(revoked_id, reason="operator decision")
+        revocation_key = Ed25519KeyPair.generate()
+        revocation_bundle = sign_revocation_bundle(
+            build_revocation_bundle(
+                revocations,
+                issuer=revocation_key.kid,
+            ),
+            revocation_key,
+        )
+        reissued_capability = issuer.issue(request, decision, ttl_seconds=300)
+        reissued_id = reissued_capability["payload"]["capability_id"]
+        started = utc_now()
+        denied_at = isoformat(started - timedelta(minutes=5))
+        allowed_at = isoformat(started - timedelta(minutes=4))
+        gate = ActionGate(
+            trusted_issuers={key.kid},
+            replay_store=InMemoryReplayStore(),
+            revocation_list=revocations,
+        )
+        with self.assertRaises(PermissionError):
+            gate.authorize(revoked_capability, request, now=started)
+        verified = gate.authorize(reissued_capability, request, now=started)
+        executor = Ed25519KeyPair.generate()
+        log = ReceiptLog(executor)
+        closure_receipt = log.append(
+            verified,
+            result="succeeded",
+            evidence_hash="sha256:" + "a" * 64,
+            started_at=started,
+            finished_at=started + timedelta(seconds=1),
+            request=request,
+        )
+        cap_payload = reissued_capability["payload"]
+        closure = {
+            "type": "kinegrant:RevocationReissueClosurePacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(started + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid, revocation_key.kid],
+            "trusted_policy_issuers": [key.kid],
+            "policy_bundle": bundle,
+            "revocation_bundle": revocation_bundle,
+            "revoked_capability_id": revoked_id,
+            "request": request.to_dict(),
+            "reissued_capability": reissued_capability,
+            "gate_log": {
+                "revoked_denied": {
+                    "allowed": False,
+                    "reason": "revoked",
+                    "checked_at": denied_at,
+                    "capability_id": revoked_id,
+                    "policy_digest": cap_payload["policy_digest"],
+                },
+                "reissued_allowed": {
+                    "allowed": True,
+                    "reason": "allow",
+                    "checked_at": allowed_at,
+                    "capability_id": reissued_id,
+                    "policy_digest": cap_payload["policy_digest"],
+                },
+            },
+            "receipt": closure_receipt,
+            "summary": {
+                "artifacts_total": 8,
+                "policy_verified": True,
+                "revocation_verified": True,
+                "revoked_capability_revoked": True,
+                "deny_recorded": True,
+                "reissue_verified": True,
+                "allow_recorded": True,
+                "receipt_bound": True,
+                "closure_complete": True,
+            },
+        }
+        registry = PolicyRegistry(trusted_authorities={key.kid})
+        distribution = PolicyDistributor(
+            trusted_authorities={key.kid}
+        ).distribute(bundle, {"gate-a": registry})
+        audit = audit_policy_bundles(
+            {"fleet-a": bundle},
+            trusted_authorities={key.kid},
+        )
+        revocation_gate = RevocationList()
+        revocation = RevocationDistributor(
+            trusted_authorities={revocation_key.kid}
+        ).distribute(revocation_bundle, {"gate-a": revocation_gate})
+        lifecycle_report = {
+            "type": "kinegrant:FullLifecycleReport",
+            "schema_version": "0.1",
+            "policy_id": policy_id,
+            "bundle_id": bundle["payload"]["bundle_id"],
+            "bundle_version": 1,
+            "generated_at": "2026-08-15T01:00:00Z",
+            "overall_result": "PASS",
+            "summary": {"phases_total": 4, "passed": 4, "failed": 0},
+            "policy_distribution": distribution,
+            "audit_summary": audit,
+            "revocation_distribution": revocation,
+        }
+        packet_1 = self._build_device_to_policy_packet(
+            authority_key=key,
+            rule=rule,
+            bundle=bundle,
+            device_id="device:esp32c3:paper-barrier:unit-1",
+            request_id="urn:kinegrant:browser:request:unified-1",
+        )
+        packet_2 = self._build_device_to_policy_packet(
+            authority_key=key,
+            rule=rule,
+            bundle=bundle,
+            device_id="device:esp32c3:paper-barrier:unit-2",
+            request_id="urn:kinegrant:browser:request:unified-2",
+        )
+        fleet_export = {
+            "type": "kinegrant:FleetDeviceExportPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(started + timedelta(minutes=2)),
+            "overall_result": "PASS",
+            "trusted_policy_issuers": [key.kid],
+            "policy_bundle": bundle,
+            "devices": [packet_1, packet_2],
+            "summary": {
+                "devices_total": 2,
+                "policy_shared": True,
+                "devices_verified": 2,
+                "device_ids_unique": True,
+                "cross_references_ok": True,
+            },
+        }
+        packet = {
+            "type": "kinegrant:UnifiedAuditExportPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(started + timedelta(minutes=3)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid, revocation_key.kid],
+            "policy_bundle": bundle,
+            "revocation_bundle": revocation_bundle,
+            "lifecycle_report": lifecycle_report,
+            "fleet_export": fleet_export,
+            "closure": closure,
+            "summary": {
+                "artifacts_total": 8,
+                "phases_total": 4,
+                "devices_total": 2,
+                "policy_shared": True,
+                "lifecycle_verified": True,
+                "fleet_verified": True,
+                "closure_verified": True,
+                "cross_references_ok": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "unified-audit.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("unified-audit", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("UNIFIED AUDIT EXPORT VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["summary"] = dict(packet["summary"])
+            tampered["summary"]["closure_verified"] = False
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("unified-audit", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

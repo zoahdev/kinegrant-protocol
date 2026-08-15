@@ -297,6 +297,13 @@
   <p><button id="verify-revocation-reissue">验证撤销-重签闭环包</button></p>
   <div class="row">
     <div class="col">
+      <label>统一审计导出包 JSON（kinegrant:UnifiedAuditExportPacket：全生命周期审计 + 多设备执行证据 + 撤销-重签闭环，共用同一策略包/撤销包/信任锚）</label>
+      <textarea id="unified-audit" placeholder='{ "type": "kinegrant:UnifiedAuditExportPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "revocation_bundle": { ... }, "lifecycle_report": { ... }, "fleet_export": { ... }, "closure": { ... }, "summary": { "artifacts_total": 8, "phases_total": 4, "devices_total": 2, "policy_shared": true, "lifecycle_verified": true, "fleet_verified": true, "closure_verified": true, "cross_references_ok": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-unified-audit">验证统一审计导出包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -390,6 +397,7 @@
       verifyFleetDeviceExport,
       verifyEndToEndAuditExport,
       verifyRevocationReissueClosure,
+      verifyUnifiedAuditExport,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -445,6 +453,7 @@
     const fleetDeviceExportInput = document.getElementById("fleet-device-export");
     const endToEndAuditInput = document.getElementById("end-to-end-audit");
     const revocationReissueInput = document.getElementById("revocation-reissue");
+    const unifiedAuditInput = document.getElementById("unified-audit");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -965,6 +974,21 @@
           `REVOCATION-REISSUE CLOSURE VALID (policy=${result.policy_id}, ` +
             `revoked=${result.revoked_capability_id}, ` +
             `reissued=${result.reissued_capability_id}, receipt=${result.receipt_id})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-unified-audit").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(unifiedAuditInput.value, "统一审计导出包");
+        const result = await verifyUnifiedAuditExport(packet);
+        showOk(
+          `UNIFIED AUDIT EXPORT VALID (policy=${result.policy_id}, ` +
+            `${result.phases_total} lifecycle phases, ${result.devices_total} devices, ` +
+            `revoked=${result.closure_revoked}, reissued=${result.closure_reissued}, ` +
+            `${result.artifacts_total} artifacts)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

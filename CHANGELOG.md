@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 2.42.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.42.0 on the
+  stable 1.0 wire format, adding unified audit export verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:UnifiedAuditExportPacket`
+  (`verifyUnifiedAuditExport`: the full lifecycle report, the multi-device
+  fleet export, and the revocation-reissue closure are each re-verified
+  and must share the same policy bundle, revocation bundle, and trust
+  anchors; summary counts and flags must be consistent; fail-closed on
+  any inconsistency); the HTML page and Node CLI (`unified-audit`
+  command) expose it, cross-tested against a Python-built packet.
+
 ## 2.41.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.41.0 on the

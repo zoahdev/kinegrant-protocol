@@ -606,6 +606,19 @@ Exit criterion: an auditor can re-verify a revocation -> denial ->
 reissue -> allow -> receipt closure in the browser without trusting the
 export generator.
 
+## v2.42 - browser unified audit export verification
+
+- browser verifier re-verifies `kinegrant:UnifiedAuditExportPacket`
+  (`verifyUnifiedAuditExport`: lifecycle report, fleet device export, and
+  revocation-reissue closure share one policy bundle, revocation bundle,
+  and trust anchors; consistent summary);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify governance lifecycle, multi-device
+execution evidence, and revocation-reissue closure in one browser export
+without trusting the export generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

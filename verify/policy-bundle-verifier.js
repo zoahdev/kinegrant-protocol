@@ -4525,6 +4525,193 @@ export async function verifyRevocationReissueClosure(
   };
 }
 
+const UNIFIED_AUDIT_KEYS = [
+  "closure",
+  "fleet_export",
+  "generated_at",
+  "lifecycle_report",
+  "overall_result",
+  "policy_bundle",
+  "revocation_bundle",
+  "schema_version",
+  "summary",
+  "trusted_authorities",
+  "type",
+];
+const UNIFIED_AUDIT_SUMMARY_KEYS = [
+  "artifacts_total",
+  "closure_verified",
+  "cross_references_ok",
+  "devices_total",
+  "fleet_verified",
+  "lifecycle_verified",
+  "phases_total",
+  "policy_shared",
+];
+
+export async function verifyUnifiedAuditExport(
+  packet,
+  {
+    trustedAuthorities,
+    trustedIssuers,
+    trustedExecutors,
+    trustedSensors,
+    trustedNotaries,
+    trustedDevices,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("unified audit export packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== UNIFIED_AUDIT_KEYS.join(",")) {
+    throw new Error("unified audit export packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:UnifiedAuditExportPacket") {
+    throw new Error("wrong unified audit export packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported unified audit export packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "unified audit export packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("unified audit export packet overall_result must be PASS");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "unified audit export packet trusted_authorities must be a non-empty string array"
+    );
+  }
+
+  const trustedAuthoritiesSet = new Set(packet.trusted_authorities);
+  const policyPayload = await verifyPolicyBundle(
+    packet.policy_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+  const lifecycle = await verifyFullLifecycleReport(
+    packet.lifecycle_report,
+    packet.policy_bundle,
+    packet.revocation_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+  const fleet = await verifyFleetDeviceExport(packet.fleet_export, {
+    trustedAuthorities,
+    trustedIssuers,
+    trustedExecutors,
+    trustedSensors,
+    trustedNotaries,
+    trustedDevices,
+    now,
+  });
+  const closure = await verifyRevocationReissueClosure(packet.closure, {
+    trustedAuthorities,
+    trustedIssuers,
+    trustedExecutors,
+    now,
+  });
+
+  if (fleet.policy_id !== policyPayload.policy_id) {
+    throw new Error("fleet export does not share the unified audit policy");
+  }
+  if (
+    typeof packet.fleet_export.policy_bundle !== "object" ||
+    packet.fleet_export.policy_bundle === null ||
+    packet.fleet_export.policy_bundle.payload?.bundle_id !== policyPayload.bundle_id
+  ) {
+    throw new Error("fleet export does not share the unified policy bundle");
+  }
+  if (closure.policy_id !== policyPayload.policy_id) {
+    throw new Error("revocation-reissue closure does not share the unified audit policy");
+  }
+  if (
+    typeof packet.closure.policy_bundle !== "object" ||
+    packet.closure.policy_bundle === null ||
+    packet.closure.policy_bundle.payload?.bundle_id !== policyPayload.bundle_id
+  ) {
+    throw new Error("revocation-reissue closure does not share the unified policy bundle");
+  }
+  if (
+    typeof packet.closure.revocation_bundle !== "object" ||
+    packet.closure.revocation_bundle === null ||
+    packet.closure.revocation_bundle.payload?.bundle_id !==
+      packet.revocation_bundle.payload.bundle_id
+  ) {
+    throw new Error(
+      "revocation-reissue closure does not share the unified revocation bundle"
+    );
+  }
+  for (const item of packet.fleet_export.trusted_policy_issuers) {
+    if (!trustedAuthoritiesSet.has(item)) {
+      throw new Error(
+        "fleet export trust anchors are not covered by the unified audit trusted_authorities"
+      );
+    }
+  }
+  for (const item of [
+    ...packet.closure.trusted_authorities,
+    ...packet.closure.trusted_policy_issuers,
+  ]) {
+    if (!trustedAuthoritiesSet.has(item)) {
+      throw new Error(
+        "revocation-reissue closure trust anchors are not covered by the unified audit trusted_authorities"
+      );
+    }
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("unified audit export packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    UNIFIED_AUDIT_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("unified audit export packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 6 + fleet.devices_total,
+    phases_total: lifecycle.phases,
+    devices_total: fleet.devices_total,
+    policy_shared: true,
+    lifecycle_verified: true,
+    fleet_verified: true,
+    closure_verified: true,
+    cross_references_ok: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`unified audit export packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    policy_id: policyPayload.policy_id,
+    phases_total: lifecycle.phases,
+    devices_total: fleet.devices_total,
+    closure_revoked: closure.revoked_capability_id,
+    closure_reissued: closure.reissued_capability_id,
+    artifacts_total: summary.artifacts_total,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -4950,6 +5137,7 @@ if (typeof globalThis !== "undefined") {
     verifyFleetDeviceExport,
     verifyEndToEndAuditExport,
     verifyRevocationReissueClosure,
+    verifyUnifiedAuditExport,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,
