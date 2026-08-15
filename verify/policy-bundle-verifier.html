@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -141,6 +141,18 @@
     </div>
   </div>
   <p><button id="verify-identities">校验身份语法</button></p>
+  <div class="row">
+    <div class="col">
+      <label>策略分析报告 JSON（analyze_policy_bundle 输出）</label>
+      <textarea id="analysis-report" placeholder='{ "type": "kinegrant:PolicyBundleAnalysis", "schema_version": "0.1", "policy_id": "...", "bundle_id": "...", "bundle_version": 1, "overall_result": "PASS", "summary": { "findings": 0, "errors": 0, "warnings": 0, "info": 0 }, "findings": [] }'></textarea>
+    </div>
+    <div class="col">
+      <label>对应策略包 JSON + 信任机构 kid 列表（第二个框）</label>
+      <textarea id="analysis-bundle" placeholder='{ "alg": "EdDSA", "kid": "...", "payload": { "type": "kinegrant:PolicyBundle", ... }, "signature": "..." }'></textarea>
+      <textarea id="analysis-authorities" placeholder='["kinegrant:key:ed25519:..."]'>[]</textarea>
+    </div>
+  </div>
+  <p><button id="verify-analysis">验证策略分析报告</button></p>
   <pre id="output">等待操作…</pre>
 
   <script type="module">
@@ -161,6 +173,7 @@
       validateActionVocabulary,
       validateObligationVocabulary,
       validateIdentitySyntax,
+      verifyPolicyAnalysisReport,
     } from "./policy-bundle-verifier.js";
 
     const bundleInput = document.getElementById("bundle");
@@ -184,6 +197,9 @@
     const vocabularyInput = document.getElementById("vocabulary");
     const obligationsInput = document.getElementById("obligations");
     const identitiesInput = document.getElementById("identities");
+    const analysisReportInput = document.getElementById("analysis-report");
+    const analysisBundleInput = document.getElementById("analysis-bundle");
+    const analysisAuthoritiesInput = document.getElementById("analysis-authorities");
     const output = document.getElementById("output");
 
     function showOk(text) {
@@ -404,6 +420,26 @@
             `${entry.value} -> kind=${entry.kind} namespace=${entry.namespace} local_id=${entry.local_id}`
         );
         showOk(`IDENTITY SYNTAX VALID (${result.count} identifiers)\n` + lines.join("\n"));
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-analysis").addEventListener("click", async () => {
+      try {
+        const report = parseJson(analysisReportInput.value, "策略分析报告");
+        const bundle = parseJson(analysisBundleInput.value, "策略包");
+        const authorities = parseJson(analysisAuthoritiesInput.value, "信任机构");
+        const result = await verifyPolicyAnalysisReport(
+          report,
+          bundle,
+          new Set(authorities)
+        );
+        showOk(
+          `POLICY ANALYSIS VALID (${result.overall_result}: ` +
+            `${result.summary.errors} errors, ${result.summary.warnings} warnings, ` +
+            `${result.summary.info} info, ${result.findings.length} findings)`
+        );
       } catch (error) {
         showErr("INVALID: " + error.message);
       }

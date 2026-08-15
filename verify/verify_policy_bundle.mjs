@@ -16,6 +16,7 @@ import {
   validateActionVocabulary,
   validateObligationVocabulary,
   validateIdentitySyntax,
+  verifyPolicyAnalysisReport,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -134,6 +135,21 @@ try {
         `${entry.value} -> kind=${entry.kind} namespace=${entry.namespace} local_id=${entry.local_id}`
       );
     }
+  } else if (command === "analysis") {
+    const [reportPath, bundlePath, authoritiesPath] = args;
+    const report = load(reportPath);
+    const bundle = load(bundlePath);
+    const trustedAuthorities = new Set(load(authoritiesPath));
+    const result = await verifyPolicyAnalysisReport(
+      report,
+      bundle,
+      trustedAuthorities
+    );
+    console.log(
+      `POLICY ANALYSIS VALID (${result.overall_result}: ` +
+        `${result.summary.errors} errors, ${result.summary.warnings} warnings, ` +
+        `${result.summary.info} info, ${result.findings.length} findings)`
+    );
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
@@ -150,7 +166,8 @@ try {
       "bundle-odrl <bundle.json> <authorities.json> | " +
       "vocabulary <actions.json> | " +
       "obligations <obligations.json> | " +
-      "identities <identifiers.json>"
+      "identities <identifiers.json> | " +
+      "analysis <report.json> <bundle.json> <authorities.json>"
     );
   }
 } catch (error) {

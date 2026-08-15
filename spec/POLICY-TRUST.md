@@ -98,6 +98,10 @@ bundle. `policy_bundle_coverage` (`--coverage`) additionally evaluates the
 policy engine over a bounded Cartesian request space and reports
 allowed/denied/exceptions, per-rule applicability, and allow rules that never
 win (shadowed by deny-overrides).
+The browser verifier and its Node CLI can re-verify a
+`kinegrant:PolicyBundleAnalysis` report against the signed bundle
+(`verifyPolicyAnalysisReport`): findings are recomputed locally and the report
+is accepted only when it exactly matches.
 
 ## Audit aggregation
 
