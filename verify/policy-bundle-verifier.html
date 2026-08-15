@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、车队审计汇总、安全审计工具包、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、车队审计汇总、安全审计工具包、ESP32-C3 硬件证据、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -195,6 +195,13 @@
   <p><button id="verify-kit">验证安全审计工具包</button></p>
   <div class="row">
     <div class="col">
+      <label>ESP32-C3 硬件证据 JSON（kinegrant:ESP32C3PaperBarrierProofEvidence，physical-proof-evidence 输出）</label>
+      <textarea id="esp32" placeholder='{ "schema_version": "0.1", "evidence_type": "kinegrant:ESP32C3PaperBarrierProofEvidence", "evidence_mode": "simulation", "overall_result": "NOT_RUN", "run_id": "urn:kinegrant:esp32c3-proof:run:...", ... }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-esp32">验证 ESP32-C3 硬件证据</button></p>
+  <div class="row">
+    <div class="col">
       <label>禁止组合报告 JSON（kinegrant:SequenceCheckReport）</label>
       <textarea id="sequence-report" placeholder='{ "type": "kinegrant:SequenceCheckReport", "schema_version": "0.1", "request_digest": "sha256:...", "journal_digest": "sha256:...", "checked_at": "...", "verdict": { "allowed": false, "reason": "forbidden_combination", "matched_combination_ids": ["forbid-1"] } }'></textarea>
     </div>
@@ -240,6 +247,7 @@
       verifyConformanceReport,
       verifyPolicyAuditSummary,
       verifySecurityReviewKit,
+      verifyEsp32c3Evidence,
     } from "./policy-bundle-verifier.js";
 
     const bundleInput = document.getElementById("bundle");
@@ -273,6 +281,7 @@
     const conformanceInput = document.getElementById("conformance");
     const fleetAuditInput = document.getElementById("fleet-audit");
     const kitInput = document.getElementById("kit");
+    const esp32Input = document.getElementById("esp32");
     const sequenceReportInput = document.getElementById("sequence-report");
     const sequencePolicyInput = document.getElementById("sequence-policy");
     const sequenceRequestInput = document.getElementById("sequence-request");
@@ -592,6 +601,19 @@
           `SECURITY REVIEW KIT VALID (${result.overall_result}: ` +
             `${result.checks} checks, ${result.checklist} checklist items, ` +
             `reference=${result.reference_implementation})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-esp32").addEventListener("click", () => {
+      try {
+        const evidence = parseJson(esp32Input.value, "ESP32-C3 硬件证据");
+        const result = verifyEsp32c3Evidence(evidence);
+        showOk(
+          `ESP32-C3 EVIDENCE VALID (${result.overall_result}, ` +
+            `mode=${result.evidence_mode}, ${result.cases} cases)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

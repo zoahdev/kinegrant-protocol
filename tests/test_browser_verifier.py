@@ -1086,6 +1086,74 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(checked.returncode, 0, checked.stderr)
             self.assertIn("SECURITY REVIEW KIT VALID (FAIL", checked.stdout)
 
+    def test_browser_verifier_verifies_python_esp32c3_evidence(self) -> None:
+        template_path = ROOT / "proof" / "esp32-c3" / "physical-proof-evidence.template.json"
+        template = json.loads(template_path.read_text(encoding="utf-8"))
+        profile = {
+            "HWP-001": (20, 0, 0, 20),
+            "HWP-002": (20, 20, 20, 0),
+            "HWP-003": (20, 0, 0, 20),
+            "HWP-004": (3, 0, 0, 3),
+            "HWP-005": (1, 0, 0, 1),
+            "HWP-006": (2, 0, 0, 2),
+            "HWP-007": (64, 1, 1, 63),
+            "HWP-008": (1, 0, 0, 1),
+            "HWP-009": (2, 0, 0, 2),
+            "HWP-010": (4, 0, 0, 0),
+            "HWP-011": (100, 100, 100, 0),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            template_out = base / "template.json"
+            template_out.write_text(json.dumps(template), encoding="utf-8")
+            verified = self._run("esp32", str(template_out))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("ESP32-C3 EVIDENCE VALID (NOT_RUN", verified.stdout)
+            tampered = dict(template)
+            tampered["cases"] = [dict(case) for case in template["cases"]]
+            tampered["cases"][0]["attempts"] = 1
+            tampered_out = base / "tampered.json"
+            tampered_out.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("esp32", str(tampered_out))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+            cases = []
+            for case_id, (attempts, calls, movements, denials) in profile.items():
+                cases.append(
+                    {
+                        "id": case_id,
+                        "name": "case " + case_id,
+                        "attempts": attempts,
+                        "passed": True,
+                        "measurements": {
+                            "actuator_calls": calls,
+                            "observed_movements": movements,
+                            "denials": denials,
+                            "abnormal_resets": 0,
+                            "overheat_events": 0,
+                        },
+                        "artifact_digests": [],
+                        "notes": "ok",
+                    }
+                )
+            sim = dict(template)
+            sim["overall_result"] = "SIMULATION_PASS"
+            sim["started_at"] = "2026-08-10T00:00:00Z"
+            sim["finished_at"] = "2026-08-10T00:30:00Z"
+            sim["verification"] = {
+                "allow_receipts_verified": True,
+                "deny_receipts_verified": True,
+                "tampered_receipts_rejected": True,
+                "untrusted_executor_rejected": True,
+                "device_acks_verified": True,
+            }
+            sim["cases"] = cases
+            sim_out = base / "sim.json"
+            sim_out.write_text(json.dumps(sim), encoding="utf-8")
+            checked = self._run("esp32", str(sim_out))
+            self.assertEqual(checked.returncode, 0, checked.stderr)
+            self.assertIn("ESP32-C3 EVIDENCE VALID (SIMULATION_PASS", checked.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

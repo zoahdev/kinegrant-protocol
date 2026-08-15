@@ -24,6 +24,7 @@ import {
   verifyConformanceReport,
   verifyPolicyAuditSummary,
   verifySecurityReviewKit,
+  verifyEsp32c3Evidence,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -224,6 +225,14 @@ try {
         `${result.checks} checks, ${result.checklist} checklist items, ` +
         `reference=${result.reference_implementation})`
     );
+  } else if (command === "esp32") {
+    const [evidencePath] = args;
+    const evidence = load(evidencePath);
+    const result = verifyEsp32c3Evidence(evidence);
+    console.log(
+      `ESP32-C3 EVIDENCE VALID (${result.overall_result}, ` +
+        `mode=${result.evidence_mode}, ${result.cases} cases)`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -258,7 +267,8 @@ try {
       "mldsa <envelope.json> | " +
       "conformance <report.json> | " +
       "fleet-audit <report.json> | " +
-      "kit <kit.json>"
+      "kit <kit.json> | " +
+      "esp32 <evidence.json>"
     );
   }
 } catch (error) {
