@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.60.0 2026-08-15
+
+- Milestone release: reference implementation version 2.60.0 on the
+  stable 1.0 wire format, adding SROS2 policy mapping verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:Sros2PolicyMappingPacket`
+  (`verifySros2PolicyMapping`: the signed policy bundle is verified;
+  every declaration must be exactly reproducible from the bundle's
+  rules (sorted by policy_id and actions, one declaration per action
+  with `kg/<action>/goal` topic patterns); declaration fields and
+  summary counts must be consistent; fail-closed on any mismatch);
+  the HTML page and Node CLI (`sros2-mapping` command) expose it,
+  cross-tested against Python-generated SROS2 mappings.
+
 ## 2.59.0 2026-08-15
 
 - Milestone release: reference implementation version 2.59.0 on the

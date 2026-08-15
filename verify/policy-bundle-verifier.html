@@ -416,6 +416,13 @@
   <p><button id="verify-rule-coverage">验证规则覆盖分析包</button></p>
   <div class="row">
     <div class="col">
+      <label>SROS2 策略映射包 JSON（kinegrant:Sros2PolicyMappingPacket：声明必须与签名策略包逐条可复算一致）</label>
+      <textarea id="sros2-mapping" placeholder='{ "type": "kinegrant:Sros2PolicyMappingPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "domain": 0, "enforcement": "enforce", "declarations": [ { "policy_id": "...", "action": "open", "effect": "allow", "target_pattern": "...", "subjects": [ "*" ], "purposes": [ "delivery" ], "topic_pattern": "kg/open/goal" } ], "summary": { "artifacts_total": 3, "rules_total": 1, "declarations_total": 1, "enforcement": "enforce", "deterministic": true, "bundle_bound": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-sros2-mapping">验证 SROS2 策略映射</button></p>
+  <div class="row">
+    <div class="col">
       <label>验证红队报告 JSON（kinegrant:RedTeamReport：11 项对抗场景的 expected/observed/passed 一致性）</label>
       <textarea id="red-team" placeholder='{ "type": "kinegrant:RedTeamReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 11, "passed": 11, "failed": 0 }, "cases": [ { "id": "RT-001", "category": "replay", "name": "...", "expected": "DENY", "observed": "DENY", "passed": true, "detail": "..." } ] }'></textarea>
     </div>
@@ -605,6 +612,7 @@
     const policyTemplateInput = document.getElementById("policy-template");
     const obligationBatchInput = document.getElementById("obligation-batch");
     const ruleCoverageInput = document.getElementById("rule-coverage");
+    const sros2MappingInput = document.getElementById("sros2-mapping");
     const redTeamInput = document.getElementById("red-team");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
@@ -1355,6 +1363,19 @@
         showOk(
           `RULE COVERAGE AUDIT VALID (policy=${result.policy_id}, rules=${result.rules_total}, ` +
             `covered=${result.covered_rules}, uncovered=${result.uncovered_rules})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-sros2-mapping").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(sros2MappingInput.value, "SROS2 策略映射包");
+        const result = await verifySros2PolicyMapping(packet);
+        showOk(
+          `SROS2 POLICY MAPPING VALID (policy=${result.policy_id}, rules=${result.rules_total}, ` +
+            `declarations=${result.declarations_total})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

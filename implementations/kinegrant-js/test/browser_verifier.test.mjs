@@ -62,6 +62,7 @@ import {
   verifyCrossImplementationReport,
   verifyPolicyTemplateAudit,
   verifyObligationBatchAudit,
+  verifySros2PolicyMapping,
   verifyRuleCoverageAudit,
   verifyRedTeamReport,
   verifyRobotDemoReport,
@@ -482,6 +483,67 @@ function buildRedTeamReport() {
       passed: true,
       detail: "probe behaved as expected",
     })),
+  };
+}
+
+function buildSros2Packet(privateKey, publicKey, overrides = {}) {
+  const bundle = buildBundle(privateKey, publicKey, {
+    extraRules: [
+      {
+        policy_id: "urn:policy:browser:close",
+        issuer: kidOf(publicKey),
+        target: "urn:space:door-2",
+        effect: "allow",
+        actions: ["close"],
+        subjects: ["*"],
+        purposes: ["maintenance"],
+        constraints: {},
+        obligations: [],
+        priority: 0,
+        source: {},
+      },
+    ],
+  });
+  const bundlePayload = bundle.payload;
+  const declarations = [
+    {
+      policy_id: "urn:policy:browser",
+      action: "open",
+      effect: "allow",
+      target_pattern: "urn:space:door-1",
+      subjects: ["*"],
+      purposes: ["delivery"],
+      topic_pattern: "kg/open/goal",
+    },
+    {
+      policy_id: "urn:policy:browser:close",
+      action: "close",
+      effect: "allow",
+      target_pattern: "urn:space:door-2",
+      subjects: ["*"],
+      purposes: ["maintenance"],
+      topic_pattern: "kg/close/goal",
+    },
+  ];
+  return {
+    type: "kinegrant:Sros2PolicyMappingPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T03:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: [bundlePayload.issuer],
+    policy_bundle: bundle,
+    domain: 0,
+    enforcement: "enforce",
+    declarations,
+    summary: {
+      artifacts_total: 3,
+      rules_total: 2,
+      declarations_total: 2,
+      enforcement: "enforce",
+      deterministic: true,
+      bundle_bound: true,
+    },
+    ...overrides,
   };
 }
 
@@ -3942,6 +4004,33 @@ test("browser verifier validates obligation batch audits", async () => {
       summary: { ...packet.summary, obligations_covered: 1 },
     })
   );
+});
+
+test("browser verifier validates sros2 policy mappings", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const packet = buildSros2Packet(privateKey, publicKey);
+  const result = await verifySros2PolicyMapping(packet);
+  assert.equal(result.rules_total, 2);
+  assert.equal(result.declarations_total, 2);
+
+  const wrongTopic = buildSros2Packet(privateKey, publicKey);
+  wrongTopic.declarations[1] = {
+    ...wrongTopic.declarations[1],
+    topic_pattern: "kg/open/goal",
+  };
+  await assert.rejects(() => verifySros2PolicyMapping(wrongTopic));
+
+  const wrongSummary = buildSros2Packet(privateKey, publicKey);
+  wrongSummary.summary = { ...wrongSummary.summary, declarations_total: 1 };
+  await assert.rejects(() => verifySros2PolicyMapping(wrongSummary));
+
+  const missingDeclaration = buildSros2Packet(privateKey, publicKey);
+  missingDeclaration.declarations = missingDeclaration.declarations.slice(0, 1);
+  missingDeclaration.summary = {
+    ...missingDeclaration.summary,
+    declarations_total: 1,
+  };
+  await assert.rejects(() => verifySros2PolicyMapping(missingDeclaration));
 });
 
 test("browser verifier validates rule coverage audits", async () => {

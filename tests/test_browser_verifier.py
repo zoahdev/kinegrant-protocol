@@ -4071,6 +4071,73 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_sros2_mapping(self) -> None:
+        from datetime import timedelta
+
+        from kinegrant.bridges.ros2 import Sros2PolicyMapping
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        open_rule = PolicyRule(
+            "urn:policy:sros2:open",
+            key.kid,
+            "urn:space:browser:door-1",
+            "allow",
+            ("kg.action.open",),
+            purposes=("delivery",),
+        )
+        close_rule = PolicyRule(
+            "urn:policy:sros2:close",
+            key.kid,
+            "urn:space:browser:door-2",
+            "allow",
+            ("kg.action.close",),
+            purposes=("maintenance",),
+        )
+        bundle = authority.publish(
+            "urn:policy:sros2:open",
+            [open_rule, close_rule],
+            ttl_seconds=3600,
+        )
+        mapping = Sros2PolicyMapping((open_rule, close_rule)).to_dict()
+        packet = {
+            "type": "kinegrant:Sros2PolicyMappingPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid],
+            "policy_bundle": bundle,
+            "domain": 0,
+            "enforcement": "enforce",
+            "declarations": mapping["declarations"],
+            "summary": {
+                "artifacts_total": 3,
+                "rules_total": 2,
+                "declarations_total": len(mapping["declarations"]),
+                "enforcement": "enforce",
+                "deterministic": True,
+                "bundle_bound": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "sros2-mapping.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("sros2-mapping", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("SROS2 POLICY MAPPING VALID", verified.stdout)
+
+            tampered = dict(packet)
+            tampered["declarations"] = [
+                dict(item) for item in packet["declarations"]
+            ]
+            tampered["declarations"][0]["topic_pattern"] = "kg/close/goal"
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("sros2-mapping", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

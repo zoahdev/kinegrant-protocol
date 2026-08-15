@@ -830,6 +830,20 @@ computed from the signed policy bundle.
 Exit criterion: an auditor can verify in the browser that a red team
 report's outcomes and summary are internally consistent and complete.
 
+## v2.60 - browser SROS2 policy mapping verification
+
+- browser verifier re-verifies `kinegrant:Sros2PolicyMappingPacket`
+  (`verifySros2PolicyMapping`: signed bundle verification plus exact
+  reproduction of every SROS2-style declaration and topic pattern;
+  deterministic and fail-closed on any mismatch);
+- RFC-0003 acceptance vote closing (community/steering action);
+- integrate the SROS2 mapping audit page into the public site
+  (deployment action).
+
+Exit criterion: an auditor can verify in the browser that an SROS2
+policy mapping is exactly the deterministic projection of the signed
+KineGrant policy bundle.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

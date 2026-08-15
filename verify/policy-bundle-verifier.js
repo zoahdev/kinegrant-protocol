@@ -7711,6 +7711,193 @@ export async function verifyObligationBatchAudit(
   };
 }
 
+const SROS2_PACKET_KEYS = [
+  "declarations",
+  "domain",
+  "enforcement",
+  "generated_at",
+  "overall_result",
+  "policy_bundle",
+  "schema_version",
+  "summary",
+  "trusted_authorities",
+  "type",
+];
+const SROS2_DECLARATION_KEYS = [
+  "action",
+  "effect",
+  "policy_id",
+  "purposes",
+  "subjects",
+  "target_pattern",
+  "topic_pattern",
+];
+const SROS2_SUMMARY_KEYS = [
+  "artifacts_total",
+  "bundle_bound",
+  "declarations_total",
+  "deterministic",
+  "enforcement",
+  "rules_total",
+];
+
+export async function verifySros2PolicyMapping(
+  packet,
+  {
+    trustedAuthorities,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("sros2 policy mapping packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== SROS2_PACKET_KEYS.join(",")) {
+    throw new Error("sros2 policy mapping packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:Sros2PolicyMappingPacket") {
+    throw new Error("wrong sros2 policy mapping packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported sros2 policy mapping packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "sros2 policy mapping packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("sros2 policy mapping packet overall_result must be PASS");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some(
+      (item) => typeof item !== "string" || item.length === 0
+    )
+  ) {
+    throw new Error(
+      "sros2 policy mapping packet trusted_authorities must be a non-empty string array"
+    );
+  }
+  if (
+    !Number.isInteger(packet.domain) ||
+    packet.domain < 0
+  ) {
+    throw new Error("sros2 policy mapping domain must be a non-negative integer");
+  }
+  if (packet.enforcement !== "enforce") {
+    throw new Error("sros2 policy mapping enforcement must be enforce");
+  }
+
+  const policyPayload = await verifyPolicyBundle(
+    packet.policy_bundle,
+    new Set(packet.trusted_authorities),
+    { now }
+  );
+  const expectedDeclarations = [];
+  const sortedRules = [...policyPayload.rules].sort((left, right) => {
+    if (left.policy_id !== right.policy_id) {
+      return left.policy_id < right.policy_id ? -1 : 1;
+    }
+    const la = left.actions ?? [];
+    const ra = right.actions ?? [];
+    const length = Math.min(la.length, ra.length);
+    for (let index = 0; index < length; index += 1) {
+      if (la[index] !== ra[index]) {
+        return la[index] < ra[index] ? -1 : 1;
+      }
+    }
+    return la.length - ra.length;
+  });
+  for (const rule of sortedRules) {
+    for (const action of rule.actions ?? []) {
+      expectedDeclarations.push({
+        policy_id: rule.policy_id,
+        action,
+        effect: rule.effect,
+        target_pattern: rule.target,
+        subjects: [...(rule.subjects ?? ["*"])],
+        purposes: [...(rule.purposes ?? ["*"])],
+        topic_pattern: "kg/" + action + "/goal",
+      });
+    }
+  }
+
+  if (!Array.isArray(packet.declarations)) {
+    throw new Error("sros2 policy mapping declarations must be an array");
+  }
+  for (const declaration of packet.declarations) {
+    if (
+      typeof declaration !== "object" ||
+      declaration === null ||
+      Array.isArray(declaration) ||
+      Object.keys(declaration).sort().join(",") !==
+        SROS2_DECLARATION_KEYS.join(",")
+    ) {
+      throw new Error("sros2 policy mapping declaration fields are invalid");
+    }
+    for (const field of [
+      "policy_id",
+      "action",
+      "effect",
+      "target_pattern",
+      "topic_pattern",
+    ]) {
+      if (
+        typeof declaration[field] !== "string" ||
+        declaration[field].length === 0
+      ) {
+        throw new Error(`sros2 policy mapping declaration ${field} is invalid`);
+      }
+    }
+    for (const field of ["subjects", "purposes"]) {
+      if (
+        !Array.isArray(declaration[field]) ||
+        declaration[field].some(
+          (item) => typeof item !== "string" || item.length === 0
+        )
+      ) {
+        throw new Error(`sros2 policy mapping declaration ${field} is invalid`);
+      }
+    }
+  }
+  if (
+    canonicalJson(packet.declarations) !== canonicalJson(expectedDeclarations)
+  ) {
+    throw new Error("sros2 policy mapping declarations do not match the bundle");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary) ||
+    Object.keys(summary).sort().join(",") !== SROS2_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("sros2 policy mapping packet summary fields are invalid");
+  }
+  if (
+    summary.artifacts_total !== 3 ||
+    summary.rules_total !== policyPayload.rules.length ||
+    summary.declarations_total !== packet.declarations.length ||
+    summary.enforcement !== "enforce" ||
+    summary.deterministic !== true ||
+    summary.bundle_bound !== true
+  ) {
+    throw new Error("sros2 policy mapping packet summary is inconsistent");
+  }
+  return {
+    valid: true,
+    policy_id: policyPayload.policy_id,
+    rules_total: policyPayload.rules.length,
+    declarations_total: packet.declarations.length,
+  };
+}
+
 const RULE_COVERAGE_KEYS = [
   "coverage",
   "generated_at",
@@ -8438,6 +8625,7 @@ if (typeof globalThis !== "undefined") {
     verifyCrossImplementationReport,
     verifyPolicyTemplateAudit,
     verifyObligationBatchAudit,
+    verifySros2PolicyMapping,
     verifyRuleCoverageAudit,
     verifyRedTeamReport,
     verifyRobotDemoReport,
