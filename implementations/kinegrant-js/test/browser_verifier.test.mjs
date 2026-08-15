@@ -45,6 +45,7 @@ import {
   verifyDeviceToPolicyExport,
   verifyFleetDeviceExport,
   verifyEndToEndAuditExport,
+  verifyRevocationReissueClosure,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -247,7 +248,7 @@ function buildScopedCapability(privateKey, publicKey, request, options = {}) {
     issued_at: issuedAt,
     not_before: issuedAt,
     expires_at: expiresAt,
-    nonce: "n".repeat(32),
+    nonce: options.nonce ?? "n".repeat(32),
     parent_capability_id: options.parent
       ? options.parent.payload.capability_id
       : null,
@@ -586,7 +587,11 @@ function buildMptEvidence() {
   };
 }
 
-function buildRevocationBundle(privateKey, publicKey) {
+function buildRevocationBundle(
+  privateKey,
+  publicKey,
+  { capabilityId = "kinegrant:cap:" + "c".repeat(64) } = {}
+) {
   const kid = kidOf(publicKey);
   const body = {
     type: "kinegrant:RevocationBundle",
@@ -597,7 +602,7 @@ function buildRevocationBundle(privateKey, publicKey) {
     issued_at: new Date().toISOString(),
     revocations: [
       {
-        capability_id: "kinegrant:cap:" + "c".repeat(64),
+        capability_id: capabilityId,
         reason: null,
         at: new Date().toISOString(),
       },
@@ -1999,6 +2004,133 @@ test("browser verifier validates end-to-end audit export packets", async () => {
         ...packet.lifecycle_report,
         summary: { ...packet.lifecycle_report.summary, passed: 3 },
       },
+    })
+  );
+});
+
+test("browser verifier validates revocation-reissue closure packets", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  const bundlePayload = bundle.payload;
+  const request = {
+    type: "kinegrant:ActionRequest",
+    version: "0.1",
+    request_id: "req-1",
+    agent: "robot-1",
+    target: "urn:space:door-1",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const expectedPolicyDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        Buffer.from(
+          canonicalJson({
+            rules: bundlePayload.rules,
+            trusted_policy_issuers: [bundlePayload.issuer].sort(),
+          }),
+          "utf8"
+        )
+      )
+      .digest("hex");
+  const capabilityOptions = {
+    policyDigest: expectedPolicyDigest,
+    matchedPolicyIds: [bundlePayload.policy_id],
+  };
+  const revokedCapability = buildScopedCapability(
+    privateKey,
+    publicKey,
+    request,
+    { ...capabilityOptions, nonce: "old-nonce-value-000000000000" }
+  );
+  const reissuedCapability = buildScopedCapability(
+    privateKey,
+    publicKey,
+    request,
+    { ...capabilityOptions, nonce: "new-nonce-value-000000000000" }
+  );
+  const revokedId = revokedCapability.payload.capability_id;
+  const revocationBundle = buildRevocationBundle(privateKey, publicKey, {
+    capabilityId: revokedId,
+  });
+  const receipt = buildReceipt(privateKey, publicKey, {
+    capabilityId: reissuedCapability.payload.capability_id,
+    requestDigest: reissuedCapability.payload.request_digest,
+    evidenceHash: "sha256:" + "a".repeat(64),
+    target: request.target,
+  });
+  const packet = {
+    type: "kinegrant:RevocationReissueClosurePacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T03:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: [bundlePayload.issuer],
+    trusted_policy_issuers: [bundlePayload.issuer],
+    policy_bundle: bundle,
+    revocation_bundle: revocationBundle,
+    revoked_capability_id: revokedId,
+    request,
+    reissued_capability: reissuedCapability,
+    gate_log: {
+      revoked_denied: {
+        allowed: false,
+        reason: "revoked",
+        checked_at: "2026-08-15T00:20:00Z",
+        capability_id: revokedId,
+        policy_digest: expectedPolicyDigest,
+      },
+      reissued_allowed: {
+        allowed: true,
+        reason: "allow",
+        checked_at: "2026-08-15T00:30:00Z",
+        capability_id: reissuedCapability.payload.capability_id,
+        policy_digest: expectedPolicyDigest,
+      },
+    },
+    receipt,
+    summary: {
+      artifacts_total: 8,
+      policy_verified: true,
+      revocation_verified: true,
+      revoked_capability_revoked: true,
+      deny_recorded: true,
+      reissue_verified: true,
+      allow_recorded: true,
+      receipt_bound: true,
+      closure_complete: true,
+    },
+  };
+  const result = await verifyRevocationReissueClosure(packet);
+  assert.equal(result.policy_id, bundlePayload.policy_id);
+  assert.equal(result.revoked_capability_id, revokedId);
+  assert.equal(result.reissued_capability_id, reissuedCapability.payload.capability_id);
+
+  const unrelatedRevocation = buildRevocationBundle(privateKey, publicKey);
+  await assert.rejects(() =>
+    verifyRevocationReissueClosure({
+      ...packet,
+      revocation_bundle: unrelatedRevocation,
+    })
+  );
+  await assert.rejects(() =>
+    verifyRevocationReissueClosure({
+      ...packet,
+      gate_log: {
+        ...packet.gate_log,
+        revoked_denied: {
+          ...packet.gate_log.revoked_denied,
+          capability_id: "kinegrant:cap:" + "b".repeat(64),
+        },
+      },
+    })
+  );
+  await assert.rejects(() =>
+    verifyRevocationReissueClosure({
+      ...packet,
+      summary: { ...packet.summary, closure_complete: false },
     })
   );
 });

@@ -2199,6 +2199,132 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_revocation_reissue_closure_packet(
+        self,
+    ) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        issuer = CapabilityIssuer(key)
+        rule = PolicyRule(
+            "revoke-reissue-rule-1",
+            key.kid,
+            "urn:space:browser:*",
+            "allow",
+            ("open",),
+            purposes=("delivery",),
+        )
+        bundle = authority.publish(
+            "revoke-reissue-rule-1",
+            [rule],
+            ttl_seconds=3600,
+        )
+        request = ActionRequest(
+            "urn:kinegrant:browser:request:revoke-reissue",
+            "urn:robot:browser:1",
+            "urn:space:browser:door-1",
+            "open",
+            "delivery",
+        )
+        decision = PolicyEngine(
+            [rule],
+            trusted_policy_issuers={key.kid},
+        ).evaluate(request)
+        revoked_capability = issuer.issue(request, decision, ttl_seconds=300)
+        revoked_id = revoked_capability["payload"]["capability_id"]
+        revocations = RevocationList()
+        revocations.revoke(revoked_id, reason="operator decision")
+        revocation_key = Ed25519KeyPair.generate()
+        revocation_bundle = sign_revocation_bundle(
+            build_revocation_bundle(
+                revocations,
+                issuer=revocation_key.kid,
+            ),
+            revocation_key,
+        )
+        reissued_capability = issuer.issue(request, decision, ttl_seconds=300)
+        reissued_id = reissued_capability["payload"]["capability_id"]
+        self.assertNotEqual(revoked_id, reissued_id)
+        started = utc_now()
+        denied_at = isoformat(started - timedelta(minutes=5))
+        allowed_at = isoformat(started - timedelta(minutes=4))
+        gate = ActionGate(
+            trusted_issuers={key.kid},
+            replay_store=InMemoryReplayStore(),
+            revocation_list=revocations,
+        )
+        with self.assertRaises(PermissionError):
+            gate.authorize(revoked_capability, request, now=started)
+        verified = gate.authorize(reissued_capability, request, now=started)
+        executor = Ed25519KeyPair.generate()
+        log = ReceiptLog(executor)
+        receipt = log.append(
+            verified,
+            result="succeeded",
+            evidence_hash="sha256:" + "a" * 64,
+            started_at=started,
+            finished_at=started + timedelta(seconds=1),
+            request=request,
+        )
+        cap_payload = reissued_capability["payload"]
+        packet = {
+            "type": "kinegrant:RevocationReissueClosurePacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(started + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid, revocation_key.kid],
+            "trusted_policy_issuers": [key.kid],
+            "policy_bundle": bundle,
+            "revocation_bundle": revocation_bundle,
+            "revoked_capability_id": revoked_id,
+            "request": request.to_dict(),
+            "reissued_capability": reissued_capability,
+            "gate_log": {
+                "revoked_denied": {
+                    "allowed": False,
+                    "reason": "revoked",
+                    "checked_at": denied_at,
+                    "capability_id": revoked_id,
+                    "policy_digest": cap_payload["policy_digest"],
+                },
+                "reissued_allowed": {
+                    "allowed": True,
+                    "reason": "allow",
+                    "checked_at": allowed_at,
+                    "capability_id": reissued_id,
+                    "policy_digest": cap_payload["policy_digest"],
+                },
+            },
+            "receipt": receipt,
+            "summary": {
+                "artifacts_total": 8,
+                "policy_verified": True,
+                "revocation_verified": True,
+                "revoked_capability_revoked": True,
+                "deny_recorded": True,
+                "reissue_verified": True,
+                "allow_recorded": True,
+                "receipt_bound": True,
+                "closure_complete": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "revocation-reissue.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("revocation-reissue", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("REVOCATION-REISSUE CLOSURE VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["summary"] = dict(packet["summary"])
+            tampered["summary"]["closure_complete"] = False
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("revocation-reissue", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
