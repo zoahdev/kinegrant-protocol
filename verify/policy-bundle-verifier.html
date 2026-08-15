@@ -395,6 +395,13 @@
   <p><button id="verify-cross-implementation">验证跨实现一致性报告</button></p>
   <div class="row">
     <div class="col">
+      <label>策略模板一致性包 JSON（kinegrant:PolicyTemplateAuditPacket：规则必须与模板的固定字段/可变字段/允许值逐项一致）</label>
+      <textarea id="policy-template" placeholder='{ "type": "kinegrant:PolicyTemplateAuditPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "template": { "template_id": "tpl-1", "template_name": "door-access", "fixed_fields": { "effect": "allow" }, "variable_fields": [ "target", "actions", "purposes" ], "allowed_values": { "actions": [ "open" ], "purposes": [ "delivery" ] } }, "summary": { "artifacts_total": 3, "rules_total": 1, "template_bound": true, "fields_mapped": true, "values_allowed": true, "consistent": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-policy-template">验证策略模板一致性包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -502,6 +509,7 @@
       verifyCrossDomainAudit,
       verifyAuditQuery,
       verifyCrossImplementationReport,
+      verifyPolicyTemplateAudit,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -571,6 +579,7 @@
     const crossDomainInput = document.getElementById("cross-domain");
     const auditQueryInput = document.getElementById("audit-query");
     const crossImplementationInput = document.getElementById("cross-implementation");
+    const policyTemplateInput = document.getElementById("policy-template");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1281,6 +1290,19 @@
         showOk(
           `CROSS IMPLEMENTATION VALID (evidence=${result.evidence_id}, ` +
             `${result.checks_total} checks, ${result.tools_unique} tools, agreement=true)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-policy-template").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(policyTemplateInput.value, "策略模板一致性包");
+        const result = await verifyPolicyTemplateAudit(packet);
+        showOk(
+          `POLICY TEMPLATE AUDIT VALID (policy=${result.policy_id}, template=${result.template_id}, ` +
+            `${result.rules_total} rules)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

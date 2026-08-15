@@ -780,6 +780,17 @@ an audit query exactly matches the provided evidence records.
 Exit criterion: an auditor can verify in the browser that independent
 implementations agree on the same evidence.
 
+## v2.56 - browser policy template audit verification
+
+- browser verifier re-verifies `kinegrant:PolicyTemplateAuditPacket`
+  (`verifyPolicyTemplateAudit`: fixed fields matched canonically,
+  unknown rule fields rejected, variable fields within allowed values);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can verify in the browser that every rule of
+a bundle conforms to a declared policy template.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

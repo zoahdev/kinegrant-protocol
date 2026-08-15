@@ -3768,6 +3768,81 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_policy_template_audit(self) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        rule = PolicyRule(
+            "template-rule-1",
+            key.kid,
+            "urn:space:browser:door-1",
+            "allow",
+            ("kg.action.open",),
+            purposes=("delivery",),
+        )
+        bundle = authority.publish(
+            "template-rule-1",
+            [rule],
+            ttl_seconds=3600,
+        )
+        packet = {
+            "type": "kinegrant:PolicyTemplateAuditPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid],
+            "policy_bundle": bundle,
+            "template": {
+                "template_id": "tpl-door-access",
+                "template_name": "door-access",
+                "fixed_fields": {
+                    "effect": "allow",
+                    "subjects": ["*"],
+                },
+                "variable_fields": ["target", "actions", "purposes"],
+                "allowed_values": {
+                    "actions": ["kg.action.open"],
+                    "purposes": ["delivery"],
+                },
+            },
+            "summary": {
+                "artifacts_total": 3,
+                "rules_total": 1,
+                "template_bound": True,
+                "fields_mapped": True,
+                "values_allowed": True,
+                "consistent": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "policy-template.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("policy-template", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("POLICY TEMPLATE AUDIT VALID", verified.stdout)
+            bad_rule = PolicyRule(
+                "template-rule-1",
+                key.kid,
+                "urn:space:browser:door-1",
+                "allow",
+                ("kg.action.open", "kg.action.close"),
+                purposes=("delivery",),
+            )
+            bad_bundle = authority.publish(
+                "template-rule-1",
+                [bad_rule],
+                ttl_seconds=3600,
+            )
+            tampered = dict(packet)
+            tampered["policy_bundle"] = bad_bundle
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("policy-template", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

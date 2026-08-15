@@ -52,6 +52,7 @@ import {
   verifyCrossDomainAudit,
   verifyAuditQuery,
   verifyCrossImplementationReport,
+  verifyPolicyTemplateAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -505,6 +506,14 @@ try {
       `CROSS IMPLEMENTATION VALID (evidence=${result.evidence_id}, ` +
         `${result.checks_total} checks, ${result.tools_unique} tools, agreement=true)`
     );
+  } else if (command === "policy-template") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyPolicyTemplateAudit(packet);
+    console.log(
+      `POLICY TEMPLATE AUDIT VALID (policy=${result.policy_id}, template=${result.template_id}, ` +
+        `${result.rules_total} rules)`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -609,6 +618,7 @@ try {
       "cross-domain <packet.json> | " +
       "audit-query <packet.json> | " +
       "cross-implementation <packet.json> | " +
+      "policy-template <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +
