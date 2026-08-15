@@ -6510,6 +6510,217 @@ export async function verifyPolicyDiffAudit(
   };
 }
 
+const POLICY_IMPACT_KEYS = [
+  "diff",
+  "generated_at",
+  "impact",
+  "new_policy_bundle",
+  "old_policy_bundle",
+  "overall_result",
+  "schema_version",
+  "summary",
+  "trusted_authorities",
+  "type",
+];
+const POLICY_IMPACT_SUMMARY_KEYS = [
+  "affected_actions_total",
+  "affected_purposes_total",
+  "affected_rule_ids_total",
+  "affected_targets_total",
+  "artifacts_total",
+  "diff_matches",
+  "impact_complete",
+  "policy_bound",
+  "version_chain",
+];
+const POLICY_IMPACT_ENTRY_KEYS = [
+  "affected_actions",
+  "affected_purposes",
+  "affected_rule_ids",
+  "affected_targets",
+];
+
+export async function verifyPolicyImpactAudit(
+  packet,
+  {
+    trustedAuthorities,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("policy impact audit packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== POLICY_IMPACT_KEYS.join(",")) {
+    throw new Error("policy impact audit packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:PolicyImpactAuditPacket") {
+    throw new Error("wrong policy impact audit packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported policy impact audit packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "policy impact audit packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("policy impact audit packet overall_result must be PASS");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "policy impact audit packet trusted_authorities must be a non-empty string array"
+    );
+  }
+
+  const trustedAuthoritiesSet = new Set(packet.trusted_authorities);
+  const oldPayload = await verifyPolicyBundle(
+    packet.old_policy_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+  const newPayload = await verifyPolicyBundle(
+    packet.new_policy_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+  if (oldPayload.policy_id !== newPayload.policy_id) {
+    throw new Error("policy id changed between the diffed bundles");
+  }
+  if (newPayload.version !== oldPayload.version + 1) {
+    throw new Error("new policy version must be exactly old version + 1");
+  }
+  if (newPayload.previous_version_digest !== oldPayload.policy_digest) {
+    throw new Error("policy version chain is broken");
+  }
+
+  const oldById = new Map(oldPayload.rules.map((rule) => [rule.policy_id, rule]));
+  const newById = new Map(newPayload.rules.map((rule) => [rule.policy_id, rule]));
+  const added = [];
+  const removed = [];
+  const unchanged = [];
+  const changed = [];
+  for (const [id, rule] of newById) {
+    if (!oldById.has(id)) {
+      added.push(id);
+    } else if ((await ruleDigest(rule)) === (await ruleDigest(oldById.get(id)))) {
+      unchanged.push(id);
+    } else {
+      changed.push(id);
+    }
+  }
+  for (const [id] of oldById) {
+    if (!newById.has(id)) {
+      removed.push(id);
+    }
+  }
+  const sortIds = (ids) => [...ids].sort();
+  const computedDiff = {
+    added_rule_ids: sortIds(added),
+    removed_rule_ids: sortIds(removed),
+    unchanged_rule_ids: sortIds(unchanged),
+    changed_rule_ids: sortIds(changed),
+  };
+  const diff = packet.diff;
+  if (
+    typeof diff !== "object" ||
+    diff === null ||
+    Array.isArray(diff) ||
+    Object.keys(diff).sort().join(",") !== POLICY_DIFF_ENTRY_KEYS.join(",")
+  ) {
+    throw new Error("policy impact diff fields are invalid");
+  }
+  for (const key of Object.keys(computedDiff)) {
+    if (
+      !Array.isArray(diff[key]) ||
+      diff[key].some((item) => typeof item !== "string") ||
+      sortIds(diff[key]).join(",") !== computedDiff[key].join(",")
+    ) {
+      throw new Error(`policy impact diff ${key} does not match the bundles`);
+    }
+  }
+
+  const affectedRuleIds = sortIds(new Set([...added, ...changed]));
+  const affectedRules = affectedRuleIds
+    .map((id) => newById.get(id))
+    .filter((rule) => rule !== undefined);
+  const uniqueValues = (extract) =>
+    sortIds(
+      new Set(affectedRules.flatMap((rule) => extract(rule).filter((item) => typeof item === "string")))
+    );
+  const computedImpact = {
+    affected_rule_ids: affectedRuleIds,
+    affected_targets: uniqueValues((rule) => [rule.target]),
+    affected_actions: uniqueValues((rule) => rule.actions ?? []),
+    affected_purposes: uniqueValues((rule) => rule.purposes ?? []),
+  };
+
+  const impact = packet.impact;
+  if (
+    typeof impact !== "object" ||
+    impact === null ||
+    Array.isArray(impact) ||
+    Object.keys(impact).sort().join(",") !== POLICY_IMPACT_ENTRY_KEYS.join(",")
+  ) {
+    throw new Error("policy impact fields are invalid");
+  }
+  for (const key of Object.keys(computedImpact)) {
+    if (
+      !Array.isArray(impact[key]) ||
+      impact[key].some((item) => typeof item !== "string") ||
+      sortIds(impact[key]).join(",") !== computedImpact[key].join(",")
+    ) {
+      throw new Error(`policy impact ${key} does not match the affected rules`);
+    }
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("policy impact audit packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    POLICY_IMPACT_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("policy impact audit packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 5,
+    affected_rule_ids_total: computedImpact.affected_rule_ids.length,
+    affected_targets_total: computedImpact.affected_targets.length,
+    affected_actions_total: computedImpact.affected_actions.length,
+    affected_purposes_total: computedImpact.affected_purposes.length,
+    version_chain: true,
+    diff_matches: true,
+    impact_complete: true,
+    policy_bound: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`policy impact audit packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    policy_id: oldPayload.policy_id,
+    old_version: oldPayload.version,
+    new_version: newPayload.version,
+    affected_rule_ids: computedImpact.affected_rule_ids,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -6945,6 +7156,7 @@ if (typeof globalThis !== "undefined") {
     verifyLeastPrivilegeAudit,
     verifyDenialExplainability,
     verifyPolicyDiffAudit,
+    verifyPolicyImpactAudit,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,

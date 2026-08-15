@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.52.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.52.0 on the
+  stable 1.0 wire format, adding policy impact audit verification to the
+  browser verifier.
+
+- Browser verifier re-verifies `kinegrant:PolicyImpactAuditPacket`
+  (`verifyPolicyImpactAudit`: the diff must match the two signed bundles
+  exactly; the affected rule set is the union of added and changed rules;
+  affected targets, actions, and purposes are recomputed from those rules
+  and must match the report; summary counts and flags must be consistent;
+  fail-closed on any inconsistency); the HTML page and Node CLI
+  (`policy-impact` command) expose it, cross-tested against
+  Python-published bundle pairs.
+
 ## 2.51.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.51.0 on the

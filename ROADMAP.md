@@ -732,6 +732,18 @@ is fully explainable against the audited policy.
 Exit criterion: an auditor can verify in the browser that a policy
 difference report exactly matches the two signed bundles.
 
+## v2.52 - browser policy impact audit verification
+
+- browser verifier re-verifies `kinegrant:PolicyImpactAuditPacket`
+  (`verifyPolicyImpactAudit`: diff matches the bundles; affected rules =
+  added + changed; affected targets/actions/purposes recomputed and
+  matched exactly);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can verify in the browser that a policy change
+impact summary exactly matches the affected rules of the two bundles.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

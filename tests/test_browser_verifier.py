@@ -3372,6 +3372,135 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_policy_impact_audit(self) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        rule_a_v1 = PolicyRule(
+            "impact-rule-a",
+            key.kid,
+            "urn:space:browser:door-1",
+            "allow",
+            ("kg.action.open",),
+            purposes=("delivery",),
+            obligations=("emitActionReceipt",),
+        )
+        rule_a_v2 = PolicyRule(
+            "impact-rule-a",
+            key.kid,
+            "urn:space:browser:door-1",
+            "allow",
+            ("kg.action.open",),
+            purposes=("delivery",),
+            obligations=("emitActionReceipt", "logAuditEvent"),
+        )
+        rule_b = PolicyRule(
+            "impact-rule-b",
+            key.kid,
+            "urn:space:browser:door-2",
+            "deny",
+            ("kg.action.close",),
+            purposes=("maintenance",),
+        )
+        old_bundle = authority.publish(
+            "urn:kinegrant:policy:impact:1",
+            [rule_a_v1],
+            ttl_seconds=3600,
+        )
+        new_bundle = authority.publish(
+            "urn:kinegrant:policy:impact:1",
+            [rule_a_v2, rule_b],
+            ttl_seconds=3600,
+        )
+
+        def rule_map(bundle: dict) -> dict[str, dict]:
+            return {
+                rule["policy_id"]: rule
+                for rule in bundle["payload"]["rules"]
+            }
+
+        old_rules = rule_map(old_bundle)
+        new_rules = rule_map(new_bundle)
+        added = sorted(set(new_rules) - set(old_rules))
+        removed = sorted(set(old_rules) - set(new_rules))
+        unchanged = sorted(
+            rule_id
+            for rule_id in set(old_rules) & set(new_rules)
+            if digest(old_rules[rule_id]) == digest(new_rules[rule_id])
+        )
+        changed = sorted(
+            rule_id
+            for rule_id in set(old_rules) & set(new_rules)
+            if digest(old_rules[rule_id]) != digest(new_rules[rule_id])
+        )
+        affected_rule_ids = sorted(set(added) | set(changed))
+        affected_rules = [new_rules[rule_id] for rule_id in affected_rule_ids]
+        affected_targets = sorted(
+            {rule["target"] for rule in affected_rules}
+        )
+        affected_actions = sorted(
+            {
+                action
+                for rule in affected_rules
+                for action in rule.get("actions", [])
+            }
+        )
+        affected_purposes = sorted(
+            {
+                purpose
+                for rule in affected_rules
+                for purpose in rule.get("purposes", [])
+            }
+        )
+        packet = {
+            "type": "kinegrant:PolicyImpactAuditPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid],
+            "old_policy_bundle": old_bundle,
+            "new_policy_bundle": new_bundle,
+            "diff": {
+                "added_rule_ids": added,
+                "removed_rule_ids": removed,
+                "unchanged_rule_ids": unchanged,
+                "changed_rule_ids": changed,
+            },
+            "impact": {
+                "affected_rule_ids": affected_rule_ids,
+                "affected_targets": affected_targets,
+                "affected_actions": affected_actions,
+                "affected_purposes": affected_purposes,
+            },
+            "summary": {
+                "artifacts_total": 5,
+                "affected_rule_ids_total": len(affected_rule_ids),
+                "affected_targets_total": len(affected_targets),
+                "affected_actions_total": len(affected_actions),
+                "affected_purposes_total": len(affected_purposes),
+                "version_chain": True,
+                "diff_matches": True,
+                "impact_complete": True,
+                "policy_bound": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "policy-impact.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("policy-impact", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("POLICY IMPACT AUDIT VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["summary"] = dict(packet["summary"])
+            tampered["summary"]["affected_actions_total"] += 1
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("policy-impact", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
