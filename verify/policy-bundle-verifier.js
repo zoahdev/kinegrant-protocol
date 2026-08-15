@@ -195,7 +195,13 @@ export async function verifyPolicyBundle(
     throw new Error("policy bundle issuer does not match signing key");
   }
   if (!trustedAuthorities.has(payload.issuer)) {
-    throw new Error("untrusted policy authority");
+    throw new Error(
+      `untrusted policy authority "${payload.issuer}": the bundle is correctly ` +
+        "signed, but its issuer is not in the trusted authorities list. Check " +
+        "that you pasted this authority's kid (from the bundle) into the " +
+        "trusted authorities field, and confirm you actually intend to trust " +
+        "it to issue policy for this target."
+    );
   }
   const policyId = requireNonEmptyString(payload.policy_id, "policy_id");
   if (expectedPolicyId !== undefined && policyId !== expectedPolicyId) {
