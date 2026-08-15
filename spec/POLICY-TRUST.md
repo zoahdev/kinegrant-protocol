@@ -128,7 +128,8 @@ summary consistency, optional bundle binding) are also validated in the
 browser, and verified policy bundles can be mapped to ODRL
 (`policyBundleToOdrl`, kgp-v0.2 profile) for standards alignment; the
 `kg.action.*` vocabulary and the known obligation vocabulary can be validated
-(`validateActionVocabulary` / `validateObligationVocabulary`).
+(`validateActionVocabulary` / `validateObligationVocabulary`), and canonical
+KineGrant identifier syntax can be validated (`validateIdentitySyntax`).
 `verify/verify_policy_bundle.mjs` exposes the same logic as a Node CLI for CI
 cross-checks.
 
