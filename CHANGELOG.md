@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.36.0 - v2.36 first item (unreleased)
+
+- Browser verifier re-verifies one-stop `kinegrant:FullLifecycleReport`
+  artifacts (`verifyFullLifecycleReport`: signed bundle verified and bound,
+  then policy distribution, fleet audit summary, and revocation distribution
+  each re-verified against the same bundle; fail-closed on any
+  inconsistency); the HTML page and Node CLI (`full-lifecycle` command)
+  expose it, cross-tested against the Python lifecycle example components.
+
 ## 2.35.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.35.0 on the

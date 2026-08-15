@@ -1622,6 +1622,104 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_full_lifecycle_report(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:lifecycle:1"
+        bundle = authority.publish(
+            policy_id,
+            [
+                PolicyRule(
+                    "lifecycle-rule-1",
+                    authority.kid,
+                    "door-1",
+                    "allow",
+                    ("open",),
+                    purposes=("delivery",),
+                )
+            ],
+            ttl_seconds=3600,
+        )
+        registry = PolicyRegistry(trusted_authorities={authority.kid})
+        distribution = PolicyDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(bundle, {"gate-a": registry})
+        audit = audit_policy_bundles(
+            {"fleet-a": bundle},
+            trusted_authorities={authority.kid},
+        )
+        revocations = RevocationList()
+        revocations.revoke(
+            "kinegrant:cap:" + "d" * 64,
+            reason="fleet maintenance",
+        )
+        revocation_key = Ed25519KeyPair.generate()
+        revocation_bundle = sign_revocation_bundle(
+            build_revocation_bundle(
+                revocations,
+                issuer=revocation_key.kid,
+            ),
+            revocation_key,
+        )
+        revocation_gate = RevocationList()
+        revocation = RevocationDistributor(
+            trusted_authorities={revocation_key.kid}
+        ).distribute(revocation_bundle, {"gate-a": revocation_gate})
+        report = {
+            "type": "kinegrant:FullLifecycleReport",
+            "schema_version": "0.1",
+            "policy_id": policy_id,
+            "bundle_id": bundle["payload"]["bundle_id"],
+            "bundle_version": 1,
+            "generated_at": "2026-08-15T01:00:00Z",
+            "overall_result": "PASS",
+            "summary": {"phases_total": 4, "passed": 4, "failed": 0},
+            "policy_distribution": distribution,
+            "audit_summary": audit,
+            "revocation_distribution": revocation,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            report_path = base / "lifecycle.json"
+            policy_path = base / "policy.json"
+            revocation_path = base / "revocation.json"
+            authorities_path = base / "authorities.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            policy_path.write_text(json.dumps(bundle), encoding="utf-8")
+            revocation_path.write_text(
+                json.dumps(revocation_bundle),
+                encoding="utf-8",
+            )
+            authorities_path.write_text(
+                json.dumps([authority.kid, revocation_key.kid]),
+                encoding="utf-8",
+            )
+            verified = self._run(
+                "full-lifecycle",
+                str(report_path),
+                str(policy_path),
+                str(revocation_path),
+                str(authorities_path),
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("FULL LIFECYCLE REPORT VALID", verified.stdout)
+            tampered = dict(report)
+            tampered["audit_summary"] = dict(audit)
+            tampered["audit_summary"]["bundles"] = [
+                dict(entry) for entry in audit["bundles"]
+            ]
+            tampered["audit_summary"]["bundles"][0]["policy_id"] = "other"
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run(
+                "full-lifecycle",
+                str(tampered_path),
+                str(policy_path),
+                str(revocation_path),
+                str(authorities_path),
+            )
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

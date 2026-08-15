@@ -44,6 +44,7 @@ import {
   verifyHardwareTrustPacket,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
+  verifyFullLifecycleReport,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -1565,4 +1566,133 @@ test("browser verifier validates camera consent traces", () => {
   trace.record_allowed = true;
   trace.scenario = "other";
   assert.throws(() => verifyCameraConsentTrace(trace));
+});
+
+test("browser verifier validates full lifecycle reports", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const policyBundle = buildBundle(privateKey, publicKey);
+  const revocationBundle = buildRevocationBundle(privateKey, publicKey);
+  const distribution = {
+    type: "kinegrant:PolicyDistributionReport",
+    schema_version: "0.1",
+    policy_id: "urn:policy:browser",
+    bundle_id: policyBundle.payload.bundle_id,
+    bundle_version: 1,
+    overall_result: "PASS",
+    summary: { registries: 1, applied_total: 1, already_present_total: 0 },
+    acks: [
+      {
+        gate_id: "gate-a",
+        policy_id: "urn:policy:browser",
+        bundle_id: policyBundle.payload.bundle_id,
+        applied: true,
+        current_before: null,
+        current_after: 1,
+        detail: "policy bundle activated",
+      },
+    ],
+  };
+  const audit = {
+    type: "kinegrant:PolicyAuditSummary",
+    schema_version: "0.1",
+    overall_result: "PASS",
+    summary: {
+      bundles_total: 1,
+      verified: 1,
+      failed: 0,
+      analysis_failures: 0,
+      coverage_failures: 0,
+      findings_by_code: {},
+      allowed: 0,
+      denied: 1,
+      exceptions: 0,
+      shadowed_allows: 0,
+    },
+    bundles: [
+      {
+        label: "fleet-a",
+        verified: true,
+        policy_id: "urn:policy:browser",
+        bundle_version: 1,
+        analysis_result: "PASS",
+        coverage_result: "PASS",
+        error_findings: [],
+        shadowed_allows: [],
+        error: null,
+      },
+    ],
+    independent_verification: {
+      schema_version: "0.1",
+      overall_result: "PASS",
+      checks: [
+        {
+          tool: "kinegrant-js",
+          detail: "cross-verified",
+          capability: "PASS",
+          receipts: "SKIP",
+          policy_bundle: "PASS",
+          policy_current_version: "PASS",
+        },
+      ],
+    },
+    limitations: ["self-assessment"],
+  };
+  const revocation = {
+    type: "kinegrant:RevocationDistributionReport",
+    schema_version: "0.1",
+    bundle_id: revocationBundle.payload.bundle_id,
+    bundle_version: 1,
+    overall_result: "PASS",
+    summary: { gates: 1, added_total: 1, already_present_total: 0 },
+    acks: [
+      {
+        gate_id: "gate-a",
+        bundle_id: revocationBundle.payload.bundle_id,
+        applied: true,
+        added_count: 1,
+        already_present: 0,
+        detail: "applied",
+      },
+    ],
+  };
+  const report = {
+    type: "kinegrant:FullLifecycleReport",
+    schema_version: "0.1",
+    policy_id: "urn:policy:browser",
+    bundle_id: policyBundle.payload.bundle_id,
+    bundle_version: 1,
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    summary: { phases_total: 4, passed: 4, failed: 0 },
+    policy_distribution: distribution,
+    audit_summary: audit,
+    revocation_distribution: revocation,
+  };
+  const result = await verifyFullLifecycleReport(
+    report,
+    policyBundle,
+    revocationBundle,
+    new Set([policyBundle.kid])
+  );
+  assert.equal(result.phases, 4);
+  assert.equal(result.policy_id, "urn:policy:browser");
+  report.summary.passed = 3;
+  await assert.rejects(() =>
+    verifyFullLifecycleReport(
+      report,
+      policyBundle,
+      revocationBundle,
+      new Set([policyBundle.kid])
+    )
+  );
+  report.summary.passed = 4;
+  report.audit_summary.bundles[0].policy_id = "other";
+  await assert.rejects(() =>
+    verifyFullLifecycleReport(
+      report,
+      policyBundle,
+      revocationBundle,
+      new Set([policyBundle.kid])
+    )
+  );
 });

@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、车队审计汇总、安全审计工具包、ESP32-C3 硬件证据、车队联合运维报告、基准报告、策略生命周期轨迹、传感器证据承诺、收据检查点、设备证明、硬件信任组合证据包、桥接演示报告、网关机器人演示报告、摄像头同意场景、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、车队审计汇总、安全审计工具包、ESP32-C3 硬件证据、车队联合运维报告、基准报告、策略生命周期轨迹、传感器证据承诺、收据检查点、设备证明、硬件信任组合证据包、桥接演示报告、网关机器人演示报告、摄像头同意场景、全生命周期联检报告、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -283,6 +283,19 @@
   <p><button id="verify-camera-consent">验证摄像头同意场景</button></p>
   <div class="row">
     <div class="col">
+      <label>全生命周期联检报告 JSON（kinegrant:FullLifecycleReport：发布→分发→审计→撤销，绑定同一策略包）</label>
+      <textarea id="full-lifecycle" placeholder='{ "type": "kinegrant:FullLifecycleReport", "schema_version": "0.1", "policy_id": "...", "bundle_id": "...", "bundle_version": 1, "generated_at": "...", "overall_result": "PASS", "summary": { "phases_total": 4, "passed": 4, "failed": 0 }, "policy_distribution": { ... }, "audit_summary": { ... }, "revocation_distribution": { ... } }'></textarea>
+    </div>
+    <div class="col">
+      <label>策略包 JSON + 撤销包 JSON + 信任机构 kid 列表（第三个框）</label>
+      <textarea id="full-lifecycle-policy" placeholder='{ "alg": "EdDSA", "kid": "...", "payload": { "type": "kinegrant:PolicyBundle", ... }, "signature": "..." }'></textarea>
+      <textarea id="full-lifecycle-revocation" placeholder='{ "alg": "EdDSA", "kid": "...", "payload": { "type": "kinegrant:RevocationBundle", ... }, "signature": "..." }'></textarea>
+      <textarea id="full-lifecycle-authorities" placeholder='["kinegrant:key:ed25519:..."]'>[]</textarea>
+    </div>
+  </div>
+  <p><button id="verify-full-lifecycle">验证全生命周期联检报告</button></p>
+  <div class="row">
+    <div class="col">
       <label>禁止组合报告 JSON（kinegrant:SequenceCheckReport）</label>
       <textarea id="sequence-report" placeholder='{ "type": "kinegrant:SequenceCheckReport", "schema_version": "0.1", "request_digest": "sha256:...", "journal_digest": "sha256:...", "checked_at": "...", "verdict": { "allowed": false, "reason": "forbidden_combination", "matched_combination_ids": ["forbid-1"] } }'></textarea>
     </div>
@@ -340,6 +353,7 @@
       verifyHardwareTrustPacket,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
+      verifyFullLifecycleReport,
     } from "./policy-bundle-verifier.js";
 
     const bundleInput = document.getElementById("bundle");
@@ -389,6 +403,10 @@
     const hardwarePacketInput = document.getElementById("hardware-packet");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
+    const fullLifecycleInput = document.getElementById("full-lifecycle");
+    const fullLifecyclePolicyInput = document.getElementById("full-lifecycle-policy");
+    const fullLifecycleRevocationInput = document.getElementById("full-lifecycle-revocation");
+    const fullLifecycleAuthoritiesInput = document.getElementById("full-lifecycle-authorities");
     const sequenceReportInput = document.getElementById("sequence-report");
     const sequencePolicyInput = document.getElementById("sequence-policy");
     const sequenceRequestInput = document.getElementById("sequence-request");
@@ -874,6 +892,27 @@
           `CAMERA CONSENT TRACE VALID (passed=${result.passed}, ` +
             `record_allowed=${result.record_allowed}, ` +
             `train_sequence_denied=${result.train_sequence_denied})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-full-lifecycle").addEventListener("click", async () => {
+      try {
+        const report = parseJson(fullLifecycleInput.value, "全生命周期联检报告");
+        const policyBundle = parseJson(fullLifecyclePolicyInput.value, "策略包");
+        const revocationBundle = parseJson(fullLifecycleRevocationInput.value, "撤销包");
+        const authorities = parseJson(fullLifecycleAuthoritiesInput.value, "信任机构");
+        const result = await verifyFullLifecycleReport(
+          report,
+          policyBundle,
+          revocationBundle,
+          new Set(authorities)
+        );
+        showOk(
+          `FULL LIFECYCLE REPORT VALID (PASS: ${result.phases} phases, ` +
+            `policy=${result.policy_id}, bundle_version=${result.bundle_version})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);
