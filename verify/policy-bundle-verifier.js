@@ -2119,6 +2119,154 @@ export function verifyConformanceReport(report) {
   };
 }
 
+const AUDIT_ENTRY_FIELDS = new Set([
+  "label",
+  "verified",
+  "policy_id",
+  "bundle_version",
+  "analysis_result",
+  "coverage_result",
+  "error_findings",
+  "shadowed_allows",
+  "error",
+]);
+const AUDIT_RESULTS = new Set(["PASS", "FAIL"]);
+
+export function verifyPolicyAuditSummary(report) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("policy audit summary must be an object");
+  }
+  if (report.type !== "kinegrant:PolicyAuditSummary") {
+    throw new Error("wrong policy audit summary type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported policy audit summary version");
+  }
+  if (!Array.isArray(report.bundles) || report.bundles.length === 0) {
+    throw new Error("policy audit summary bundles must be a non-empty array");
+  }
+  let verifiedCount = 0;
+  let analysisFailures = 0;
+  let coverageFailures = 0;
+  const findingsByCode = {};
+  let shadowedAllowsTotal = 0;
+  for (const entry of report.bundles) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      throw new Error("each audit entry must be an object");
+    }
+    const fields = new Set(Object.keys(entry));
+    if (
+      fields.size !== AUDIT_ENTRY_FIELDS.size ||
+      [...fields].some((key) => !AUDIT_ENTRY_FIELDS.has(key))
+    ) {
+      throw new Error("audit entry fields do not match the expected schema");
+    }
+    if (typeof entry.label !== "string" || entry.label.length === 0) {
+      throw new Error("audit entry label must be a non-empty string");
+    }
+    if (typeof entry.verified !== "boolean") {
+      throw new Error("audit entry verified must be a boolean");
+    }
+    if (!Array.isArray(entry.error_findings)) {
+      throw new Error("audit entry error_findings must be an array");
+    }
+    if (
+      entry.error_findings.some(
+        (code) => typeof code !== "string" || code.length === 0
+      )
+    ) {
+      throw new Error("audit entry error_findings must be non-empty strings");
+    }
+    if (!Array.isArray(entry.shadowed_allows)) {
+      throw new Error("audit entry shadowed_allows must be an array");
+    }
+    shadowedAllowsTotal += entry.shadowed_allows.length;
+    for (const code of entry.error_findings) {
+      findingsByCode[code] = (findingsByCode[code] ?? 0) + 1;
+    }
+    if (entry.verified) {
+      verifiedCount += 1;
+      if (
+        typeof entry.policy_id !== "string" ||
+        entry.policy_id.length === 0 ||
+        !Number.isInteger(entry.bundle_version) ||
+        entry.bundle_version < 1 ||
+        !AUDIT_RESULTS.has(entry.analysis_result) ||
+        !AUDIT_RESULTS.has(entry.coverage_result) ||
+        entry.error !== null
+      ) {
+        throw new Error("verified audit entry has invalid result fields");
+      }
+      if (entry.analysis_result === "FAIL") analysisFailures += 1;
+      if (entry.coverage_result === "FAIL") coverageFailures += 1;
+    } else {
+      if (
+        entry.policy_id !== null ||
+        entry.bundle_version !== null ||
+        entry.analysis_result !== null ||
+        entry.coverage_result !== null ||
+        typeof entry.error !== "string" ||
+        entry.error.length === 0
+      ) {
+        throw new Error("unverified audit entry has invalid failure fields");
+      }
+    }
+  }
+  const summary = report.summary;
+  if (typeof summary !== "object" || summary === null || Array.isArray(summary)) {
+    throw new Error("policy audit summary summary must be an object");
+  }
+  if (
+    summary.bundles_total !== report.bundles.length ||
+    summary.verified !== verifiedCount ||
+    summary.failed !== report.bundles.length - verifiedCount ||
+    summary.analysis_failures !== analysisFailures ||
+    summary.coverage_failures !== coverageFailures
+  ) {
+    throw new Error("policy audit summary counts are inconsistent");
+  }
+  const reportedFindings = summary.findings_by_code;
+  if (
+    typeof reportedFindings !== "object" ||
+    reportedFindings === null ||
+    Array.isArray(reportedFindings)
+  ) {
+    throw new Error("policy audit summary findings_by_code must be an object");
+  }
+  const reportedKeys = Object.keys(reportedFindings).sort();
+  const expectedKeys = Object.keys(findingsByCode).sort();
+  if (
+    reportedKeys.join(",") !== expectedKeys.join(",") ||
+    reportedKeys.some((key) => reportedFindings[key] !== findingsByCode[key])
+  ) {
+    throw new Error("policy audit summary findings_by_code is inconsistent");
+  }
+  for (const name of ["allowed", "denied", "exceptions", "shadowed_allows"]) {
+    const value = summary[name];
+    if (!Number.isInteger(value) || value < 0) {
+      throw new Error(`policy audit summary ${name} must be a non-negative integer`);
+    }
+  }
+  if (summary.shadowed_allows !== shadowedAllowsTotal) {
+    throw new Error("policy audit summary shadowed_allows total is inconsistent");
+  }
+  const expectedResult =
+    verifiedCount === report.bundles.length &&
+    analysisFailures === 0 &&
+    coverageFailures === 0
+      ? "PASS"
+      : "FAIL";
+  if (report.overall_result !== expectedResult) {
+    throw new Error("policy audit summary overall_result is inconsistent");
+  }
+  return {
+    valid: true,
+    overall_result: report.overall_result,
+    summary: report.summary,
+    bundles: report.bundles.length,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -2143,5 +2291,6 @@ if (typeof globalThis !== "undefined") {
     evaluateSequencePolicy,
     verifySequenceCheckReport,
     verifyConformanceReport,
+    verifyPolicyAuditSummary,
   };
 }

@@ -22,6 +22,7 @@ import {
   evaluateSequencePolicy,
   verifySequenceCheckReport,
   verifyConformanceReport,
+  verifyPolicyAuditSummary,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -202,6 +203,17 @@ try {
         `independent=${result.independent_verification.overall_result}, ` +
         `${result.independent_verification.checks} checks)`
     );
+  } else if (command === "fleet-audit") {
+    const [reportPath] = args;
+    const report = load(reportPath);
+    const result = verifyPolicyAuditSummary(report);
+    console.log(
+      `POLICY AUDIT SUMMARY VALID (${result.overall_result}: ` +
+        `${result.summary.verified}/${result.summary.bundles_total} verified, ` +
+        `${result.summary.analysis_failures} analysis failures, ` +
+        `${result.summary.coverage_failures} coverage failures, ` +
+        `${result.bundles} bundles)`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -234,7 +246,8 @@ try {
       "sequence <report.json> <policy.json> <request.json> <journal.json> | " +
       "sequence-eval <policy.json> <request.json> <journal.json> | " +
       "mldsa <envelope.json> | " +
-      "conformance <report.json>"
+      "conformance <report.json> | " +
+      "fleet-audit <report.json>"
     );
   }
 } catch (error) {

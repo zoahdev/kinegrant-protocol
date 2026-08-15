@@ -23,6 +23,7 @@ from kinegrant.policy_bundle import (
     PolicyDistributor,
     PolicyRegistry,
     analyze_policy_bundle,
+    audit_policy_bundles,
     bundle_to_odrl,
 )
 from kinegrant.receipt import ReceiptLog
@@ -956,6 +957,57 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             rejected = self._run("conformance", str(tampered_path))
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
+
+    def test_browser_verifier_verifies_python_fleet_audit_summary(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        bundle = authority.publish(
+            "urn:kinegrant:policy:audit:1",
+            [
+                PolicyRule(
+                    "audit-rule-1",
+                    authority.kid,
+                    "door-1",
+                    "allow",
+                    ("open",),
+                    purposes=("delivery",),
+                )
+            ],
+            ttl_seconds=3600,
+        )
+        report = audit_policy_bundles(
+            {"fleet-a": bundle},
+            trusted_authorities={authority.kid},
+        )
+        self.assertEqual(report["overall_result"], "PASS")
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            report_path = base / "audit.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            verified = self._run("fleet-audit", str(report_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("POLICY AUDIT SUMMARY VALID", verified.stdout)
+            tampered = dict(report)
+            tampered["summary"] = dict(report["summary"])
+            tampered["summary"]["verified"] = 0
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("fleet-audit", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
+            tampered_bundle = dict(bundle)
+            tampered_bundle["payload"] = dict(bundle["payload"])
+            tampered_bundle["payload"]["rules"] = []
+            fail_report = audit_policy_bundles(
+                {"fleet-b": tampered_bundle},
+                trusted_authorities={authority.kid},
+            )
+            self.assertEqual(fail_report["overall_result"], "FAIL")
+            fail_path = base / "fail.json"
+            fail_path.write_text(json.dumps(fail_report), encoding="utf-8")
+            checked = self._run("fleet-audit", str(fail_path))
+            self.assertEqual(checked.returncode, 0, checked.stderr)
+            self.assertIn("POLICY AUDIT SUMMARY VALID (FAIL", checked.stdout)
 
 
 if __name__ == "__main__":

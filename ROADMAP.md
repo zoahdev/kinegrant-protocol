@@ -438,6 +438,14 @@ Exit criterion: an auditor can verify an ML-DSA-65 signed bundle or receipt in t
 
 Exit criterion: an auditor can re-verify a conformance report in the browser without trusting the report generator. Released as v2.23.0 (2026-08-15).
 
+## v2.24 - browser fleet audit verification
+
+- browser verifier re-verifies `kinegrant:PolicyAuditSummary` reports (`verifyPolicyAuditSummary`: per-bundle verified/failure fields, aggregated counts, findings-by-code, overall fleet result) (complete via PR #133);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: a fleet operator can re-verify a policy audit summary in the browser without trusting the report generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
