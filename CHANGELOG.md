@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.28.0 - v2.28 first item (unreleased)
+## 2.28.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.28.0 on the
+  stable 1.0 wire format, adding benchmark report verification to the
+  browser verifier.
 
 - Browser verifier re-verifies `kinegrant:BenchmarkReport` artifacts
   (`verifyBenchmarkReport`: iteration counts and the full ten-operation

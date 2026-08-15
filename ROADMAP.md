@@ -470,13 +470,13 @@ Exit criterion: an auditor can re-verify ESP32-C3 hardware evidence in the brows
 
 Exit criterion: a fleet operator can re-verify the combined policy + revocation distribution state of the fleet in the browser without trusting the report generator. Released as v2.27.0 (2026-08-15).
 
-## v2.28 - browser benchmark verification
+## v2.28 - browser benchmark verification (complete with v2.28.0)
 
 - browser verifier re-verifies `kinegrant:BenchmarkReport` artifacts (`verifyBenchmarkReport`: iteration counts, ten-operation throughput surface, fail-closed on missing or non-positive values) (complete via PR #141);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: an engineer can re-verify a benchmark report in the browser without trusting the report generator.
+Exit criterion: an engineer can re-verify a benchmark report in the browser without trusting the report generator. Released as v2.28.0 (2026-08-15).
 
 ## Success metrics
 
