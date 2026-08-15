@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.34.0 - v2.34 first item (unreleased)
+## 2.34.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.34.0 on the
+  stable 1.0 wire format, adding gateway robot demo report verification
+  to the browser verifier.
 
 - Browser verifier re-verifies gateway `kinegrant:RobotDemoReport` artifacts
   (`verifyRobotDemoReport`: outcome structure, expected/allowed/passed
