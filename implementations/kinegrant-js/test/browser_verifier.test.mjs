@@ -56,6 +56,7 @@ import {
   verifyLeastPrivilegeAudit,
   verifyDenialExplainability,
   verifyPolicyDiffAudit,
+  verifyPolicyImpactAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -3364,6 +3365,100 @@ test("browser verifier validates policy diff audits", async () => {
         rules_changed: 0,
         rules_unchanged: 1,
       },
+    })
+  );
+});
+
+test("browser verifier validates policy impact audits", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const oldBundle = buildBundle(privateKey, publicKey, { version: 1 });
+  const oldPayload = oldBundle.payload;
+  const newBundle = buildBundle(privateKey, publicKey, {
+    version: 2,
+    previousVersionDigest: oldPayload.policy_digest,
+    purposes: ["delivery", "maintenance"],
+    extraRules: [
+      {
+        policy_id: "urn:policy:browser:rule-2",
+        issuer: oldPayload.issuer,
+        target: "urn:space:door-2",
+        effect: "deny",
+        actions: ["close"],
+        subjects: ["*"],
+        purposes: ["maintenance"],
+        constraints: {},
+        obligations: [],
+        priority: 1,
+        source: {},
+      },
+    ],
+  });
+  const newPayload = newBundle.payload;
+  const packet = {
+    type: "kinegrant:PolicyImpactAuditPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T02:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: [oldPayload.issuer],
+    old_policy_bundle: oldBundle,
+    new_policy_bundle: newBundle,
+    diff: {
+      added_rule_ids: ["urn:policy:browser:rule-2"],
+      removed_rule_ids: [],
+      unchanged_rule_ids: [],
+      changed_rule_ids: ["urn:policy:browser"],
+    },
+    impact: {
+      affected_rule_ids: ["urn:policy:browser", "urn:policy:browser:rule-2"],
+      affected_targets: ["urn:space:door-1", "urn:space:door-2"],
+      affected_actions: ["close", "open"],
+      affected_purposes: ["delivery", "maintenance"],
+    },
+    summary: {
+      artifacts_total: 5,
+      affected_rule_ids_total: 2,
+      affected_targets_total: 2,
+      affected_actions_total: 2,
+      affected_purposes_total: 2,
+      version_chain: true,
+      diff_matches: true,
+      impact_complete: true,
+      policy_bound: true,
+    },
+  };
+  const result = await verifyPolicyImpactAudit(packet);
+  assert.equal(result.old_version, 1);
+  assert.equal(result.new_version, 2);
+  assert.deepEqual(result.affected_rule_ids, [
+    "urn:policy:browser",
+    "urn:policy:browser:rule-2",
+  ]);
+
+  await assert.rejects(() =>
+    verifyPolicyImpactAudit({
+      ...packet,
+      impact: {
+        ...packet.impact,
+        affected_actions: ["open"],
+      },
+      summary: { ...packet.summary, affected_actions_total: 1 },
+    })
+  );
+  await assert.rejects(() =>
+    verifyPolicyImpactAudit({
+      ...packet,
+      diff: {
+        ...packet.diff,
+        added_rule_ids: [],
+        changed_rule_ids: ["urn:policy:browser"],
+      },
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyPolicyImpactAudit({
+      ...packet,
+      summary: { ...packet.summary, impact_complete: false },
     })
   );
 });

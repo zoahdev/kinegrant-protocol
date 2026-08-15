@@ -48,6 +48,7 @@ import {
   verifyLeastPrivilegeAudit,
   verifyDenialExplainability,
   verifyPolicyDiffAudit,
+  verifyPolicyImpactAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -468,6 +469,14 @@ try {
         `added=${result.added.length}, removed=${result.removed.length}, ` +
         `unchanged=${result.unchanged.length}, changed=${result.changed.length})`
     );
+  } else if (command === "policy-impact") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyPolicyImpactAudit(packet);
+    console.log(
+      `POLICY IMPACT AUDIT VALID (policy=${result.policy_id}, v${result.old_version} -> v${result.new_version}, ` +
+        `affected_rules=${result.affected_rule_ids.length})`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -568,6 +577,7 @@ try {
       "least-privilege <packet.json> | " +
       "denial-explainability <packet.json> | " +
       "policy-diff <packet.json> | " +
+      "policy-impact <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +

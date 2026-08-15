@@ -367,6 +367,13 @@
   <p><button id="verify-policy-diff">验证策略差异报告</button></p>
   <div class="row">
     <div class="col">
+      <label>策略影响面分析包 JSON（kinegrant:PolicyImpactAuditPacket：变更规则的影响目标/动作/目的摘要与 diff 交叉一致）</label>
+      <textarea id="policy-impact" placeholder='{ "type": "kinegrant:PolicyImpactAuditPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "old_policy_bundle": { ... }, "new_policy_bundle": { ... }, "diff": { "added_rule_ids": [ "rule-2" ], "removed_rule_ids": [], "unchanged_rule_ids": [], "changed_rule_ids": [ "rule-1" ] }, "impact": { "affected_rule_ids": [ "rule-1", "rule-2" ], "affected_targets": [ "urn:space:door-1", "urn:space:door-2" ], "affected_actions": [ "close", "open" ], "affected_purposes": [ "delivery", "maintenance" ] }, "summary": { "artifacts_total": 5, "affected_rule_ids_total": 2, "affected_targets_total": 2, "affected_actions_total": 2, "affected_purposes_total": 2, "version_chain": true, "diff_matches": true, "impact_complete": true, "policy_bound": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-policy-impact">验证策略影响面分析包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -470,6 +477,7 @@
       verifyLeastPrivilegeAudit,
       verifyDenialExplainability,
       verifyPolicyDiffAudit,
+      verifyPolicyImpactAudit,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -535,6 +543,7 @@
     const leastPrivilegeInput = document.getElementById("least-privilege");
     const denialExplainabilityInput = document.getElementById("denial-explainability");
     const policyDiffInput = document.getElementById("policy-diff");
+    const policyImpactInput = document.getElementById("policy-impact");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1192,6 +1201,19 @@
           `POLICY DIFF AUDIT VALID (policy=${result.policy_id}, v${result.old_version} -> v${result.new_version}, ` +
             `added=${result.added.length}, removed=${result.removed.length}, ` +
             `unchanged=${result.unchanged.length}, changed=${result.changed.length})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-policy-impact").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(policyImpactInput.value, "策略影响面分析包");
+        const result = await verifyPolicyImpactAudit(packet);
+        showOk(
+          `POLICY IMPACT AUDIT VALID (policy=${result.policy_id}, v${result.old_version} -> v${result.new_version}, ` +
+            `affected_rules=${result.affected_rule_ids.length})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);
