@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from kinegrant.capability import CapabilityIssuer
 from kinegrant.audit import ReceiptAuditor
+from kinegrant.canonical import content_id
 from kinegrant.crypto import Ed25519KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
 from kinegrant.models import ActionRequest, PolicyRule
@@ -641,6 +642,102 @@ class BrowserVerifierInteropTests(unittest.TestCase):
                 str(tampered_path),
                 str(bundle_path),
                 str(authorities_path),
+            )
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
+    def test_browser_verifier_verifies_python_delegation_chain(self) -> None:
+        issuer = CapabilityIssuer(Ed25519KeyPair.generate())
+        rule = PolicyRule(
+            "delegation-rule-1",
+            issuer.key_pair.kid,
+            "door-*",
+            "allow",
+            ("open", "close"),
+            purposes=("delivery",),
+        )
+        engine = PolicyEngine(
+            [rule],
+            trusted_policy_issuers={issuer.key_pair.kid},
+        )
+        request = ActionRequest(
+            "req-delegation-1",
+            "robot-1",
+            "door-7",
+            "open",
+            "delivery",
+        )
+        decision = engine.evaluate(request)
+        root = issuer.issue_scoped(
+            request,
+            decision,
+            ttl_seconds=60,
+            target="door-*",
+            actions=["open", "close"],
+            purposes=["delivery"],
+            delegation_allowed=True,
+            max_delegation_depth=2,
+            delegate_allowlist=["delegate-*"],
+            wire_version="1.0",
+        )
+        delegate_request = ActionRequest(
+            "req-delegation-2",
+            "delegate-1",
+            "door-7",
+            "open",
+            "delivery",
+        )
+        child = issuer.issue_attenuated(
+            root,
+            target="door-7",
+            actions=["open"],
+            purposes=["delivery"],
+            ttl_seconds=30,
+            delegate_agent="delegate-1",
+            delegate_request=delegate_request,
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            chain_path = base / "chain.json"
+            request_path = base / "request.json"
+            issuers_path = base / "issuers.json"
+            chain_path.write_text(json.dumps([root, child]), encoding="utf-8")
+            request_path.write_text(
+                json.dumps(delegate_request.to_dict()),
+                encoding="utf-8",
+            )
+            issuers_path.write_text(
+                json.dumps([issuer.key_pair.kid]),
+                encoding="utf-8",
+            )
+            verified = self._run(
+                "delegation",
+                str(chain_path),
+                str(request_path),
+                str(issuers_path),
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("DELEGATION CHAIN VALID", verified.stdout)
+
+            bad_body = dict(child["payload"])
+            bad_body["delegate_agent"] = "other-1"
+            unsigned = {
+                key: value
+                for key, value in bad_body.items()
+                if key not in ("capability_id", "root_capability_id")
+            }
+            bad_body["capability_id"] = content_id("kinegrant:cap", unsigned)
+            bad_child = issuer.key_pair.sign_envelope(bad_body)
+            bad_chain_path = base / "bad-chain.json"
+            bad_chain_path.write_text(
+                json.dumps([root, bad_child]),
+                encoding="utf-8",
+            )
+            rejected = self._run(
+                "delegation",
+                str(bad_chain_path),
+                str(request_path),
+                str(issuers_path),
             )
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)

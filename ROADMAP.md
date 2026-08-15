@@ -406,6 +406,14 @@ Exit criterion: a user can validate agent/target/policy identifiers against the 
 
 Exit criterion: an auditor can re-verify a policy analysis report in the browser without trusting the report generator. Released as v2.19.0 (2026-08-15).
 
+## v2.20 - browser delegation chain verification
+
+- browser verifier verifies scoped delegation chains end to end (`verifyDelegationChain`: signatures, per-hop attenuation, delegation bounds, terminal request binding) (complete via PR #124);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: a gate operator can verify a delegated capability chain in the browser without trusting the chain generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
