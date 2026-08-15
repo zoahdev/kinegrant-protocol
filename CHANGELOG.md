@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.29.0 - v2.29 first item (unreleased)
+
+- Browser verifier re-verifies one-stop `kinegrant:PolicyLifecycleTrace`
+  artifacts (`verifyPolicyLifecycleTrace`: exact binding to the signed policy
+  bundle, canonical publish → enforce → odrl → distribute → audit → revoke
+  order, per-phase statuses, summary, and overall result; fail-closed on any
+  deviation); the HTML page and Node CLI (`lifecycle` command) expose it,
+  cross-tested against a Python-generated lifecycle trace.
+
 ## 2.28.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.28.0 on the

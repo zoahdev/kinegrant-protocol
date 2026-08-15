@@ -478,6 +478,14 @@ Exit criterion: a fleet operator can re-verify the combined policy + revocation 
 
 Exit criterion: an engineer can re-verify a benchmark report in the browser without trusting the report generator. Released as v2.28.0 (2026-08-15).
 
+## v2.29 - browser lifecycle trace verification
+
+- browser verifier re-verifies one-stop `kinegrant:PolicyLifecycleTrace` artifacts (`verifyPolicyLifecycleTrace`: signed-bundle binding, canonical phase order, per-phase statuses, summary, overall result) (complete via PR #143);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an operator can re-verify the full policy lifecycle trace of a signed bundle in the browser without trusting the trace generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

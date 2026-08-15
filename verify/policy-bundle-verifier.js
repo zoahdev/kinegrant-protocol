@@ -3029,6 +3029,124 @@ export function verifyBenchmarkReport(report) {
   };
 }
 
+const LIFECYCLE_PHASES = [
+  "publish",
+  "enforce",
+  "odrl",
+  "distribute",
+  "audit",
+  "revoke",
+];
+const LIFECYCLE_STATUSES = new Set(["PASS", "FAIL", "SKIP"]);
+const LIFECYCLE_SUMMARY_KEYS = ["phases_total", "passed", "failed"];
+
+export async function verifyPolicyLifecycleTrace(
+  trace,
+  policyBundle,
+  trustedAuthorities,
+  { now } = {}
+) {
+  if (typeof trace !== "object" || trace === null || Array.isArray(trace)) {
+    throw new Error("policy lifecycle trace must be an object");
+  }
+  if (trace.type !== "kinegrant:PolicyLifecycleTrace") {
+    throw new Error("wrong policy lifecycle trace type");
+  }
+  if (trace.schema_version !== "0.1") {
+    throw new Error("unsupported policy lifecycle trace version");
+  }
+  if (
+    typeof trace.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(trace.generated_at)
+  ) {
+    throw new Error(
+      "policy lifecycle trace generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(trace.generated_at);
+  const payload = await verifyPolicyBundle(policyBundle, trustedAuthorities, {
+    now,
+  });
+  if (trace.policy_id !== payload.policy_id) {
+    throw new Error("policy lifecycle trace policy_id does not match the policy bundle");
+  }
+  if (trace.bundle_id !== payload.bundle_id) {
+    throw new Error("policy lifecycle trace bundle_id does not match the policy bundle");
+  }
+  if (trace.bundle_version !== payload.version) {
+    throw new Error(
+      "policy lifecycle trace bundle_version does not match the policy bundle"
+    );
+  }
+  if (!Array.isArray(trace.phases) || trace.phases.length !== LIFECYCLE_PHASES.length) {
+    throw new Error("policy lifecycle trace phases must contain exactly six phases");
+  }
+  const seen = new Set();
+  for (let index = 0; index < trace.phases.length; index += 1) {
+    const phase = trace.phases[index];
+    if (typeof phase !== "object" || phase === null || Array.isArray(phase)) {
+      throw new Error("each lifecycle phase must be an object");
+    }
+    const keys = Object.keys(phase).sort().join(",");
+    if (keys !== "artifact,detail,phase,status") {
+      throw new Error("lifecycle phase fields are invalid");
+    }
+    if (phase.phase !== LIFECYCLE_PHASES[index]) {
+      throw new Error("lifecycle phases must follow the canonical order");
+    }
+    if (seen.has(phase.phase)) {
+      throw new Error("lifecycle phase ids must be unique");
+    }
+    seen.add(phase.phase);
+    if (!LIFECYCLE_STATUSES.has(phase.status)) {
+      throw new Error("lifecycle phase status must be PASS, FAIL, or SKIP");
+    }
+    if (typeof phase.detail !== "string" || phase.detail.length === 0) {
+      throw new Error("lifecycle phase detail must be a non-empty string");
+    }
+    if (
+      phase.artifact !== null &&
+      (typeof phase.artifact !== "string" || phase.artifact.length === 0)
+    ) {
+      throw new Error("lifecycle phase artifact must be null or a non-empty string");
+    }
+  }
+  const passed = trace.phases.filter((phase) => phase.status === "PASS").length;
+  const failed = trace.phases.filter((phase) => phase.status === "FAIL").length;
+  const skipped = trace.phases.filter((phase) => phase.status === "SKIP").length;
+  const summary = trace.summary;
+  if (typeof summary !== "object" || summary === null || Array.isArray(summary)) {
+    throw new Error("policy lifecycle trace summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    [...LIFECYCLE_SUMMARY_KEYS].sort().join(",")
+  ) {
+    throw new Error("policy lifecycle trace summary fields are invalid");
+  }
+  if (
+    summary.phases_total !== trace.phases.length ||
+    summary.passed !== passed ||
+    summary.failed !== failed
+  ) {
+    throw new Error("policy lifecycle trace summary is inconsistent");
+  }
+  if (skipped > 0 && passed + failed + skipped !== trace.phases.length) {
+    throw new Error("policy lifecycle trace summary does not account for skipped phases");
+  }
+  const expectedResult = failed > 0 ? "FAIL" : skipped > 0 ? "SKIP" : "PASS";
+  if (trace.overall_result !== expectedResult) {
+    throw new Error("policy lifecycle trace overall_result is inconsistent");
+  }
+  return {
+    valid: true,
+    overall_result: trace.overall_result,
+    summary: trace.summary,
+    policy_id: trace.policy_id,
+    bundle_version: trace.bundle_version,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -3058,5 +3176,6 @@ if (typeof globalThis !== "undefined") {
     verifyEsp32c3Evidence,
     verifyFleetOperationsReport,
     verifyBenchmarkReport,
+    verifyPolicyLifecycleTrace,
   };
 }

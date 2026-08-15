@@ -286,8 +286,9 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   re-verification, fleet policy audit summaries, and security review kit
   re-verification, plus ESP32-C3 hardware evidence re-verification (zero
   dependencies), plus combined fleet operations reports (policy + revocation
-  distribution) and benchmark report re-verification (zero dependencies; host
-  `verify/` anywhere and link the page).
+  distribution), benchmark report re-verification, and one-stop policy
+  lifecycle traces (zero dependencies; host `verify/` anywhere and link the
+  page).
 - Stable wire format: the reference implementation issues and verifies `1.0`
   capabilities (frozen scoped shape), with `capability-1.0` schema and
   KGP-RFC-0001 accepted, and the JavaScript and Go verifiers accept `0.2`/`1.0`

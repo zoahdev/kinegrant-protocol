@@ -1306,6 +1306,93 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_policy_lifecycle_trace(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:lifecycle:1"
+        bundle = authority.publish(
+            policy_id,
+            [
+                PolicyRule(
+                    "lifecycle-rule-1",
+                    authority.kid,
+                    "door-1",
+                    "allow",
+                    ("open",),
+                    purposes=("delivery",),
+                )
+            ],
+            ttl_seconds=3600,
+        )
+        phases = []
+        for phase in ("publish", "enforce", "odrl", "distribute", "audit", "revoke"):
+            phases.append(
+                {
+                    "phase": phase,
+                    "status": "PASS",
+                    "detail": f"{phase} verified",
+                    "artifact": None,
+                }
+            )
+        trace = {
+            "type": "kinegrant:PolicyLifecycleTrace",
+            "schema_version": "0.1",
+            "policy_id": policy_id,
+            "bundle_id": bundle["payload"]["bundle_id"],
+            "bundle_version": 1,
+            "generated_at": "2026-08-15T01:00:00Z",
+            "phases": phases,
+            "summary": {"phases_total": 6, "passed": 6, "failed": 0},
+            "overall_result": "PASS",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            trace_path = base / "trace.json"
+            bundle_path = base / "bundle.json"
+            authorities_path = base / "authorities.json"
+            trace_path.write_text(json.dumps(trace), encoding="utf-8")
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            verified = self._run(
+                "lifecycle",
+                str(trace_path),
+                str(bundle_path),
+                str(authorities_path),
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("POLICY LIFECYCLE TRACE VALID", verified.stdout)
+            tampered = dict(trace)
+            tampered["summary"] = dict(trace["summary"])
+            tampered["summary"]["passed"] = 5
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run(
+                "lifecycle",
+                str(tampered_path),
+                str(bundle_path),
+                str(authorities_path),
+            )
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+            swapped = dict(trace)
+            swapped["phases"] = [dict(phase) for phase in trace["phases"]]
+            swapped["phases"][0], swapped["phases"][1] = (
+                swapped["phases"][1],
+                swapped["phases"][0],
+            )
+            swapped_path = base / "swapped.json"
+            swapped_path.write_text(json.dumps(swapped), encoding="utf-8")
+            order_rejected = self._run(
+                "lifecycle",
+                str(swapped_path),
+                str(bundle_path),
+                str(authorities_path),
+            )
+            self.assertEqual(order_rejected.returncode, 2)
+            self.assertIn("INVALID", order_rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
