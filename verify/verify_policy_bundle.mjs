@@ -15,6 +15,7 @@ import {
   policyBundleToOdrl,
   validateActionVocabulary,
   validateObligationVocabulary,
+  validateIdentitySyntax,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -123,6 +124,16 @@ try {
     const obligations = load(obligationsPath);
     const result = validateObligationVocabulary(obligations);
     console.log(`OBLIGATION VOCABULARY VALID (${result.obligations} obligations)`);
+  } else if (command === "identities") {
+    const [identifiersPath] = args;
+    const identifiers = load(identifiersPath);
+    const result = validateIdentitySyntax(identifiers);
+    console.log(`IDENTITY SYNTAX VALID (${result.count} identifiers)`);
+    for (const entry of result.identifiers) {
+      console.log(
+        `${entry.value} -> kind=${entry.kind} namespace=${entry.namespace} local_id=${entry.local_id}`
+      );
+    }
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
@@ -138,7 +149,8 @@ try {
       "revocation-distribution <report.json> [bundle.json] [authorities.json] | " +
       "bundle-odrl <bundle.json> <authorities.json> | " +
       "vocabulary <actions.json> | " +
-      "obligations <obligations.json>"
+      "obligations <obligations.json> | " +
+      "identities <identifiers.json>"
     );
   }
 } catch (error) {

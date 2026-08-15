@@ -390,6 +390,14 @@ Exit criterion: a user can validate an action list against the canonical vocabul
 
 Exit criterion: a user can validate an obligation list against the known vocabulary in the browser.
 
+## v2.18 - browser identity verification
+
+- browser verifier validates canonical KineGrant identifier syntax (`urn:kinegrant:<kind>:<namespace>:<local-id>`, fail-closed on malformed identifiers) (complete via PR #120);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: a user can validate agent/target/policy identifiers against the canonical syntax in the browser.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

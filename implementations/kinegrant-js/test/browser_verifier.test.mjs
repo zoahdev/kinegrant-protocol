@@ -22,6 +22,7 @@ import {
   policyBundleToOdrl,
   validateActionVocabulary,
   validateObligationVocabulary,
+  validateIdentitySyntax,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const DOMAIN = Buffer.from("KINEGRANT-SIGNED-ENVELOPE-V1\u0000", "utf8");
@@ -546,4 +547,21 @@ test("browser verifier validates the obligation vocabulary", () => {
   assert.equal(result.obligations, 3);
   assert.throws(() => validateObligationVocabulary(["eraseMemory"]));
   assert.throws(() => validateObligationVocabulary([]));
+});
+
+test("browser verifier validates KineGrant identity syntax", () => {
+  const result = validateIdentitySyntax([
+    "urn:kinegrant:agent:zoah:delivery-robot-07",
+    "urn:kinegrant:target:zoah:door-7",
+    "urn:kinegrant:policy:zoah:delivery-door#permission-0",
+  ]);
+  assert.equal(result.valid, true);
+  assert.equal(result.count, 3);
+  assert.equal(result.identifiers[0].kind, "agent");
+  assert.equal(result.identifiers[0].namespace, "zoah");
+  assert.equal(result.identifiers[0].local_id, "delivery-robot-07");
+  assert.throws(() => validateIdentitySyntax(["urn:kinegrant:agent:ZOAH:robot"]));
+  assert.throws(() => validateIdentitySyntax(["urn:kinegrant:robot:zoah:r1"]));
+  assert.throws(() => validateIdentitySyntax(["urn:kinegrant:agent:zoah:" + "x".repeat(129)]));
+  assert.throws(() => validateIdentitySyntax([]));
 });

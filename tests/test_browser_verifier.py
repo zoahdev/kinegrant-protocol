@@ -25,6 +25,7 @@ from kinegrant.receipt import ReceiptLog
 from kinegrant.distribution import RevocationDistributor
 from kinegrant.vocabulary import ACTION_TERMS
 from kinegrant.obligations import KNOWN_OBLIGATIONS
+from kinegrant.identity import agent_id, policy_id, target_id
 from kinegrant.revocation import (
     RevocationList,
     build_revocation_bundle,
@@ -553,6 +554,33 @@ class BrowserVerifierInteropTests(unittest.TestCase):
                 encoding="utf-8",
             )
             rejected = self._run("obligations", str(bad_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
+    def test_browser_verifier_validates_identity_syntax(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            identifiers_path = base / "identifiers.json"
+            identifiers_path.write_text(
+                json.dumps(
+                    [
+                        agent_id("zoah", "delivery-robot-07"),
+                        target_id("zoah", "door-7"),
+                        policy_id("zoah", "delivery-door#permission-0"),
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            verified = self._run("identities", str(identifiers_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("IDENTITY SYNTAX VALID", verified.stdout)
+            self.assertIn("delivery-robot-07", verified.stdout)
+            bad_path = base / "bad.json"
+            bad_path.write_text(
+                json.dumps(["urn:kinegrant:agent:ZOAH:robot"]),
+                encoding="utf-8",
+            )
+            rejected = self._run("identities", str(bad_path))
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 

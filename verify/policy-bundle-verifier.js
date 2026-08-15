@@ -1170,6 +1170,57 @@ export function validateObligationVocabulary(obligations) {
   };
 }
 
+const IDENTITY_KINDS = new Set(["agent", "target", "policy"]);
+const IDENTITY_NAMESPACE_RE = /^[a-z0-9.-]{1,63}$/;
+const IDENTITY_LOCAL_ID_RE = /^[a-z0-9._:#-]{1,128}$/;
+const IDENTITY_RE =
+  /^urn:kinegrant:(agent|target|policy):([a-z0-9.-]{1,63}):([a-z0-9._:#-]{1,128})$/;
+
+export function validateIdentitySyntax(identifiers) {
+  if (!Array.isArray(identifiers) || identifiers.length === 0) {
+    throw new Error("identifiers must be a non-empty array");
+  }
+  const parsed = [];
+  for (const identifier of identifiers) {
+    if (typeof identifier !== "string") {
+      throw new Error("each identifier must be a string");
+    }
+    const match = IDENTITY_RE.exec(identifier);
+    if (match === null) {
+      throw new Error(
+        "invalid KineGrant identifier " +
+          JSON.stringify(identifier) +
+          "; expected urn:kinegrant:<agent|target|policy>:<namespace>:<local-id> " +
+          "(namespace 1-63 chars of lowercase letters, digits, '-' or '.'; " +
+          "local-id 1-128 chars of lowercase letters, digits, '-', '_', '.', ':' or '#')"
+      );
+    }
+    const kind = match[1];
+    const namespace = match[2];
+    const localId = match[3];
+    if (!IDENTITY_KINDS.has(kind)) {
+      throw new Error(`invalid KineGrant identifier kind: ${kind}`);
+    }
+    if (!IDENTITY_NAMESPACE_RE.test(namespace)) {
+      throw new Error(`invalid KineGrant identifier namespace: ${namespace}`);
+    }
+    if (!IDENTITY_LOCAL_ID_RE.test(localId)) {
+      throw new Error(`invalid KineGrant identifier local-id: ${localId}`);
+    }
+    parsed.push({
+      value: identifier,
+      kind,
+      namespace,
+      local_id: localId,
+    });
+  }
+  return {
+    valid: true,
+    count: parsed.length,
+    identifiers: parsed,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -1187,5 +1238,6 @@ if (typeof globalThis !== "undefined") {
     policyBundleToOdrl,
     validateActionVocabulary,
     validateObligationVocabulary,
+    validateIdentitySyntax,
   };
 }

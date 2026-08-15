@@ -30,6 +30,9 @@ The reference implementation exposes `agent_id`, `target_id`, `policy_id`,
 `parse_identifier`, and kind predicates in `src/kinegrant/identity.py`.
 Random opaque ids are generated with a cryptographic RNG for private
 namespaces; public namespaces should use their own registration policy.
+The browser verifier and its Node CLI expose the same grammar as
+`validateIdentitySyntax` (fail-closed on malformed identifiers), cross-tested
+against the Python builders.
 
 ## Relationship to other schemes
 

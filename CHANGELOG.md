@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 2.18.0 - v2.18 first item (unreleased)
+
+- Browser verifier validates canonical KineGrant identifier syntax
+  (`validateIdentitySyntax`: `urn:kinegrant:<agent|target|policy>:<namespace>:<local-id>`,
+  fail-closed on malformed identifiers); the HTML page and Node CLI
+  (`identities` command) expose it, cross-tested against the Python
+  `kinegrant.identity` builders.
+
 ## 2.17.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.17.0 on the
