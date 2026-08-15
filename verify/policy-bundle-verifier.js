@@ -5944,6 +5944,210 @@ export async function verifyMinimalDisclosure(packet, { now } = {}) {
   };
 }
 
+const LEAST_PRIVILEGE_KEYS = [
+  "capability",
+  "device_id",
+  "generated_at",
+  "overall_result",
+  "policy_bundle",
+  "receipt",
+  "request",
+  "schema_version",
+  "summary",
+  "trusted_authorities",
+  "type",
+];
+const LEAST_PRIVILEGE_SUMMARY_KEYS = [
+  "actions_minimal",
+  "artifacts_total",
+  "capability_verified",
+  "policy_bound",
+  "purposes_minimal",
+  "receipt_bound",
+  "request_bound",
+  "scope_minimal",
+  "targets_minimal",
+];
+
+export async function verifyLeastPrivilegeAudit(
+  packet,
+  {
+    trustedAuthorities,
+    trustedIssuers,
+    trustedExecutors,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("least privilege audit packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== LEAST_PRIVILEGE_KEYS.join(",")) {
+    throw new Error("least privilege audit packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:LeastPrivilegeAuditPacket") {
+    throw new Error("wrong least privilege audit packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported least privilege audit packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "least privilege audit packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("least privilege audit packet overall_result must be PASS");
+  }
+  if (typeof packet.device_id !== "string" || packet.device_id.length === 0) {
+    throw new Error("least privilege audit packet device_id must be non-empty");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "least privilege audit packet trusted_authorities must be a non-empty string array"
+    );
+  }
+
+  const trustedAuthoritiesSet = new Set(packet.trusted_authorities);
+  const policyPayload = await verifyPolicyBundle(
+    packet.policy_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+  const expectedPolicyDigest =
+    "sha256:" +
+    (await sha256Hex(
+      new TextEncoder().encode(
+        canonicalJson({
+          rules: policyPayload.rules,
+          trusted_policy_issuers: [...packet.trusted_authorities].sort(),
+        })
+      )
+    ));
+  const request = packet.request;
+  if (
+    typeof request !== "object" ||
+    request === null ||
+    Array.isArray(request)
+  ) {
+    throw new Error("least privilege audit packet request must be an object");
+  }
+  if (request.type !== "kinegrant:ActionRequest" || request.version !== "0.1") {
+    throw new Error(
+      "least privilege audit packet request must be a v0.1 action request"
+    );
+  }
+  const requestDigest = await digestOfObject(request);
+  const capPayload = await verifyCapability(
+    packet.capability,
+    request,
+    trustedIssuers ?? trustedAuthoritiesSet
+  );
+  if (capPayload.request_digest !== requestDigest) {
+    throw new Error("capability does not authorize this request");
+  }
+  if (capPayload.policy_digest !== expectedPolicyDigest) {
+    throw new Error("capability policy digest does not match the policy bundle and trust set");
+  }
+  if (capPayload.version !== "0.2" && capPayload.version !== "1.0") {
+    throw new Error("least privilege audit requires a scoped capability");
+  }
+  if (
+    !Array.isArray(capPayload.actions) ||
+    capPayload.actions.length !== 1 ||
+    capPayload.actions[0] !== request.action
+  ) {
+    throw new Error("capability actions are not minimal for the executed action");
+  }
+  if (
+    !Array.isArray(capPayload.purposes) ||
+    capPayload.purposes.length !== 1 ||
+    capPayload.purposes[0] !== request.purpose
+  ) {
+    throw new Error("capability purposes are not minimal for the executed purpose");
+  }
+  if (typeof capPayload.target !== "string" || capPayload.target !== request.target) {
+    throw new Error("capability target scope is not minimal for the executed target");
+  }
+
+  const receipt = packet.receipt;
+  if (typeof receipt !== "object" || receipt === null || Array.isArray(receipt)) {
+    throw new Error("least privilege audit packet receipt must be an object");
+  }
+  await verifyReceiptChain([receipt], trustedExecutors);
+  const receiptPayload = await verifyEnvelope(receipt);
+  if (receiptPayload.type !== "kinegrant:PhysicalActionReceipt") {
+    throw new Error("receipt payload type is invalid");
+  }
+  if (receiptPayload.capability_id !== capPayload.capability_id) {
+    throw new Error("receipt does not bind the audited capability");
+  }
+  if (receiptPayload.request_digest !== requestDigest) {
+    throw new Error("receipt request digest does not match the request");
+  }
+  if (
+    receiptPayload.agent !== request.agent ||
+    receiptPayload.action !== request.action ||
+    receiptPayload.purpose !== request.purpose ||
+    !globMatch(receiptPayload.target, request.target)
+  ) {
+    throw new Error("receipt execution details do not match the request");
+  }
+  if (
+    typeof receiptPayload.evidence_hash !== "string" ||
+    !SHA256_RE.test(receiptPayload.evidence_hash)
+  ) {
+    throw new Error("receipt evidence_hash is invalid");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("least privilege audit packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    LEAST_PRIVILEGE_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("least privilege audit packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 5,
+    capability_verified: true,
+    policy_bound: true,
+    request_bound: true,
+    actions_minimal: true,
+    purposes_minimal: true,
+    targets_minimal: true,
+    scope_minimal: true,
+    receipt_bound: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`least privilege audit packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    device_id: packet.device_id,
+    policy_id: policyPayload.policy_id,
+    capability_id: capPayload.capability_id,
+    request_action: request.action,
+    request_purpose: request.purpose,
+    request_target: request.target,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -6376,6 +6580,7 @@ if (typeof globalThis !== "undefined") {
     verifySelectiveDisclosure,
     verifyIdentifierRotation,
     verifyMinimalDisclosure,
+    verifyLeastPrivilegeAudit,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,

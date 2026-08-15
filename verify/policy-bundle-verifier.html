@@ -346,6 +346,13 @@
   <p><button id="verify-minimal-disclosure">验证最小化披露合规包</button></p>
   <div class="row">
     <div class="col">
+      <label>能力最小权限审计包 JSON（kinegrant:LeastPrivilegeAuditPacket：能力作用域必须恰好等于实际执行的最小范围）</label>
+      <textarea id="least-privilege" placeholder='{ "type": "kinegrant:LeastPrivilegeAuditPacket", "schema_version": "0.1", "device_id": "...", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "request": { ... }, "capability": { ... }, "receipt": { ... }, "summary": { "artifacts_total": 5, "capability_verified": true, "policy_bound": true, "request_bound": true, "actions_minimal": true, "purposes_minimal": true, "targets_minimal": true, "scope_minimal": true, "receipt_bound": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-least-privilege">验证能力最小权限审计包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -446,6 +453,7 @@
       verifySelectiveDisclosure,
       verifyIdentifierRotation,
       verifyMinimalDisclosure,
+      verifyLeastPrivilegeAudit,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -508,6 +516,7 @@
     const selectiveDisclosureInput = document.getElementById("selective-disclosure");
     const identifierRotationInput = document.getElementById("identifier-rotation");
     const minimalDisclosureInput = document.getElementById("minimal-disclosure");
+    const leastPrivilegeInput = document.getElementById("least-privilege");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1124,6 +1133,20 @@
         showOk(
           `MINIMAL DISCLOSURE VALID (document=${result.document_id}, ` +
             `${result.fields_total} fields disclosed, ${result.required_total} required)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-least-privilege").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(leastPrivilegeInput.value, "能力最小权限审计包");
+        const result = await verifyLeastPrivilegeAudit(packet);
+        showOk(
+          `LEAST PRIVILEGE AUDIT VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
+            `action=${result.request_action}, purpose=${result.request_purpose}, ` +
+            `target=${result.request_target})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);
