@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.56.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.56.0 on the
+  stable 1.0 wire format, adding policy template audit verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:PolicyTemplateAuditPacket`
+  (`verifyPolicyTemplateAudit`: every rule must match the template's
+  fixed fields exactly (canonical comparison), only use fields covered
+  by the template or rule identity, and keep variable fields within the
+  template's allowed values; summary counts and flags must be
+  consistent; fail-closed on any inconsistency); the HTML page and Node
+  CLI (`policy-template` command) expose it, cross-tested against
+  Python-published template-compliant bundles.
+
 ## 2.55.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.55.0 on the

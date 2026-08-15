@@ -60,6 +60,7 @@ import {
   verifyCrossDomainAudit,
   verifyAuditQuery,
   verifyCrossImplementationReport,
+  verifyPolicyTemplateAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -3727,6 +3728,86 @@ test("browser verifier validates cross implementation reports", async () => {
     verifyCrossImplementationReport({
       ...packet,
       summary: { ...packet.summary, agreement: false },
+    })
+  );
+});
+
+test("browser verifier validates policy template audits", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  const bundlePayload = bundle.payload;
+  const packet = {
+    type: "kinegrant:PolicyTemplateAuditPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T02:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: [bundlePayload.issuer],
+    policy_bundle: bundle,
+    template: {
+      template_id: "tpl-door-access",
+      template_name: "door-access",
+      fixed_fields: {
+        effect: "allow",
+        subjects: ["*"],
+      },
+      variable_fields: ["target", "actions", "purposes"],
+      allowed_values: {
+        actions: ["open"],
+        purposes: ["delivery"],
+      },
+    },
+    summary: {
+      artifacts_total: 3,
+      rules_total: 1,
+      template_bound: true,
+      fields_mapped: true,
+      values_allowed: true,
+      consistent: true,
+    },
+  };
+  const result = await verifyPolicyTemplateAudit(packet);
+  assert.equal(result.template_id, "tpl-door-access");
+  assert.equal(result.rules_total, 1);
+
+  const denyBundle = buildBundle(privateKey, publicKey, {
+    extraRules: [
+      {
+        policy_id: "urn:policy:browser:deny",
+        issuer: bundlePayload.issuer,
+        target: "urn:space:door-2",
+        effect: "deny",
+        actions: ["close"],
+        subjects: ["*"],
+        purposes: ["maintenance"],
+        constraints: {},
+        obligations: [],
+        priority: 1,
+        source: {},
+      },
+    ],
+  });
+  await assert.rejects(() =>
+    verifyPolicyTemplateAudit({
+      ...packet,
+      policy_bundle: denyBundle,
+      summary: { ...packet.summary, rules_total: 2 },
+    })
+  );
+
+  const wideBundle = buildBundle(privateKey, publicKey, {
+    purposes: ["delivery", "maintenance"],
+  });
+  await assert.rejects(() =>
+    verifyPolicyTemplateAudit({
+      ...packet,
+      policy_bundle: wideBundle,
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyPolicyTemplateAudit({
+      ...packet,
+      summary: { ...packet.summary, consistent: false },
     })
   );
 });

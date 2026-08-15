@@ -7260,6 +7260,216 @@ export async function verifyCrossImplementationReport(packet, { now } = {}) {
   };
 }
 
+const POLICY_TEMPLATE_KEYS = [
+  "generated_at",
+  "overall_result",
+  "policy_bundle",
+  "schema_version",
+  "summary",
+  "template",
+  "trusted_authorities",
+  "type",
+];
+const POLICY_TEMPLATE_SUMMARY_KEYS = [
+  "artifacts_total",
+  "consistent",
+  "fields_mapped",
+  "rules_total",
+  "template_bound",
+  "values_allowed",
+];
+const POLICY_TEMPLATE_ENTRY_KEYS = [
+  "allowed_values",
+  "fixed_fields",
+  "template_id",
+  "template_name",
+  "variable_fields",
+];
+const RULE_IDENTITY_FIELDS = new Set([
+  "constraints",
+  "issuer",
+  "obligations",
+  "policy_id",
+  "priority",
+  "source",
+]);
+
+function templateValueMatches(allowed, value) {
+  if (Array.isArray(value)) {
+    return (
+      value.every((item) => allowed.includes(item)) &&
+      value.every((item) => typeof item === "string")
+    );
+  }
+  return allowed.includes(value);
+}
+
+export async function verifyPolicyTemplateAudit(
+  packet,
+  {
+    trustedAuthorities,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("policy template audit packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== POLICY_TEMPLATE_KEYS.join(",")) {
+    throw new Error("policy template audit packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:PolicyTemplateAuditPacket") {
+    throw new Error("wrong policy template audit packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported policy template audit packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "policy template audit packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("policy template audit packet overall_result must be PASS");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "policy template audit packet trusted_authorities must be a non-empty string array"
+    );
+  }
+
+  const policyPayload = await verifyPolicyBundle(
+    packet.policy_bundle,
+    new Set(packet.trusted_authorities),
+    { now }
+  );
+  const template = packet.template;
+  if (
+    typeof template !== "object" ||
+    template === null ||
+    Array.isArray(template) ||
+    Object.keys(template).sort().join(",") !== POLICY_TEMPLATE_ENTRY_KEYS.join(",")
+  ) {
+    throw new Error("policy template fields are invalid");
+  }
+  if (
+    typeof template.template_id !== "string" ||
+    template.template_id.length === 0 ||
+    typeof template.template_name !== "string" ||
+    template.template_name.length === 0
+  ) {
+    throw new Error("template_id and template_name must be non-empty");
+  }
+  if (
+    typeof template.fixed_fields !== "object" ||
+    template.fixed_fields === null ||
+    Array.isArray(template.fixed_fields)
+  ) {
+    throw new Error("template fixed_fields must be an object");
+  }
+  if (
+    !Array.isArray(template.variable_fields) ||
+    template.variable_fields.length === 0 ||
+    template.variable_fields.some((field) => typeof field !== "string" || field.length === 0) ||
+    new Set(template.variable_fields).size !== template.variable_fields.length
+  ) {
+    throw new Error("template variable_fields must be a unique non-empty string array");
+  }
+  if (
+    typeof template.allowed_values !== "object" ||
+    template.allowed_values === null ||
+    Array.isArray(template.allowed_values)
+  ) {
+    throw new Error("template allowed_values must be an object");
+  }
+  for (const [field, values] of Object.entries(template.allowed_values)) {
+    if (
+      !Array.isArray(values) ||
+      values.some((item) => typeof item !== "string")
+    ) {
+      throw new Error(`template allowed_values ${field} must be a string array`);
+    }
+  }
+  const variableSet = new Set(template.variable_fields);
+
+  for (const rule of policyPayload.rules) {
+    if (typeof rule !== "object" || rule === null || Array.isArray(rule)) {
+      throw new Error("each policy rule must be an object");
+    }
+    for (const [field, fixedValue] of Object.entries(template.fixed_fields)) {
+      if (canonicalJson(rule[field]) !== canonicalJson(fixedValue)) {
+        throw new Error(
+          `rule ${rule.policy_id} does not match template fixed field ${field}`
+        );
+      }
+    }
+    for (const field of Object.keys(rule)) {
+      if (
+        RULE_IDENTITY_FIELDS.has(field) ||
+        Object.prototype.hasOwnProperty.call(template.fixed_fields, field) ||
+        variableSet.has(field)
+      ) {
+        continue;
+      }
+      throw new Error(
+        `rule ${rule.policy_id} has a field ${field} not covered by the template`
+      );
+    }
+    for (const field of variableSet) {
+      if (!Object.prototype.hasOwnProperty.call(rule, field)) {
+        continue;
+      }
+      const allowed = template.allowed_values[field];
+      if (allowed !== undefined && !templateValueMatches(allowed, rule[field])) {
+        throw new Error(
+          `rule ${rule.policy_id} ${field} is outside the template allowed values`
+        );
+      }
+    }
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("policy template audit packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    POLICY_TEMPLATE_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("policy template audit packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 3,
+    rules_total: policyPayload.rules.length,
+    template_bound: true,
+    fields_mapped: true,
+    values_allowed: true,
+    consistent: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`policy template audit packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    policy_id: policyPayload.policy_id,
+    template_id: template.template_id,
+    rules_total: policyPayload.rules.length,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -7699,6 +7909,7 @@ if (typeof globalThis !== "undefined") {
     verifyCrossDomainAudit,
     verifyAuditQuery,
     verifyCrossImplementationReport,
+    verifyPolicyTemplateAudit,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,
