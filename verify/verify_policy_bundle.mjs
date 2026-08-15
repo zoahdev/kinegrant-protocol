@@ -17,6 +17,7 @@ import {
   validateObligationVocabulary,
   validateIdentitySyntax,
   verifyPolicyAnalysisReport,
+  verifyDelegationChain,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -150,6 +151,19 @@ try {
         `${result.summary.errors} errors, ${result.summary.warnings} warnings, ` +
         `${result.summary.info} info, ${result.findings.length} findings)`
     );
+  } else if (command === "delegation") {
+    const [chainPath, requestPath, issuersPath] = args;
+    const chain = load(chainPath);
+    const request = load(requestPath);
+    const trustedIssuers = new Set(load(issuersPath));
+    const result = await verifyDelegationChain(
+      chain,
+      trustedIssuers,
+      request
+    );
+    console.log(
+      `DELEGATION CHAIN VALID (depth=${result.depth}, terminal=${result.terminal_capability_id})`
+    );
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
@@ -167,7 +181,8 @@ try {
       "vocabulary <actions.json> | " +
       "obligations <obligations.json> | " +
       "identities <identifiers.json> | " +
-      "analysis <report.json> <bundle.json> <authorities.json>"
+      "analysis <report.json> <bundle.json> <authorities.json> | " +
+      "delegation <chain.json> <request.json> <issuers.json>"
     );
   }
 } catch (error) {

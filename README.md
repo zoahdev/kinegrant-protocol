@@ -280,8 +280,8 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   browser, plus external reproduction and revocation distribution reports
   and ODRL mapping of verified bundles, plus `kg.action.*` and obligation
   vocabulary checks, canonical identity syntax validation, and policy
-  analysis report re-verification (zero dependencies; host `verify/` anywhere
-  and link the page).
+  analysis report re-verification, plus scoped delegation chain verification
+  (zero dependencies; host `verify/` anywhere and link the page).
 - Stable wire format: the reference implementation issues and verifies `1.0`
   capabilities (frozen scoped shape), with `capability-1.0` schema and
   KGP-RFC-0001 accepted, and the JavaScript and Go verifiers accept `0.2`/`1.0`

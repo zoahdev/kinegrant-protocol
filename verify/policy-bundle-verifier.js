@@ -304,7 +304,7 @@ async function verifyCapabilityV1(payload, envelope, request, trustedIssuers) {
   return payload;
 }
 
-async function verifyCapabilityV2(payload, envelope, request, trustedIssuers) {
+function validateScopedCapabilityStructure(payload) {
   const fields = new Set(Object.keys(payload));
   if (
     fields.size !== CAPABILITY_FIELDS_V2.size ||
@@ -315,27 +315,26 @@ async function verifyCapabilityV2(payload, envelope, request, trustedIssuers) {
   if (payload.type !== "kinegrant:PhysicalActionCapability") {
     throw new Error("wrong capability type");
   }
-  if (payload.issuer !== envelope.kid) {
-    throw new Error("capability issuer does not match signing key");
+  if (typeof payload.target !== "string" || payload.target.length === 0) {
+    throw new Error("capability target must be a non-empty string");
   }
-  if (!trustedIssuers.has(payload.issuer)) {
-    throw new Error("untrusted capability issuer");
+  if (
+    !Array.isArray(payload.actions) ||
+    payload.actions.length === 0 ||
+    payload.actions.some(
+      (action) => typeof action !== "string" || action.length === 0
+    )
+  ) {
+    throw new Error("capability actions must be a non-empty string array");
   }
-  const requestDigest = await digestOfObject(request);
-  if (payload.request_digest !== requestDigest) {
-    throw new Error("capability does not authorize this request");
-  }
-  if (payload.agent !== request.agent) {
-    throw new Error("capability agent mismatch");
-  }
-  if (!globMatch(payload.target, request.target)) {
-    throw new Error("capability target scope mismatch");
-  }
-  if (!Array.isArray(payload.actions) || !payload.actions.includes(request.action)) {
-    throw new Error("capability action scope mismatch");
-  }
-  if (!Array.isArray(payload.purposes) || !payload.purposes.includes(request.purpose)) {
-    throw new Error("capability purpose scope mismatch");
+  if (
+    !Array.isArray(payload.purposes) ||
+    payload.purposes.length === 0 ||
+    payload.purposes.some(
+      (purpose) => typeof purpose !== "string" || purpose.length === 0
+    )
+  ) {
+    throw new Error("capability purposes must be a non-empty string array");
   }
   const parentId = payload.parent_capability_id;
   if (parentId !== null && (typeof parentId !== "string" || parentId.length === 0)) {
@@ -389,6 +388,40 @@ async function verifyCapabilityV2(payload, envelope, request, trustedIssuers) {
       allowlist.some((item) => typeof item !== "string" || item.length === 0))
   ) {
     throw new Error("capability delegate_allowlist must be a list or null");
+  }
+}
+
+async function verifyCapabilityV2(payload, envelope, request, trustedIssuers) {
+  if (payload.version !== "0.2" && payload.version !== "1.0") {
+    throw new Error("unsupported capability version");
+  }
+  validateScopedCapabilityStructure(payload);
+  if (payload.issuer !== envelope.kid) {
+    throw new Error("capability issuer does not match signing key");
+  }
+  if (!trustedIssuers.has(payload.issuer)) {
+    throw new Error("untrusted capability issuer");
+  }
+  const requestDigest = await digestOfObject(request);
+  if (payload.request_digest !== requestDigest) {
+    throw new Error("capability does not authorize this request");
+  }
+  const delegateAgent = payload.delegate_agent;
+  if (delegateAgent === null) {
+    if (payload.agent !== request.agent) {
+      throw new Error("capability agent mismatch");
+    }
+  } else if (request.agent !== delegateAgent) {
+    throw new Error("capability delegate agent mismatch");
+  }
+  if (!globMatch(payload.target, request.target)) {
+    throw new Error("capability target scope mismatch");
+  }
+  if (!payload.actions.includes(request.action)) {
+    throw new Error("capability action scope mismatch");
+  }
+  if (!payload.purposes.includes(request.purpose)) {
+    throw new Error("capability purpose scope mismatch");
   }
   await validateCommon(payload, request, envelope);
   return payload;
@@ -1436,6 +1469,241 @@ export async function verifyPolicyAnalysisReport(
   };
 }
 
+const CONSTRAINT_KEYS = new Set([
+  "max_force_newtons",
+  "max_velocity_mps",
+  "allowed_zones",
+]);
+
+export function verifyAttenuation(child, parent) {
+  try {
+    if (parent.type !== "kinegrant:PhysicalActionCapability") return false;
+    if (parent.version !== "0.2" && parent.version !== "1.0") return false;
+    if (child.type !== "kinegrant:PhysicalActionCapability") return false;
+    if (child.version !== "0.2" && child.version !== "1.0") return false;
+    if (parent.version !== child.version) return false;
+    if (child.parent_capability_id !== parent.capability_id) return false;
+    if (child.root_capability_id !== (parent.root_capability_id || parent.capability_id)) {
+      return false;
+    }
+    const childAllowlist = child.delegate_allowlist;
+    const parentAllowlist = parent.delegate_allowlist;
+    const allowlistsEqual =
+      childAllowlist === parentAllowlist ||
+      (childAllowlist !== null &&
+        parentAllowlist !== null &&
+        Array.isArray(childAllowlist) &&
+        Array.isArray(parentAllowlist) &&
+        canonicalJson(childAllowlist) === canonicalJson(parentAllowlist));
+    if (!allowlistsEqual) return false;
+    if (child.issuer !== parent.issuer) return false;
+    if (child.agent !== parent.agent) return false;
+    if (child.policy_digest !== parent.policy_digest) return false;
+    const childPolicies = child.matched_policy_ids;
+    const parentPolicies = parent.matched_policy_ids;
+    if (!Array.isArray(childPolicies) || !Array.isArray(parentPolicies)) {
+      return false;
+    }
+    if (
+      childPolicies.length === 0 ||
+      childPolicies.some((id) => !parentPolicies.includes(id))
+    ) {
+      return false;
+    }
+    const parentTarget = parent.target;
+    const parentActions = parent.actions;
+    const parentPurposes = parent.purposes;
+    if (typeof parentTarget !== "string" || parentTarget.length === 0) return false;
+    if (!Array.isArray(parentActions) || parentActions.length === 0) return false;
+    if (!Array.isArray(parentPurposes) || parentPurposes.length === 0) return false;
+    const childTarget = child.target;
+    if (childTarget !== parentTarget && !globMatch(parentTarget, childTarget)) {
+      return false;
+    }
+    const childActions = child.actions;
+    const childPurposes = child.purposes;
+    if (
+      !Array.isArray(childActions) ||
+      childActions.length === 0 ||
+      childActions.some((action) => !parentActions.includes(action))
+    ) {
+      return false;
+    }
+    if (
+      !Array.isArray(childPurposes) ||
+      childPurposes.length === 0 ||
+      childPurposes.some((purpose) => !parentPurposes.includes(purpose))
+    ) {
+      return false;
+    }
+
+    const parentAllowed = parent.delegation_allowed;
+    const parentMaxDepth = parent.max_delegation_depth;
+    const parentDelegate = parent.delegate_agent;
+    const parentDepth = parent.delegation_depth;
+    const childAllowed = child.delegation_allowed;
+    const childMaxDepth = child.max_delegation_depth;
+    const childDelegate = child.delegate_agent;
+    const childDepth = child.delegation_depth;
+    if (typeof parentAllowed !== "boolean" || typeof childAllowed !== "boolean") {
+      return false;
+    }
+    for (const value of [parentMaxDepth, childMaxDepth, parentDepth, childDepth]) {
+      if (!Number.isInteger(value) || value < 0 || value > 3) return false;
+    }
+    if (childDelegate === parentDelegate) {
+      if (childDepth !== parentDepth) return false;
+      if (child.request_digest !== parent.request_digest) return false;
+    } else {
+      if (!parentAllowed) return false;
+      if (parentDepth >= parentMaxDepth) return false;
+      if (childDepth !== parentDepth + 1) return false;
+      if (typeof childDelegate !== "string" || childDelegate.length === 0) {
+        return false;
+      }
+      if (childDelegate === child.agent) return false;
+      if (childAllowed !== false) return false;
+      if (childMaxDepth !== 0) return false;
+      if (parentAllowlist !== null && !Array.isArray(parentAllowlist)) return false;
+      if (
+        Array.isArray(parentAllowlist) &&
+        parentAllowlist.length > 0 &&
+        !parentAllowlist.some((pattern) => globMatch(pattern, childDelegate))
+      ) {
+        return false;
+      }
+    }
+    if (childMaxDepth > parentMaxDepth) return false;
+    if (childAllowed && !parentAllowed) return false;
+    if (parseTime(child.not_before) < parseTime(parent.not_before)) return false;
+    if (parseTime(child.expires_at) > parseTime(parent.expires_at)) return false;
+    if ((child.approval_tier ?? 0) !== (parent.approval_tier ?? 0)) return false;
+
+    const childConstraints = child.constraints;
+    const parentConstraints = parent.constraints;
+    if (
+      typeof childConstraints !== "object" ||
+      childConstraints === null ||
+      Array.isArray(childConstraints) ||
+      typeof parentConstraints !== "object" ||
+      parentConstraints === null ||
+      Array.isArray(parentConstraints)
+    ) {
+      return false;
+    }
+    if (Object.keys(childConstraints).some((key) => !CONSTRAINT_KEYS.has(key))) {
+      return false;
+    }
+    for (const name of ["max_force_newtons", "max_velocity_mps"]) {
+      const childValue = childConstraints[name];
+      if (childValue === undefined) continue;
+      if (typeof childValue !== "number" || childValue < 0) return false;
+      const parentValue = parentConstraints[name];
+      if (parentValue !== undefined && childValue > parentValue) return false;
+    }
+    const childZones = childConstraints.allowed_zones;
+    if (childZones !== undefined) {
+      const parentZones = parentConstraints.allowed_zones;
+      if (!Array.isArray(childZones)) return false;
+      if (parentZones !== undefined) {
+        if (!Array.isArray(parentZones)) return false;
+        if (
+          !childZones.every((zone) =>
+            parentZones.some((pattern) => globMatch(pattern, zone))
+          )
+        ) {
+          return false;
+        }
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function verifyDelegationChain(
+  chain,
+  trustedIssuers,
+  request,
+  { now } = {}
+) {
+  if (!Array.isArray(chain) || chain.length === 0) {
+    throw new Error("delegation chain must be a non-empty array");
+  }
+  if (typeof request !== "object" || request === null || Array.isArray(request)) {
+    throw new Error("delegation request must be an object");
+  }
+  const payloads = [];
+  for (let index = 0; index < chain.length; index += 1) {
+    const envelope = chain[index];
+    const payload = await verifyEnvelope(envelope);
+    if (payload.type !== "kinegrant:PhysicalActionCapability") {
+      throw new Error("delegation chain contains a non-capability envelope");
+    }
+    if (payload.version !== "0.2" && payload.version !== "1.0") {
+      throw new Error("delegation chains require scoped capabilities (0.2/1.0)");
+    }
+    validateScopedCapabilityStructure(payload);
+    if (payload.issuer !== envelope.kid) {
+      throw new Error("capability issuer does not match signing key");
+    }
+    if (!trustedIssuers.has(payload.issuer)) {
+      throw new Error("untrusted capability issuer");
+    }
+    await validateCommon(payload, request, envelope);
+    payloads.push(payload);
+  }
+  for (let index = 1; index < payloads.length; index += 1) {
+    if (!verifyAttenuation(payloads[index], payloads[index - 1])) {
+      throw new Error(
+        `capability at chain position ${index + 1} is not a valid attenuation of position ${index}`
+      );
+    }
+  }
+  const terminalEnvelope = chain[chain.length - 1];
+  const terminalPayload = payloads[payloads.length - 1];
+  if (terminalPayload.issuer !== terminalEnvelope.kid) {
+    throw new Error("capability issuer does not match signing key");
+  }
+  if (!trustedIssuers.has(terminalPayload.issuer)) {
+    throw new Error("untrusted capability issuer");
+  }
+  const requestDigest = await digestOfObject(request);
+  if (terminalPayload.request_digest !== requestDigest) {
+    throw new Error("capability does not authorize this request");
+  }
+  const delegateAgent = terminalPayload.delegate_agent;
+  if (delegateAgent === null) {
+    if (terminalPayload.agent !== request.agent) {
+      throw new Error("capability agent mismatch");
+    }
+  } else if (request.agent !== delegateAgent) {
+    throw new Error("capability delegate agent mismatch");
+  }
+  if (!globMatch(terminalPayload.target, request.target)) {
+    throw new Error("capability target scope mismatch");
+  }
+  if (!terminalPayload.actions.includes(request.action)) {
+    throw new Error("capability action scope mismatch");
+  }
+  if (!terminalPayload.purposes.includes(request.purpose)) {
+    throw new Error("capability purpose scope mismatch");
+  }
+  const root = payloads[0];
+  const terminal = payloads[payloads.length - 1];
+  return {
+    valid: true,
+    depth: payloads.length - 1,
+    root_capability_id: root.root_capability_id || root.capability_id,
+    terminal_capability_id: terminal.capability_id,
+    agent: terminal.agent,
+    target: terminal.target,
+    actions: terminal.actions,
+    purposes: terminal.purposes,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -1455,5 +1723,6 @@ if (typeof globalThis !== "undefined") {
     validateObligationVocabulary,
     validateIdentitySyntax,
     verifyPolicyAnalysisReport,
+    verifyDelegationChain,
   };
 }

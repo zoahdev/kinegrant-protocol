@@ -102,6 +102,9 @@ The browser verifier and its Node CLI can re-verify a
 `kinegrant:PolicyBundleAnalysis` report against the signed bundle
 (`verifyPolicyAnalysisReport`): findings are recomputed locally and the report
 is accepted only when it exactly matches.
+Scoped delegation chains can be verified end to end in the browser
+(`verifyDelegationChain`): signatures, per-hop attenuation
+(`verifyAttenuation`), and terminal request binding are all checked locally.
 
 ## Audit aggregation
 

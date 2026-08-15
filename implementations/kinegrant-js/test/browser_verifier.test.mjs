@@ -24,6 +24,7 @@ import {
   validateObligationVocabulary,
   validateIdentitySyntax,
   verifyPolicyAnalysisReport,
+  verifyDelegationChain,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const DOMAIN = Buffer.from("KINEGRANT-SIGNED-ENVELOPE-V1\u0000", "utf8");
@@ -125,6 +126,55 @@ function buildCapability(privateKey, publicKey, request) {
     createHash("sha256")
       .update(Buffer.from(canonicalJson(unsigned), "utf8"))
       .digest("hex");
+  return signEnvelope(privateKey, body);
+}
+
+function buildScopedCapability(privateKey, publicKey, request, options = {}) {
+  const now = Date.now();
+  const issuedAt = new Date(now).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const expiresAt = new Date(
+    now + (options.ttl ?? 120) * 1000
+  ).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const body = {
+    type: "kinegrant:PhysicalActionCapability",
+    version: options.version ?? "1.0",
+    issuer: kidOf(publicKey),
+    agent: options.agent ?? (options.parent ? options.parent.payload.agent : request.agent),
+    target: options.target ?? request.target,
+    actions: options.actions ?? ["open"],
+    purposes: options.purposes ?? ["delivery"],
+    request_digest:
+      "sha256:" +
+      createHash("sha256")
+        .update(Buffer.from(canonicalJson(request), "utf8"))
+        .digest("hex"),
+    policy_digest: "sha256:" + "0".repeat(64),
+    matched_policy_ids: ["policy-1"],
+    obligations: ["emitActionReceipt"],
+    issued_at: issuedAt,
+    not_before: issuedAt,
+    expires_at: expiresAt,
+    nonce: "n".repeat(32),
+    parent_capability_id: options.parent
+      ? options.parent.payload.capability_id
+      : null,
+    constraints: options.constraints ?? {},
+    approval_tier: options.approvalTier ?? 0,
+    delegation_allowed: options.delegationAllowed ?? false,
+    max_delegation_depth: options.maxDepth ?? 0,
+    delegate_agent: options.delegate ?? null,
+    delegation_depth: options.depth ?? 0,
+    delegate_allowlist: options.allowlist ?? null,
+  };
+  const unsigned = { ...body };
+  delete unsigned.capability_id;
+  delete unsigned.root_capability_id;
+  body.capability_id =
+    "kinegrant:cap:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson(unsigned), "utf8"))
+      .digest("hex");
+  body.root_capability_id = options.rootCapabilityId ?? body.capability_id;
   return signEnvelope(privateKey, body);
 }
 
@@ -614,5 +664,65 @@ test("browser verifier validates policy analysis reports", async () => {
   report.summary.errors = 0;
   await assert.rejects(() =>
     verifyPolicyAnalysisReport(report, bundle, new Set([bundle.kid]))
+  );
+});
+
+test("browser verifier validates delegation chains", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const principalRequest = {
+    request_id: "req-principal",
+    agent: "robot-1",
+    target: "door-*",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const delegateRequest = {
+    request_id: "req-delegate",
+    agent: "delegate-1",
+    target: "door-7",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const root = buildScopedCapability(privateKey, publicKey, principalRequest, {
+    target: "door-*",
+    actions: ["open", "close"],
+    purposes: ["delivery"],
+    delegationAllowed: true,
+    maxDepth: 2,
+    allowlist: ["delegate-*"],
+  });
+  const child = buildScopedCapability(privateKey, publicKey, delegateRequest, {
+    parent: root,
+    target: "door-7",
+    actions: ["open"],
+    purposes: ["delivery"],
+    delegate: "delegate-1",
+    depth: 1,
+    rootCapabilityId: root.payload.capability_id,
+    allowlist: ["delegate-*"],
+  });
+  const result = await verifyDelegationChain(
+    [root, child],
+    new Set([root.kid]),
+    delegateRequest
+  );
+  assert.equal(result.depth, 1);
+  assert.equal(result.terminal_capability_id, child.payload.capability_id);
+  const badChild = buildScopedCapability(privateKey, publicKey, delegateRequest, {
+    parent: root,
+    target: "door-7",
+    actions: ["open", "record"],
+    purposes: ["delivery"],
+    delegate: "delegate-1",
+    depth: 1,
+    rootCapabilityId: root.payload.capability_id,
+    allowlist: ["delegate-*"],
+  });
+  await assert.rejects(() =>
+    verifyDelegationChain([root, badChild], new Set([root.kid]), delegateRequest)
   );
 });

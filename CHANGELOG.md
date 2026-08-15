@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.20.0 - v2.20 first item (unreleased)
+
+- Browser verifier verifies scoped delegation chains end to end
+  (`verifyDelegationChain` + `verifyAttenuation`: envelope signatures,
+  scoped structure, per-hop narrowing, delegation depth/allowlist bounds,
+  and terminal request binding; fail-closed on any violation); the HTML page
+  and Node CLI (`delegation` command) expose it, cross-tested against Python
+  `CapabilityIssuer.issue_scoped` / `issue_attenuated`.
+
 ## 2.19.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.19.0 on the

@@ -35,6 +35,11 @@ A **root** v0.2 capability is issued directly from a decision with
 Any attempt to widen the scope is rejected at issuance time, and
 `verify_attenuation(child_payload, parent_payload)` lets an independent auditor
 re-check the narrowing without trusting the issuer.
+The browser verifier and its Node CLI can verify a full delegation chain
+(`verifyDelegationChain`): every envelope is signature- and structure-checked,
+each adjacent pair must satisfy `verifyAttenuation`, and the terminal
+capability must match the executing request (agent or `delegate_agent`,
+target, action, purpose).
 
 ## Cross-agent delegation
 
