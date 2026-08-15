@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 2.43.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.43.0 on the
+  stable 1.0 wire format, adding policy migration audit verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:PolicyMigrationAuditPacket`
+  (`verifyPolicyMigrationAudit`: the new bundle must be exactly one
+  version ahead and chain to the old bundle digest; the distribution
+  report must bind the new bundle; the old capability must bind the old
+  policy digest and the new capability the new policy digest; the gate
+  log must record the old denial before the new allow; the receipt must
+  bind the new capability; fail-closed on any inconsistency); the HTML
+  page and Node CLI (`migration-audit` command) expose it, cross-tested
+  against a Python-built packet.
+
 ## 2.42.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.42.0 on the

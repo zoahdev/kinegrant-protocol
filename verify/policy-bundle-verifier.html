@@ -304,6 +304,13 @@
   <p><button id="verify-unified-audit">验证统一审计导出包</button></p>
   <div class="row">
     <div class="col">
+      <label>策略版本迁移审计包 JSON（kinegrant:PolicyMigrationAuditPacket：旧策略→新策略版本链、分发回执、旧能力拒绝、新能力重签、收据闭环）</label>
+      <textarea id="migration-audit" placeholder='{ "type": "kinegrant:PolicyMigrationAuditPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "old_policy_bundle": { ... }, "new_policy_bundle": { ... }, "distribution_report": { ... }, "old_capability_id": "kinegrant:cap:...", "request": { ... }, "old_capability": { ... }, "new_capability": { ... }, "migration": { "gate_log": { "old_denied": { "allowed": false, "reason": "policy_migrated", "checked_at": "...", "capability_id": "kinegrant:cap:...", "policy_digest": "sha256:..." }, "new_allowed": { "allowed": true, "reason": "allow", "checked_at": "...", "capability_id": "kinegrant:cap:...", "policy_digest": "sha256:..." } } }, "receipt": { ... }, "summary": { "artifacts_total": 10, "old_policy_verified": true, "new_policy_verified": true, "version_chain": true, "distribution_verified": true, "migration_verified": true, "gate_order_ok": true, "receipt_bound": true, "closure_complete": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-migration-audit">验证策略版本迁移审计包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -398,6 +405,7 @@
       verifyEndToEndAuditExport,
       verifyRevocationReissueClosure,
       verifyUnifiedAuditExport,
+      verifyPolicyMigrationAudit,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -454,6 +462,7 @@
     const endToEndAuditInput = document.getElementById("end-to-end-audit");
     const revocationReissueInput = document.getElementById("revocation-reissue");
     const unifiedAuditInput = document.getElementById("unified-audit");
+    const migrationAuditInput = document.getElementById("migration-audit");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -989,6 +998,21 @@
             `${result.phases_total} lifecycle phases, ${result.devices_total} devices, ` +
             `revoked=${result.closure_revoked}, reissued=${result.closure_reissued}, ` +
             `${result.artifacts_total} artifacts)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-migration-audit").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(migrationAuditInput.value, "策略版本迁移审计包");
+        const result = await verifyPolicyMigrationAudit(packet);
+        showOk(
+          `POLICY MIGRATION AUDIT VALID (policy=${result.policy_id}, ` +
+            `v${result.old_version} -> v${result.new_version}, ` +
+            `old=${result.old_capability_id}, new=${result.new_capability_id}, ` +
+            `receipt=${result.receipt_id})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);
