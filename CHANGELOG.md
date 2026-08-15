@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.22.0 - v2.22 first item (unreleased)
+## 2.22.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.22.0 on the
+  stable 1.0 wire format, adding post-quantum ML-DSA-65 envelope
+  verification to the browser verifier.
 
 - Browser verifier verifies post-quantum FIPS 204 ML-DSA-65 signed envelopes
   (`verifyMldsaEnvelope`; `verifyEnvelope` now accepts `alg: "ML-DSA-65"`
