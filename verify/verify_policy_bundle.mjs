@@ -45,6 +45,7 @@ import {
   verifySelectiveDisclosure,
   verifyIdentifierRotation,
   verifyMinimalDisclosure,
+  verifyLeastPrivilegeAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -439,6 +440,15 @@ try {
       `MINIMAL DISCLOSURE VALID (document=${result.document_id}, ` +
         `${result.fields_total} fields disclosed, ${result.required_total} required)`
     );
+  } else if (command === "least-privilege") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyLeastPrivilegeAudit(packet);
+    console.log(
+      `LEAST PRIVILEGE AUDIT VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
+        `action=${result.request_action}, purpose=${result.request_purpose}, ` +
+        `target=${result.request_target})`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -536,6 +546,7 @@ try {
       "selective-disclosure <packet.json> | " +
       "identifier-rotation <packet.json> | " +
       "minimal-disclosure <packet.json> | " +
+      "least-privilege <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +

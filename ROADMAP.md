@@ -697,6 +697,18 @@ the export generator.
 Exit criterion: an auditor can prove in the browser that a disclosure
 reveals exactly the minimum necessary fields of a committed document.
 
+## v2.49 - browser least privilege audit verification
+
+- browser verifier re-verifies `kinegrant:LeastPrivilegeAuditPacket`
+  (`verifyLeastPrivilegeAudit`: scoped capability actions, purposes, and
+  target exactly match the executed request; no extra permissions;
+  receipt bound);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can prove in the browser that an authorization
+granted exactly the minimum permission needed for the executed action.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

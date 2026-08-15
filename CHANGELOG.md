@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.49.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.49.0 on the
+  stable 1.0 wire format, adding least privilege audit verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:LeastPrivilegeAuditPacket`
+  (`verifyLeastPrivilegeAudit`: the scoped capability must be bound to
+  the policy and request, and its actions, purposes, and target scope
+  must each be exactly the executed action, purpose, and target -- no
+  extra permissions; the receipt must bind the capability and request;
+  summary counts and flags must be consistent; fail-closed on any
+  inconsistency); the HTML page and Node CLI (`least-privilege` command)
+  expose it, cross-tested against Python-issued scoped capabilities.
+
 ## 2.48.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.48.0 on the

@@ -3067,6 +3067,108 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_least_privilege_audit(self) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        issuer = CapabilityIssuer(key)
+        rule = PolicyRule(
+            "least-privilege-rule-1",
+            key.kid,
+            "urn:space:browser:door-1",
+            "allow",
+            ("open",),
+            purposes=("delivery",),
+        )
+        bundle = authority.publish(
+            "least-privilege-rule-1",
+            [rule],
+            ttl_seconds=3600,
+        )
+        request = ActionRequest(
+            "urn:kinegrant:browser:request:least-privilege",
+            "urn:robot:browser:1",
+            "urn:space:browser:door-1",
+            "open",
+            "delivery",
+        )
+        decision = PolicyEngine(
+            [rule],
+            trusted_policy_issuers={key.kid},
+        ).evaluate(request)
+        capability = issuer.issue_scoped(
+            request,
+            decision,
+            ttl_seconds=300,
+            actions=("open",),
+            purposes=("delivery",),
+            target=request.target,
+            wire_version="1.0",
+        )
+        gate = ActionGate(
+            trusted_issuers={key.kid},
+            replay_store=InMemoryReplayStore(),
+        )
+        started = utc_now()
+        verified = gate.authorize(capability, request, now=started)
+        executor = Ed25519KeyPair.generate()
+        log = ReceiptLog(executor)
+        receipt = log.append(
+            verified,
+            result="succeeded",
+            evidence_hash="sha256:" + "a" * 64,
+            started_at=started,
+            finished_at=started + timedelta(seconds=1),
+            request=request,
+        )
+        packet = {
+            "type": "kinegrant:LeastPrivilegeAuditPacket",
+            "schema_version": "0.1",
+            "device_id": "device:esp32c3:paper-barrier:unit-1",
+            "generated_at": isoformat(started + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid],
+            "policy_bundle": bundle,
+            "request": request.to_dict(),
+            "capability": capability,
+            "receipt": receipt,
+            "summary": {
+                "artifacts_total": 5,
+                "capability_verified": True,
+                "policy_bound": True,
+                "request_bound": True,
+                "actions_minimal": True,
+                "purposes_minimal": True,
+                "targets_minimal": True,
+                "scope_minimal": True,
+                "receipt_bound": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "least-privilege.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("least-privilege", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("LEAST PRIVILEGE AUDIT VALID", verified.stdout)
+            wide = issuer.issue_scoped(
+                request,
+                decision,
+                ttl_seconds=300,
+                actions=("open", "close"),
+                purposes=("delivery",),
+                target=request.target,
+                wire_version="1.0",
+            )
+            tampered = dict(packet)
+            tampered["capability"] = wide
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("least-privilege", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

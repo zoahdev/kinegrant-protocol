@@ -53,6 +53,7 @@ import {
   verifySelectiveDisclosure,
   verifyIdentifierRotation,
   verifyMinimalDisclosure,
+  verifyLeastPrivilegeAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -3067,6 +3068,106 @@ test("browser verifier validates minimal disclosure audits", async () => {
     verifyMinimalDisclosure({
       ...packet,
       summary: { ...packet.summary, minimal_disclosure: false },
+    })
+  );
+});
+
+test("browser verifier validates least privilege audits", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  const bundlePayload = bundle.payload;
+  const trusted = [bundlePayload.issuer];
+  const request = {
+    type: "kinegrant:ActionRequest",
+    version: "0.1",
+    request_id: "req-1",
+    agent: "robot-1",
+    target: "urn:space:door-1",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const expectedPolicyDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        Buffer.from(
+          canonicalJson({
+            rules: bundlePayload.rules,
+            trusted_policy_issuers: trusted.sort(),
+          }),
+          "utf8"
+        )
+      )
+      .digest("hex");
+  const capability = buildScopedCapability(privateKey, publicKey, request, {
+    policyDigest: expectedPolicyDigest,
+    matchedPolicyIds: [bundlePayload.policy_id],
+    nonce: "least-privilege-nonce-0000000000",
+    actions: ["open"],
+    purposes: ["delivery"],
+    target: request.target,
+  });
+  const receipt = buildReceipt(privateKey, publicKey, {
+    capabilityId: capability.payload.capability_id,
+    requestDigest: capability.payload.request_digest,
+    evidenceHash: "sha256:" + "a".repeat(64),
+    target: request.target,
+  });
+  const packet = {
+    type: "kinegrant:LeastPrivilegeAuditPacket",
+    schema_version: "0.1",
+    device_id: "device:esp32c3:paper-barrier:unit-1",
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: trusted,
+    policy_bundle: bundle,
+    request,
+    capability,
+    receipt,
+    summary: {
+      artifacts_total: 5,
+      capability_verified: true,
+      policy_bound: true,
+      request_bound: true,
+      actions_minimal: true,
+      purposes_minimal: true,
+      targets_minimal: true,
+      scope_minimal: true,
+      receipt_bound: true,
+    },
+  };
+  const result = await verifyLeastPrivilegeAudit(packet);
+  assert.equal(result.request_action, "open");
+  assert.equal(result.request_target, "urn:space:door-1");
+
+  const wideCapability = buildScopedCapability(privateKey, publicKey, request, {
+    policyDigest: expectedPolicyDigest,
+    matchedPolicyIds: [bundlePayload.policy_id],
+    nonce: "wide-privilege-nonce-0000000000",
+    actions: ["open", "close"],
+    purposes: ["delivery"],
+    target: request.target,
+  });
+  await assert.rejects(() =>
+    verifyLeastPrivilegeAudit({ ...packet, capability: wideCapability })
+  );
+  const globCapability = buildScopedCapability(privateKey, publicKey, request, {
+    policyDigest: expectedPolicyDigest,
+    matchedPolicyIds: [bundlePayload.policy_id],
+    nonce: "glob-privilege-nonce-00000000000",
+    actions: ["open"],
+    purposes: ["delivery"],
+    target: "urn:space:door-*",
+  });
+  await assert.rejects(() =>
+    verifyLeastPrivilegeAudit({ ...packet, capability: globCapability })
+  );
+  await assert.rejects(() =>
+    verifyLeastPrivilegeAudit({
+      ...packet,
+      summary: { ...packet.summary, scope_minimal: false },
     })
   );
 });
