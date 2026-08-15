@@ -34,6 +34,7 @@ import {
   verifyDeviceAttestation,
   verifyBridgeDemoReport,
   verifyHardwareTrustPacket,
+  verifyRobotDemoReport,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -327,6 +328,15 @@ try {
         `${result.sensor_commitments} sensor commitments, ` +
         `${result.receipt_checkpoints} receipt checkpoints)`
     );
+  } else if (command === "robot-demo") {
+    const [reportPath] = args;
+    const report = load(reportPath);
+    const result = verifyRobotDemoReport(report);
+    console.log(
+      `ROBOT DEMO REPORT VALID (${result.overall_result}: ` +
+        `${result.summary.passed}/${result.summary.total} outcomes, ` +
+        `${result.actuator_calls} stacks)`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -370,7 +380,8 @@ try {
       "checkpoint <checkpoint.json> | " +
       "attestation <attestation.json> | " +
       "bridge <report.json> | " +
-      "hardware-packet <packet.json>"
+      "hardware-packet <packet.json> | " +
+      "robot-demo <report.json>"
     );
   }
 } catch (error) {

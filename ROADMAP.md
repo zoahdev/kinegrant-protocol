@@ -518,6 +518,14 @@ Exit criterion: an engineer can re-verify a ROS2/MCP or adapter bridge demo repo
 
 Exit criterion: an auditor can re-verify the combined hardware trust evidence of a device in the browser without trusting the packet generator. Released as v2.33.0 (2026-08-15).
 
+## v2.34 - browser gateway compliance verification
+
+- browser verifier re-verifies `kinegrant:RobotDemoReport` (`verifyRobotDemoReport`: outcome structure, expected/allowed/passed consistency, actuator-call counts, summary, obligation compliance, overall result) (complete via PR #154);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify a gateway robot demo report in the browser without trusting the report generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
