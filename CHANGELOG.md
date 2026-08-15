@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.31.0 - v2.31 first item (unreleased)
+
+- Browser verifier re-verifies v0.4 device attestations
+  (`verifyDeviceAttestation`: device binding, firmware digest, boot counter,
+  ordered measured-boot stages, content-addressed attestation id, optional
+  trusted-device checks; fail-closed on any inconsistency); the HTML page and
+  Node CLI (`attestation` command) expose it, cross-tested against the Python
+  v0.4 device attestation builder.
+
 ## 2.30.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.30.0 on the

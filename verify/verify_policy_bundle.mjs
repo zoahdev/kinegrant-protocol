@@ -31,6 +31,7 @@ import {
   verifySensorCommitment,
   sensorEvidenceHash,
   verifyReceiptCheckpoint,
+  verifyDeviceAttestation,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -297,6 +298,15 @@ try {
       `RECEIPT CHECKPOINT VALID (chain_digest=${result.chain_digest}, ` +
         `notary=${result.notary}, period=${result.period})`
     );
+  } else if (command === "attestation") {
+    const [attestationPath] = args;
+    const attestation = load(attestationPath);
+    const result = await verifyDeviceAttestation(attestation);
+    console.log(
+      `DEVICE ATTESTATION VALID (device=${result.device_id}, ` +
+        `boot_counter=${result.boot_counter}, firmware=${result.firmware_digest}, ` +
+        `${result.stages} measured-boot stages)`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -337,7 +347,8 @@ try {
       "bench <report.json> | " +
       "lifecycle <trace.json> <bundle.json> <authorities.json> | " +
       "sensor <commitment.json> | " +
-      "checkpoint <checkpoint.json>"
+      "checkpoint <checkpoint.json> | " +
+      "attestation <attestation.json>"
     );
   }
 } catch (error) {

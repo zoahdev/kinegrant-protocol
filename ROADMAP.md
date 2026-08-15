@@ -494,6 +494,14 @@ Exit criterion: an operator can re-verify the full policy lifecycle trace of a s
 
 Exit criterion: an auditor can re-verify v0.4 sensor commitments and receipt checkpoints in the browser without trusting the generator. Released as v2.30.0 (2026-08-15).
 
+## v2.31 - browser device attestation verification
+
+- browser verifier re-verifies `kinegrant:DeviceAttestation` (`verifyDeviceAttestation`: device binding, firmware digest, boot counter, measured-boot stages, content-addressed id) (complete via PR #147);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify a device attestation in the browser without trusting the device or the attestation generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、车队审计汇总、安全审计工具包、ESP32-C3 硬件证据、车队联合运维报告、基准报告、策略生命周期轨迹、传感器证据承诺、收据检查点、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、车队审计汇总、安全审计工具包、ESP32-C3 硬件证据、车队联合运维报告、基准报告、策略生命周期轨迹、传感器证据承诺、收据检查点、设备证明、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -248,6 +248,13 @@
   </p>
   <div class="row">
     <div class="col">
+      <label>设备证明 JSON（kinegrant:DeviceAttestation，签名 envelope）</label>
+      <textarea id="attestation" placeholder='{ "alg": "EdDSA", "kid": "...", "payload": { "type": "kinegrant:DeviceAttestation", "schema_version": "0.1", "device_id": "...", "firmware_digest": "sha256:...", "boot_counter": 0, "measured_boot": [ { "stage": "bootloader", "digest": "sha256:..." } ], "device": "...", "issued_at": "...", "attestation_id": "kinegrant:device-attestation:..." }, "signature": "..." }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-attestation">验证设备证明</button></p>
+  <div class="row">
+    <div class="col">
       <label>禁止组合报告 JSON（kinegrant:SequenceCheckReport）</label>
       <textarea id="sequence-report" placeholder='{ "type": "kinegrant:SequenceCheckReport", "schema_version": "0.1", "request_digest": "sha256:...", "journal_digest": "sha256:...", "checked_at": "...", "verdict": { "allowed": false, "reason": "forbidden_combination", "matched_combination_ids": ["forbid-1"] } }'></textarea>
     </div>
@@ -300,6 +307,7 @@
       verifySensorCommitment,
       sensorEvidenceHash,
       verifyReceiptCheckpoint,
+      verifyDeviceAttestation,
     } from "./policy-bundle-verifier.js";
 
     const bundleInput = document.getElementById("bundle");
@@ -344,6 +352,7 @@
     const lifecycleAuthoritiesInput = document.getElementById("lifecycle-authorities");
     const sensorInput = document.getElementById("sensor");
     const checkpointInput = document.getElementById("checkpoint");
+    const attestationInput = document.getElementById("attestation");
     const sequenceReportInput = document.getElementById("sequence-report");
     const sequencePolicyInput = document.getElementById("sequence-policy");
     const sequenceRequestInput = document.getElementById("sequence-request");
@@ -759,6 +768,20 @@
         showOk(
           `RECEIPT CHECKPOINT VALID (chain_digest=${result.chain_digest}, ` +
             `notary=${result.notary}, period=${result.period})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-attestation").addEventListener("click", async () => {
+      try {
+        const attestation = parseJson(attestationInput.value, "设备证明");
+        const result = await verifyDeviceAttestation(attestation);
+        showOk(
+          `DEVICE ATTESTATION VALID (device=${result.device_id}, ` +
+            `boot_counter=${result.boot_counter}, firmware=${result.firmware_digest}, ` +
+            `${result.stages} measured-boot stages)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

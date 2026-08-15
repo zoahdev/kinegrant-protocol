@@ -61,3 +61,6 @@ It also re-verifies `kinegrant:SensorEvidenceCommitment` and
 `sensorEvidenceHash` / `verifyReceiptCheckpoint`): reading structure and
 digests, content-addressed ids, optional signatures, and the receipt
 evidence-hash binding.
+`kinegrant:DeviceAttestation` is re-verified in the browser as well
+(`verifyDeviceAttestation`): device binding, firmware digest, boot counter,
+measured-boot stage digests, and content-addressed attestation id.
