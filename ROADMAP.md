@@ -486,13 +486,13 @@ Exit criterion: an engineer can re-verify a benchmark report in the browser with
 
 Exit criterion: an operator can re-verify the full policy lifecycle trace of a signed bundle in the browser without trusting the trace generator. Released as v2.29.0 (2026-08-15).
 
-## v2.30 - browser hardware groundwork verification
+## v2.30 - browser hardware groundwork verification (complete with v2.30.0)
 
 - browser verifier re-verifies sensor-evidence commitments and receipt checkpoints (`verifySensorCommitment` / `sensorEvidenceHash` / `verifyReceiptCheckpoint`: reading digests, content-addressed ids, optional signatures, evidence-hash binding, notary binding) (complete via PR #145);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: an auditor can re-verify v0.4 sensor commitments and receipt checkpoints in the browser without trusting the generator.
+Exit criterion: an auditor can re-verify v0.4 sensor commitments and receipt checkpoints in the browser without trusting the generator. Released as v2.30.0 (2026-08-15).
 
 ## Success metrics
 
