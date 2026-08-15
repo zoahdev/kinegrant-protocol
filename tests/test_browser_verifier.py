@@ -3017,6 +3017,56 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_minimal_disclosure(self) -> None:
+        from datetime import timedelta
+
+        from kinegrant.merkle import merkle_redact
+
+        document = {
+            "action": "open",
+            "agent": "urn:robot:browser:1",
+            "purpose": "delivery",
+            "target": "urn:space:browser:door-1",
+        }
+        redaction = merkle_redact(document, ["action", "purpose"])
+        packet = {
+            "type": "kinegrant:MinimalDisclosureAuditPacket",
+            "schema_version": "0.1",
+            "document_id": "receipt-1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "root": redaction["root"],
+            "required_fields": ["action", "purpose"],
+            "visible": redaction["visible"],
+            "summary": {
+                "artifacts_total": 4,
+                "fields_total": 2,
+                "proofs_verified": 2,
+                "required_covered": True,
+                "no_extra_fields": True,
+                "root_bound": True,
+                "document_bound": True,
+                "minimal_disclosure": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "minimal-disclosure.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("minimal-disclosure", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("MINIMAL DISCLOSURE VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["visible"] = [
+                dict(entry) for entry in packet["visible"]
+            ]
+            tampered["visible"][0]["field"] = "agent"
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("minimal-disclosure", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

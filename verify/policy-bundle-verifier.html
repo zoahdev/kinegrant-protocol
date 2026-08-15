@@ -339,6 +339,13 @@
   <p><button id="verify-identifier-rotation">验证轮换标识与吊销</button></p>
   <div class="row">
     <div class="col">
+      <label>最小化披露合规包 JSON（kinegrant:MinimalDisclosureAuditPacket：披露字段必须恰好等于最小必要字段集，Merkle 根绑定）</label>
+      <textarea id="minimal-disclosure" placeholder='{ "type": "kinegrant:MinimalDisclosureAuditPacket", "schema_version": "0.1", "document_id": "...", "generated_at": "...", "overall_result": "PASS", "root": "sha256:...", "required_fields": [ "action", "purpose" ], "visible": [ { "field": "action", "value": "open", "proof": [ { "hash": "sha256:...", "left": true } ] } ], "summary": { "artifacts_total": 4, "fields_total": 2, "proofs_verified": 2, "required_covered": true, "no_extra_fields": true, "root_bound": true, "document_bound": true, "minimal_disclosure": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-minimal-disclosure">验证最小化披露合规包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -438,6 +445,7 @@
       verifyObligationFulfillment,
       verifySelectiveDisclosure,
       verifyIdentifierRotation,
+      verifyMinimalDisclosure,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -499,6 +507,7 @@
     const obligationFulfillmentInput = document.getElementById("obligation-fulfillment");
     const selectiveDisclosureInput = document.getElementById("selective-disclosure");
     const identifierRotationInput = document.getElementById("identifier-rotation");
+    const minimalDisclosureInput = document.getElementById("minimal-disclosure");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1102,6 +1111,19 @@
         showOk(
           `IDENTIFIER ROTATION VALID (namespace=${result.namespace}, static=${result.static_id}, ` +
             `${result.rotations_total} rotations, ${result.active_total} active)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-minimal-disclosure").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(minimalDisclosureInput.value, "最小化披露合规包");
+        const result = await verifyMinimalDisclosure(packet);
+        showOk(
+          `MINIMAL DISCLOSURE VALID (document=${result.document_id}, ` +
+            `${result.fields_total} fields disclosed, ${result.required_total} required)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

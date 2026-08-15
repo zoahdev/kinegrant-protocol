@@ -5776,6 +5776,174 @@ export async function verifyIdentifierRotation(packet, { now } = {}) {
   };
 }
 
+const MINIMAL_DISCLOSURE_KEYS = [
+  "document_id",
+  "generated_at",
+  "overall_result",
+  "required_fields",
+  "root",
+  "schema_version",
+  "summary",
+  "type",
+  "visible",
+];
+const MINIMAL_DISCLOSURE_SUMMARY_KEYS = [
+  "artifacts_total",
+  "document_bound",
+  "fields_total",
+  "minimal_disclosure",
+  "no_extra_fields",
+  "proofs_verified",
+  "required_covered",
+  "root_bound",
+];
+
+export async function verifyMinimalDisclosure(packet, { now } = {}) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("minimal disclosure audit packet must be an object");
+  }
+  if (
+    Object.keys(packet).sort().join(",") !==
+    MINIMAL_DISCLOSURE_KEYS.join(",")
+  ) {
+    throw new Error("minimal disclosure audit packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:MinimalDisclosureAuditPacket") {
+    throw new Error("wrong minimal disclosure audit packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported minimal disclosure audit packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "minimal disclosure audit packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("minimal disclosure audit packet overall_result must be PASS");
+  }
+  if (typeof packet.document_id !== "string" || packet.document_id.length === 0) {
+    throw new Error("minimal disclosure audit packet document_id must be non-empty");
+  }
+  if (typeof packet.root !== "string" || !SHA256_RE.test(packet.root)) {
+    throw new Error("minimal disclosure audit packet root is invalid");
+  }
+  if (
+    !Array.isArray(packet.required_fields) ||
+    packet.required_fields.length === 0 ||
+    packet.required_fields.some((field) => typeof field !== "string" || field.length === 0)
+  ) {
+    throw new Error(
+      "minimal disclosure audit packet required_fields must be a non-empty string array"
+    );
+  }
+  if (new Set(packet.required_fields).size !== packet.required_fields.length) {
+    throw new Error("minimal disclosure audit packet required_fields must be unique");
+  }
+  if (!Array.isArray(packet.visible) || packet.visible.length === 0) {
+    throw new Error("minimal disclosure audit packet visible must be a non-empty array");
+  }
+
+  const revealed = new Set();
+  for (const entry of packet.visible) {
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      Array.isArray(entry) ||
+      typeof entry.field !== "string" ||
+      entry.field.length === 0 ||
+      !Object.prototype.hasOwnProperty.call(entry, "value") ||
+      !Array.isArray(entry.proof)
+    ) {
+      throw new Error("each visible entry must have field, value, and proof");
+    }
+    if (revealed.has(entry.field)) {
+      throw new Error("visible field names must be unique");
+    }
+    revealed.add(entry.field);
+    let current =
+      "sha256:" +
+      (await sha256Hex(
+        new TextEncoder().encode(
+          canonicalJson({ field: entry.field, value: entry.value })
+        )
+      ));
+    for (const step of entry.proof) {
+      if (
+        typeof step !== "object" ||
+        step === null ||
+        Array.isArray(step) ||
+        Object.keys(step).sort().join(",") !== PROOF_STEP_KEYS.join(",") ||
+        typeof step.hash !== "string" ||
+        !SHA256_RE.test(step.hash) ||
+        typeof step.left !== "boolean"
+      ) {
+        throw new Error("proof step is invalid");
+      }
+      const next =
+        "sha256:" +
+        (await sha256Hex(
+          new TextEncoder().encode(
+            step.left
+              ? canonicalJson({ left: step.hash, right: current })
+              : canonicalJson({ left: current, right: step.hash })
+          )
+        ));
+      current = next;
+    }
+    if (current !== packet.root) {
+      throw new Error(`proof for field ${entry.field} does not reach the root`);
+    }
+  }
+  const requiredSet = new Set(packet.required_fields);
+  if (![...requiredSet].every((field) => revealed.has(field))) {
+    throw new Error("visible fields do not cover every required field");
+  }
+  if (revealed.size !== requiredSet.size) {
+    throw new Error("visible fields are not minimal (extra fields disclosed)");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("minimal disclosure audit packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    MINIMAL_DISCLOSURE_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("minimal disclosure audit packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 4,
+    fields_total: packet.visible.length,
+    proofs_verified: packet.visible.length,
+    required_covered: true,
+    no_extra_fields: true,
+    root_bound: true,
+    document_bound: true,
+    minimal_disclosure: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`minimal disclosure audit packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    document_id: packet.document_id,
+    fields_total: packet.visible.length,
+    required_total: requiredSet.size,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -6207,6 +6375,7 @@ if (typeof globalThis !== "undefined") {
     verifyObligationFulfillment,
     verifySelectiveDisclosure,
     verifyIdentifierRotation,
+    verifyMinimalDisclosure,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,
