@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.36.0 - v2.36 first item (unreleased)
+## 2.36.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.36.0 on the
+  stable 1.0 wire format, adding full lifecycle report verification to
+  the browser verifier.
 
 - Browser verifier re-verifies one-stop `kinegrant:FullLifecycleReport`
   artifacts (`verifyFullLifecycleReport`: signed bundle verified and bound,

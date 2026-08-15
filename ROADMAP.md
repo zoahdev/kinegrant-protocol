@@ -534,13 +534,13 @@ Exit criterion: an auditor can re-verify a gateway robot demo report in the brow
 
 Exit criterion: an auditor can re-verify a camera-consent scenario trace in the browser without trusting the trace generator. Released as v2.35.0 (2026-08-15).
 
-## v2.36 - browser full lifecycle verification
+## v2.36 - browser full lifecycle verification (complete with v2.36.0)
 
 - browser verifier re-verifies one-stop `kinegrant:FullLifecycleReport` artifacts (`verifyFullLifecycleReport`: signed bundle binding, policy distribution, fleet audit summary, revocation distribution) (complete via PR #158);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: an auditor can re-verify the full publish -> distribute -> audit -> revoke lifecycle of a signed bundle in the browser without trusting the report generator.
+Exit criterion: an auditor can re-verify the full publish -> distribute -> audit -> revoke lifecycle of a signed bundle in the browser without trusting the report generator. Released as v2.36.0 (2026-08-15).
 
 ## Success metrics
 
