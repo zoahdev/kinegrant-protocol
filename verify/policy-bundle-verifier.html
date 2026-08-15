@@ -374,6 +374,13 @@
   <p><button id="verify-policy-impact">验证策略影响面分析包</button></p>
   <div class="row">
     <div class="col">
+      <label>跨策略域联合审计包 JSON（kinegrant:CrossDomainAuditPacket：多个策略域、各自信任锚、交叉引用一致）</label>
+      <textarea id="cross-domain" placeholder='{ "type": "kinegrant:CrossDomainAuditPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "domains": [ { "domain_id": "domain-a", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... } }, { "domain_id": "domain-b", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... } } ], "cross_references": [ { "from_domain_id": "domain-a", "to_domain_id": "domain-b", "kind": "delegation", "policy_id": "urn:policy:b", "verified": true } ], "summary": { "artifacts_total": 2, "domains_total": 2, "references_total": 1, "references_verified": 1, "domain_ids_unique": true, "bundles_bound": true, "cross_consistent": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-cross-domain">验证跨策略域联合审计包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -478,6 +485,7 @@
       verifyDenialExplainability,
       verifyPolicyDiffAudit,
       verifyPolicyImpactAudit,
+      verifyCrossDomainAudit,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -544,6 +552,7 @@
     const denialExplainabilityInput = document.getElementById("denial-explainability");
     const policyDiffInput = document.getElementById("policy-diff");
     const policyImpactInput = document.getElementById("policy-impact");
+    const crossDomainInput = document.getElementById("cross-domain");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1214,6 +1223,19 @@
         showOk(
           `POLICY IMPACT AUDIT VALID (policy=${result.policy_id}, v${result.old_version} -> v${result.new_version}, ` +
             `affected_rules=${result.affected_rule_ids.length})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-cross-domain").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(crossDomainInput.value, "跨策略域联合审计包");
+        const result = await verifyCrossDomainAudit(packet);
+        showOk(
+          `CROSS DOMAIN AUDIT VALID (${result.domains_total} domains, ` +
+            `${result.references_total} references verified)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

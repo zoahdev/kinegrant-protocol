@@ -3501,6 +3501,93 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_cross_domain_audit(self) -> None:
+        from datetime import timedelta
+
+        key_a = Ed25519KeyPair.generate()
+        key_b = Ed25519KeyPair.generate()
+        authority_a = PolicyAuthority(key_a)
+        authority_b = PolicyAuthority(key_b)
+        rule_a = PolicyRule(
+            "domain-a-rule",
+            key_a.kid,
+            "urn:space:browser:door-1",
+            "allow",
+            ("kg.action.open",),
+            purposes=("delivery",),
+        )
+        rule_b = PolicyRule(
+            "domain-b-rule",
+            key_b.kid,
+            "urn:space:browser:door-2",
+            "allow",
+            ("kg.action.close",),
+            purposes=("maintenance",),
+        )
+        bundle_a = authority_a.publish(
+            "urn:kinegrant:policy:domain-a:1",
+            [rule_a],
+            ttl_seconds=3600,
+        )
+        bundle_b = authority_b.publish(
+            "urn:kinegrant:policy:domain-b:1",
+            [rule_b],
+            ttl_seconds=3600,
+        )
+        packet = {
+            "type": "kinegrant:CrossDomainAuditPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "domains": [
+                {
+                    "domain_id": "domain-a",
+                    "trusted_authorities": [key_a.kid],
+                    "policy_bundle": bundle_a,
+                },
+                {
+                    "domain_id": "domain-b",
+                    "trusted_authorities": [key_b.kid],
+                    "policy_bundle": bundle_b,
+                },
+            ],
+            "cross_references": [
+                {
+                    "from_domain_id": "domain-a",
+                    "to_domain_id": "domain-b",
+                    "kind": "delegation",
+                    "policy_id": "urn:kinegrant:policy:domain-b:1",
+                    "verified": True,
+                }
+            ],
+            "summary": {
+                "artifacts_total": 2,
+                "domains_total": 2,
+                "references_total": 1,
+                "references_verified": 1,
+                "domain_ids_unique": True,
+                "bundles_bound": True,
+                "cross_consistent": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "cross-domain.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("cross-domain", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("CROSS DOMAIN AUDIT VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["cross_references"] = [
+                dict(entry) for entry in packet["cross_references"]
+            ]
+            tampered["cross_references"][0]["policy_id"] = "urn:kinegrant:policy:wrong"
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("cross-domain", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -744,6 +744,19 @@ difference report exactly matches the two signed bundles.
 Exit criterion: an auditor can verify in the browser that a policy change
 impact summary exactly matches the affected rules of the two bundles.
 
+## v2.53 - browser cross domain audit verification
+
+- browser verifier re-verifies `kinegrant:CrossDomainAuditPacket`
+  (`verifyCrossDomainAudit`: per-domain bundles bound to their own trust
+  anchors; unique domain ids; cross references between existing domains
+  pointing at the target domain's policy id);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can verify in the browser that a set of
+policy domains and their cross references are consistent with the signed
+bundles.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

@@ -49,6 +49,7 @@ import {
   verifyDenialExplainability,
   verifyPolicyDiffAudit,
   verifyPolicyImpactAudit,
+  verifyCrossDomainAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -477,6 +478,14 @@ try {
       `POLICY IMPACT AUDIT VALID (policy=${result.policy_id}, v${result.old_version} -> v${result.new_version}, ` +
         `affected_rules=${result.affected_rule_ids.length})`
     );
+  } else if (command === "cross-domain") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyCrossDomainAudit(packet);
+    console.log(
+      `CROSS DOMAIN AUDIT VALID (${result.domains_total} domains, ` +
+        `${result.references_total} references verified)`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -578,6 +587,7 @@ try {
       "denial-explainability <packet.json> | " +
       "policy-diff <packet.json> | " +
       "policy-impact <packet.json> | " +
+      "cross-domain <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +
