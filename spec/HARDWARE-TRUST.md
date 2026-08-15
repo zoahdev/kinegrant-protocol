@@ -56,3 +56,8 @@ The browser verifier can re-verify
 NOT_RUN/PASS/FAIL consistency, trust-check flags, and physical-mode artifact,
 role, and digest requirements; file-byte verification of artifacts remains in
 the Python verifier with `--artifact-root`.
+It also re-verifies `kinegrant:SensorEvidenceCommitment` and
+`kinegrant:ReceiptCheckpoint` locally (`verifySensorCommitment` /
+`sensorEvidenceHash` / `verifyReceiptCheckpoint`): reading structure and
+digests, content-addressed ids, optional signatures, and the receipt
+evidence-hash binding.

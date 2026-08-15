@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 2.30.0 - v2.30 first item (unreleased)
+
+- Browser verifier re-verifies v0.4 hardware-trust groundwork artifacts
+  (`verifySensorCommitment` / `sensorEvidenceHash` /
+  `verifyReceiptCheckpoint`): sensor-evidence commitment structure, reading
+  digests, content-addressed ids, optional sensor signatures, evidence-hash
+  binding, and signed receipt checkpoints (notary binding, chain digest,
+  content-addressed id); fail-closed on any inconsistency; the HTML page and
+  Node CLI (`sensor` / `checkpoint` commands) expose them, cross-tested
+  against the Python v0.4 builders.
+
 ## 2.29.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.29.0 on the

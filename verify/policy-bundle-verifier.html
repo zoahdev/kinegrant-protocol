@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、车队审计汇总、安全审计工具包、ESP32-C3 硬件证据、车队联合运维报告、基准报告、策略生命周期轨迹、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、车队审计汇总、安全审计工具包、ESP32-C3 硬件证据、车队联合运维报告、基准报告、策略生命周期轨迹、传感器证据承诺、收据检查点、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -234,6 +234,20 @@
   <p><button id="verify-lifecycle">验证策略生命周期轨迹</button></p>
   <div class="row">
     <div class="col">
+      <label>传感器证据承诺 JSON（kinegrant:SensorEvidenceCommitment，可为签名 envelope 或纯对象）</label>
+      <textarea id="sensor" placeholder='{ "type": "kinegrant:SensorEvidenceCommitment", "schema_version": "0.1", "readings": [ { "kind": "force", "value_hash": "sha256:...", "source_id": "...", "confidence": 0.9, "observed_at": "..." } ], "readings_digest": "sha256:...", "sensor": null, "committed_at": "...", "commitment_id": "kinegrant:sensor-evidence:..." }'></textarea>
+    </div>
+    <div class="col">
+      <label>收据检查点 JSON（kinegrant:ReceiptCheckpoint，签名 envelope）</label>
+      <textarea id="checkpoint" placeholder='{ "alg": "EdDSA", "kid": "...", "payload": { "type": "kinegrant:ReceiptCheckpoint", "schema_version": "0.1", "notary": "...", "chain_digest": "sha256:...", "period": "daily", "issued_at": "...", "checkpoint_id": "kinegrant:receipt-checkpoint:..." }, "signature": "..." }'></textarea>
+    </div>
+  </div>
+  <p>
+    <button id="verify-sensor">验证传感器证据承诺</button>
+    <button id="verify-checkpoint">验证收据检查点</button>
+  </p>
+  <div class="row">
+    <div class="col">
       <label>禁止组合报告 JSON（kinegrant:SequenceCheckReport）</label>
       <textarea id="sequence-report" placeholder='{ "type": "kinegrant:SequenceCheckReport", "schema_version": "0.1", "request_digest": "sha256:...", "journal_digest": "sha256:...", "checked_at": "...", "verdict": { "allowed": false, "reason": "forbidden_combination", "matched_combination_ids": ["forbid-1"] } }'></textarea>
     </div>
@@ -283,6 +297,9 @@
       verifyFleetOperationsReport,
       verifyBenchmarkReport,
       verifyPolicyLifecycleTrace,
+      verifySensorCommitment,
+      sensorEvidenceHash,
+      verifyReceiptCheckpoint,
     } from "./policy-bundle-verifier.js";
 
     const bundleInput = document.getElementById("bundle");
@@ -325,6 +342,8 @@
     const lifecycleInput = document.getElementById("lifecycle");
     const lifecycleBundleInput = document.getElementById("lifecycle-bundle");
     const lifecycleAuthoritiesInput = document.getElementById("lifecycle-authorities");
+    const sensorInput = document.getElementById("sensor");
+    const checkpointInput = document.getElementById("checkpoint");
     const sequenceReportInput = document.getElementById("sequence-report");
     const sequencePolicyInput = document.getElementById("sequence-policy");
     const sequenceRequestInput = document.getElementById("sequence-request");
@@ -713,6 +732,33 @@
           `POLICY LIFECYCLE TRACE VALID (${result.overall_result}: ` +
             `${result.summary.passed}/${result.summary.phases_total} phases, ` +
             `${result.summary.failed} failed, policy=${result.policy_id})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-sensor").addEventListener("click", async () => {
+      try {
+        const commitment = parseJson(sensorInput.value, "传感器证据承诺");
+        const payload = await verifySensorCommitment(commitment);
+        const evidenceHash = await sensorEvidenceHash(commitment);
+        showOk(
+          `SENSOR COMMITMENT VALID (${payload.readings.length} readings, ` +
+            `evidence_hash=${evidenceHash})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-checkpoint").addEventListener("click", async () => {
+      try {
+        const checkpoint = parseJson(checkpointInput.value, "收据检查点");
+        const result = await verifyReceiptCheckpoint(checkpoint);
+        showOk(
+          `RECEIPT CHECKPOINT VALID (chain_digest=${result.chain_digest}, ` +
+            `notary=${result.notary}, period=${result.period})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

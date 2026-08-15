@@ -37,6 +37,8 @@ from kinegrant.revocation import (
     build_revocation_bundle,
     sign_revocation_bundle,
 )
+from kinegrant.sensor_evidence import SensorReading, build_sensor_commitment
+from kinegrant.checkpoint import build_receipt_checkpoint
 from challenge.reproduce import create_reproduction
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1392,6 +1394,60 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             )
             self.assertEqual(order_rejected.returncode, 2)
             self.assertIn("INVALID", order_rejected.stderr)
+
+    def test_browser_verifier_verifies_python_sensor_and_checkpoint(self) -> None:
+        key = Ed25519KeyPair.generate()
+        reading = SensorReading(
+            kind="force",
+            value={"newtons": 1.5},
+            source_id="sensor-1",
+            confidence=0.9,
+            observed_at="2026-08-15T00:00:00Z",
+        )
+        commitment = build_sensor_commitment(
+            [reading],
+            sensor_kid=key.kid,
+            key_pair=key,
+            committed_at="2026-08-15T00:00:00Z",
+        )
+        checkpoint = build_receipt_checkpoint(
+            "sha256:" + "b" * 64,
+            notary_kid=key.kid,
+            key_pair=key,
+            period="daily",
+            issued_at="2026-08-15T00:00:00Z",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            commitment_path = base / "commitment.json"
+            checkpoint_path = base / "checkpoint.json"
+            commitment_path.write_text(json.dumps(commitment), encoding="utf-8")
+            checkpoint_path.write_text(json.dumps(checkpoint), encoding="utf-8")
+            verified = self._run("sensor", str(commitment_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("SENSOR COMMITMENT VALID", verified.stdout)
+            checkpoint_verified = self._run("checkpoint", str(checkpoint_path))
+            self.assertEqual(checkpoint_verified.returncode, 0, checkpoint_verified.stderr)
+            self.assertIn("RECEIPT CHECKPOINT VALID", checkpoint_verified.stdout)
+            tampered = dict(commitment)
+            tampered["payload"] = dict(commitment["payload"])
+            tampered["payload"]["readings"] = [
+                dict(commitment["payload"]["readings"][0])
+            ]
+            tampered["payload"]["readings"][0]["confidence"] = 1.5
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("sensor", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+            bad_checkpoint = dict(checkpoint)
+            bad_checkpoint["payload"] = dict(checkpoint["payload"])
+            bad_checkpoint["payload"]["period"] = "hourly"
+            bad_path = base / "bad-checkpoint.json"
+            bad_path.write_text(json.dumps(bad_checkpoint), encoding="utf-8")
+            checkpoint_rejected = self._run("checkpoint", str(bad_path))
+            self.assertEqual(checkpoint_rejected.returncode, 2)
+            self.assertIn("INVALID", checkpoint_rejected.stderr)
 
 
 if __name__ == "__main__":

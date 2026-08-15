@@ -3147,6 +3147,162 @@ export async function verifyPolicyLifecycleTrace(
   };
 }
 
+const SHA256_RE = /^sha256:[0-9a-f]{64}$/;
+const SENSOR_COMMITMENT_KEYS = [
+  "commitment_id",
+  "committed_at",
+  "readings",
+  "readings_digest",
+  "schema_version",
+  "sensor",
+  "type",
+];
+const SENSOR_READING_KEYS = [
+  "confidence",
+  "kind",
+  "observed_at",
+  "source_id",
+  "value_hash",
+];
+
+async function sensorCommitmentId(payload) {
+  const unsigned = { ...payload };
+  delete unsigned.commitment_id;
+  return contentId("kinegrant:sensor-evidence", unsigned);
+}
+
+export async function verifySensorCommitment(
+  commitment,
+  { trustedSensors } = {}
+) {
+  if (typeof commitment !== "object" || commitment === null || Array.isArray(commitment)) {
+    throw new Error("sensor commitment must be an object");
+  }
+  let payload;
+  if (commitment.alg !== undefined && commitment.alg !== null) {
+    payload = await verifyEnvelope(commitment);
+    if (trustedSensors !== undefined && !trustedSensors.has(payload.sensor)) {
+      throw new Error("untrusted sensor");
+    }
+  } else {
+    payload = commitment;
+  }
+  if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+    throw new Error("sensor commitment payload must be an object");
+  }
+  if (Object.keys(payload).sort().join(",") !== SENSOR_COMMITMENT_KEYS.join(",")) {
+    throw new Error("sensor commitment fields are invalid");
+  }
+  if (payload.type !== "kinegrant:SensorEvidenceCommitment") {
+    throw new Error("wrong sensor commitment type");
+  }
+  if (payload.schema_version !== "0.1") {
+    throw new Error("unsupported sensor commitment version");
+  }
+  if (payload.sensor !== null && (typeof payload.sensor !== "string" || payload.sensor.length === 0)) {
+    throw new Error("sensor must be null or a non-empty string");
+  }
+  if (typeof payload.committed_at !== "string" || payload.committed_at.length === 0) {
+    throw new Error("committed_at must be a non-empty string");
+  }
+  if (!Array.isArray(payload.readings) || payload.readings.length === 0) {
+    throw new Error("readings must be a non-empty array");
+  }
+  for (const reading of payload.readings) {
+    if (typeof reading !== "object" || reading === null || Array.isArray(reading)) {
+      throw new Error("each sensor reading must be an object");
+    }
+    if (Object.keys(reading).sort().join(",") !== SENSOR_READING_KEYS.join(",")) {
+      throw new Error("sensor reading fields are invalid");
+    }
+    if (typeof reading.kind !== "string" || reading.kind.length === 0) {
+      throw new Error("sensor reading kind must be a non-empty string");
+    }
+    if (typeof reading.value_hash !== "string" || !SHA256_RE.test(reading.value_hash)) {
+      throw new Error("sensor reading value_hash must be a sha256 digest");
+    }
+    if (typeof reading.source_id !== "string" || reading.source_id.length === 0) {
+      throw new Error("sensor reading source_id must be a non-empty string");
+    }
+    if (
+      typeof reading.confidence !== "number" ||
+      !Number.isFinite(reading.confidence) ||
+      reading.confidence < 0 ||
+      reading.confidence > 1
+    ) {
+      throw new Error("sensor reading confidence must be a number between 0 and 1");
+    }
+    if (typeof reading.observed_at !== "string" || reading.observed_at.length === 0) {
+      throw new Error("sensor reading observed_at must be a non-empty string");
+    }
+  }
+  const expectedReadingsDigest =
+    "sha256:" +
+    (await sha256Hex(
+      new TextEncoder().encode(canonicalJson({ readings: payload.readings }))
+    ));
+  if (payload.readings_digest !== expectedReadingsDigest) {
+    throw new Error("readings digest is inconsistent");
+  }
+  const expectedId = await sensorCommitmentId(payload);
+  if (payload.commitment_id !== expectedId) {
+    throw new Error("commitment identifier is inconsistent");
+  }
+  return payload;
+}
+
+export async function sensorEvidenceHash(commitment) {
+  const payload = await verifySensorCommitment(commitment);
+  return (
+    "sha256:" +
+    (await sha256Hex(new TextEncoder().encode(canonicalJson(payload))))
+  );
+}
+
+export async function verifyReceiptCheckpoint(
+  checkpoint,
+  { trustedNotaries } = {}
+) {
+  if (typeof checkpoint !== "object" || checkpoint === null || Array.isArray(checkpoint)) {
+    throw new Error("receipt checkpoint must be an object");
+  }
+  const payload = await verifyEnvelope(checkpoint);
+  if (payload.type !== "kinegrant:ReceiptCheckpoint") {
+    throw new Error("wrong checkpoint type");
+  }
+  if (payload.schema_version !== "0.1") {
+    throw new Error("unsupported checkpoint version");
+  }
+  if (payload.notary !== checkpoint.kid) {
+    throw new Error("checkpoint notary does not match signing key");
+  }
+  if (trustedNotaries !== undefined && !trustedNotaries.has(payload.notary)) {
+    throw new Error("untrusted notary");
+  }
+  if (typeof payload.chain_digest !== "string" || !SHA256_RE.test(payload.chain_digest)) {
+    throw new Error("chain_digest must be a sha256 digest");
+  }
+  if (typeof payload.period !== "string" || payload.period.length === 0) {
+    throw new Error("period must be a non-empty string");
+  }
+  if (typeof payload.issued_at !== "string" || payload.issued_at.length === 0) {
+    throw new Error("issued_at must be a non-empty string");
+  }
+  const unsigned = { ...payload };
+  delete unsigned.checkpoint_id;
+  const expectedId = await contentId("kinegrant:receipt-checkpoint", unsigned);
+  if (payload.checkpoint_id !== expectedId) {
+    throw new Error("checkpoint identifier is inconsistent");
+  }
+  return {
+    valid: true,
+    chain_digest: payload.chain_digest,
+    notary: payload.notary,
+    period: payload.period,
+    issued_at: payload.issued_at,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -3177,5 +3333,8 @@ if (typeof globalThis !== "undefined") {
     verifyFleetOperationsReport,
     verifyBenchmarkReport,
     verifyPolicyLifecycleTrace,
+    verifySensorCommitment,
+    sensorEvidenceHash,
+    verifyReceiptCheckpoint,
   };
 }

@@ -36,6 +36,9 @@ import {
   verifyFleetOperationsReport,
   verifyBenchmarkReport,
   verifyPolicyLifecycleTrace,
+  verifySensorCommitment,
+  sensorEvidenceHash,
+  verifyReceiptCheckpoint,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -255,6 +258,55 @@ function buildScopedCapability(privateKey, publicKey, request, options = {}) {
       .update(Buffer.from(canonicalJson(unsigned), "utf8"))
       .digest("hex");
   body.root_capability_id = options.rootCapabilityId ?? body.capability_id;
+  return signEnvelope(privateKey, body);
+}
+
+function buildSensorCommitment(privateKey, publicKey, { signed = true } = {}) {
+  const readings = [
+    {
+      kind: "force",
+      value_hash: "sha256:" + "a".repeat(64),
+      source_id: "sensor-1",
+      confidence: 0.9,
+      observed_at: "2026-08-15T00:00:00Z",
+    },
+  ];
+  const body = {
+    type: "kinegrant:SensorEvidenceCommitment",
+    schema_version: "0.1",
+    readings,
+    readings_digest:
+      "sha256:" +
+      createHash("sha256")
+        .update(Buffer.from(canonicalJson({ readings }), "utf8"))
+        .digest("hex"),
+    sensor: signed ? kidOf(publicKey) : null,
+    committed_at: "2026-08-15T00:00:00Z",
+  };
+  const unsigned = { ...body };
+  body.commitment_id =
+    "kinegrant:sensor-evidence:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson(unsigned), "utf8"))
+      .digest("hex");
+  return signed ? signEnvelope(privateKey, body) : body;
+}
+
+function buildCheckpoint(privateKey, publicKey) {
+  const body = {
+    type: "kinegrant:ReceiptCheckpoint",
+    schema_version: "0.1",
+    notary: kidOf(publicKey),
+    chain_digest: "sha256:" + "b".repeat(64),
+    period: "daily",
+    issued_at: "2026-08-15T00:00:00Z",
+  };
+  const unsigned = { ...body };
+  body.checkpoint_id =
+    "kinegrant:receipt-checkpoint:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson(unsigned), "utf8"))
+      .digest("hex");
   return signEnvelope(privateKey, body);
 }
 
@@ -1262,4 +1314,28 @@ test("browser verifier validates policy lifecycle traces", async () => {
   await assert.rejects(() =>
     verifyPolicyLifecycleTrace(trace, bundle, new Set([bundle.kid]))
   );
+});
+
+test("browser verifier validates sensor commitments and checkpoints", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const kid = kidOf(publicKey);
+  const unsigned = buildSensorCommitment(privateKey, publicKey, { signed: false });
+  const payload = await verifySensorCommitment(unsigned);
+  assert.equal(payload.readings.length, 1);
+  const evidenceHash = await sensorEvidenceHash(unsigned);
+  assert.match(evidenceHash, /^sha256:[0-9a-f]{64}$/);
+  const signed = buildSensorCommitment(privateKey, publicKey, { signed: true });
+  await verifySensorCommitment(signed, { trustedSensors: new Set([kid]) });
+  await assert.rejects(() =>
+    verifySensorCommitment(signed, { trustedSensors: new Set(["other"]) })
+  );
+  const tampered = JSON.parse(JSON.stringify(unsigned));
+  tampered.readings[0].confidence = 1.5;
+  await assert.rejects(() => verifySensorCommitment(tampered));
+  const checkpoint = buildCheckpoint(privateKey, publicKey);
+  const result = await verifyReceiptCheckpoint(checkpoint);
+  assert.equal(result.chain_digest, "sha256:" + "b".repeat(64));
+  const bad = JSON.parse(JSON.stringify(checkpoint));
+  bad.payload.period = "hourly";
+  await assert.rejects(() => verifyReceiptCheckpoint(bad));
 });
