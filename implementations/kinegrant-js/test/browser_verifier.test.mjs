@@ -30,6 +30,7 @@ import {
   evaluateSequencePolicy,
   verifySequenceCheckReport,
   verifyConformanceReport,
+  verifyPolicyAuditSummary,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -900,4 +901,45 @@ test("browser verifier validates conformance reports", () => {
   report.summary.passed = 2;
   report.overall_result = "FAIL";
   assert.throws(() => verifyConformanceReport(report));
+});
+
+test("browser verifier validates policy audit summaries", () => {
+  const report = {
+    type: "kinegrant:PolicyAuditSummary",
+    schema_version: "0.1",
+    overall_result: "PASS",
+    summary: {
+      bundles_total: 1,
+      verified: 1,
+      failed: 0,
+      analysis_failures: 0,
+      coverage_failures: 0,
+      findings_by_code: {},
+      allowed: 0,
+      denied: 1,
+      exceptions: 0,
+      shadowed_allows: 0,
+    },
+    bundles: [
+      {
+        label: "fleet-a",
+        verified: true,
+        policy_id: "urn:kinegrant:policy:audit:1",
+        bundle_version: 1,
+        analysis_result: "PASS",
+        coverage_result: "PASS",
+        error_findings: [],
+        shadowed_allows: [],
+        error: null,
+      },
+    ],
+  };
+  const result = verifyPolicyAuditSummary(report);
+  assert.equal(result.overall_result, "PASS");
+  assert.equal(result.bundles, 1);
+  report.summary.verified = 0;
+  assert.throws(() => verifyPolicyAuditSummary(report));
+  report.summary.verified = 1;
+  report.overall_result = "FAIL";
+  assert.throws(() => verifyPolicyAuditSummary(report));
 });

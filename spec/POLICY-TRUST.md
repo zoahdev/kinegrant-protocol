@@ -119,6 +119,11 @@ message instead of guessing.
 well (`verifyConformanceReport`): mark/summary consistency, L1-L4 levels,
 independent-verification statuses, and the overall result are all checked
 locally, cross-tested against the Python conformance runner output.
+Fleet-level `kinegrant:PolicyAuditSummary` reports (`audit_policy_bundles`)
+can be re-verified in the browser too (`verifyPolicyAuditSummary`): per-bundle
+verified/failure fields, aggregated counts, findings-by-code, and the overall
+fleet result are recomputed and compared, cross-tested against the Python
+fleet audit output.
 
 ## Audit aggregation
 

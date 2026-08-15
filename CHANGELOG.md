@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.24.0 - v2.24 first item (unreleased)
+
+- Browser verifier re-verifies fleet-level `kinegrant:PolicyAuditSummary`
+  reports (`verifyPolicyAuditSummary`: per-bundle verified/failure fields,
+  aggregated counts, findings-by-code, shadowed-allow totals, overall fleet
+  result; fail-closed on any inconsistency); the HTML page and Node CLI
+  (`fleet-audit` command) expose it, cross-tested against the Python
+  `audit_policy_bundles` output.
+
 ## 2.23.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.23.0 on the
