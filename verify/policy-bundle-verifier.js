@@ -1221,6 +1221,221 @@ export function validateIdentitySyntax(identifiers) {
   };
 }
 
+const ANALYSIS_CONSTRAINTS = new Set([
+  "not_before",
+  "not_after",
+  "required_context",
+  "requires_human_present",
+  "max_risk_tier",
+  "max_force_newtons",
+  "max_velocity_mps",
+  "allowed_zones",
+  "min_approval_tier",
+]);
+const ANALYSIS_FINDING_CODES = new Set([
+  "rule_issuer_mismatch",
+  "unknown_constraint",
+  "unknown_obligation",
+  "broad_allow",
+  "conflicting_effect",
+  "duplicate_rule",
+]);
+const ANALYSIS_SEVERITIES = new Set(["error", "warning", "info"]);
+
+function patternOverlaps(patternA, patternB) {
+  if (patternA === patternB) return true;
+  if (!patternA.includes("*") && !patternB.includes("*")) return false;
+  return globMatch(patternB, patternA) || globMatch(patternA, patternB);
+}
+
+function tupleOverlaps(tupleA, tupleB) {
+  if (!Array.isArray(tupleA) || !Array.isArray(tupleB)) {
+    throw new Error("policy rule scopes must be arrays");
+  }
+  if (tupleA.includes("*") || tupleB.includes("*")) return true;
+  return tupleA.some((item) => tupleB.includes(item));
+}
+
+function scopeOverlaps(ruleA, ruleB) {
+  return (
+    patternOverlaps(ruleA.target, ruleB.target) &&
+    tupleOverlaps(ruleA.actions, ruleB.actions) &&
+    tupleOverlaps(ruleA.purposes, ruleB.purposes)
+  );
+}
+
+function analyzePolicyBundlePayload(payload) {
+  const findings = [];
+  const rules = payload.rules;
+  const bundleIssuer = payload.issuer;
+  for (const rule of rules) {
+    if (rule.issuer !== bundleIssuer) {
+      findings.push({
+        severity: "error",
+        code: "rule_issuer_mismatch",
+        rule_ids: [rule.policy_id],
+      });
+    }
+    if (typeof rule.constraints !== "object" || rule.constraints === null || Array.isArray(rule.constraints)) {
+      throw new Error("policy rule constraints must be an object");
+    }
+    const unknownConstraints = Object.keys(rule.constraints).filter(
+      (key) => !ANALYSIS_CONSTRAINTS.has(key)
+    );
+    if (unknownConstraints.length > 0) {
+      findings.push({
+        severity: "error",
+        code: "unknown_constraint",
+        rule_ids: [rule.policy_id],
+      });
+    }
+    if (!Array.isArray(rule.obligations)) {
+      throw new Error("policy rule obligations must be an array");
+    }
+    const unknownObligations = rule.obligations.filter(
+      (obligation) => !OBLIGATION_VOCABULARY.has(obligation)
+    );
+    if (unknownObligations.length > 0) {
+      findings.push({
+        severity: "error",
+        code: "unknown_obligation",
+        rule_ids: [rule.policy_id],
+      });
+    }
+    if (
+      rule.effect === "allow" &&
+      rule.target === "*" &&
+      Array.isArray(rule.actions) &&
+      rule.actions.length === 1 &&
+      rule.actions[0] === "*" &&
+      Array.isArray(rule.purposes) &&
+      rule.purposes.length === 1 &&
+      rule.purposes[0] === "*" &&
+      Object.keys(rule.constraints).length === 0
+    ) {
+      findings.push({
+        severity: "warning",
+        code: "broad_allow",
+        rule_ids: [rule.policy_id],
+      });
+    }
+  }
+  for (let indexA = 0; indexA < rules.length; indexA += 1) {
+    for (let indexB = indexA + 1; indexB < rules.length; indexB += 1) {
+      const ruleA = rules[indexA];
+      const ruleB = rules[indexB];
+      if (!scopeOverlaps(ruleA, ruleB)) continue;
+      if (ruleA.effect !== ruleB.effect) {
+        findings.push({
+          severity: "error",
+          code: "conflicting_effect",
+          rule_ids: [ruleA.policy_id, ruleB.policy_id],
+        });
+      } else if (canonicalJson(ruleA) === canonicalJson(ruleB)) {
+        findings.push({
+          severity: "warning",
+          code: "duplicate_rule",
+          rule_ids: [ruleA.policy_id, ruleB.policy_id],
+        });
+      }
+    }
+  }
+  return findings;
+}
+
+export async function verifyPolicyAnalysisReport(
+  report,
+  bundle,
+  trustedAuthorities,
+  { now } = {}
+) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("policy analysis report must be an object");
+  }
+  if (report.type !== "kinegrant:PolicyBundleAnalysis") {
+    throw new Error("wrong policy analysis report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported policy analysis report version");
+  }
+  const payload = await verifyPolicyBundle(bundle, trustedAuthorities, { now });
+  if (
+    report.policy_id !== payload.policy_id ||
+    report.bundle_id !== payload.bundle_id ||
+    report.bundle_version !== payload.version
+  ) {
+    throw new Error("policy analysis report does not match the policy bundle");
+  }
+  if (!Array.isArray(report.findings)) {
+    throw new Error("policy analysis report findings must be an array");
+  }
+  for (const finding of report.findings) {
+    if (typeof finding !== "object" || finding === null || Array.isArray(finding)) {
+      throw new Error("each finding must be an object");
+    }
+    if (!ANALYSIS_SEVERITIES.has(finding.severity)) {
+      throw new Error("unknown finding severity: " + finding.severity);
+    }
+    if (!ANALYSIS_FINDING_CODES.has(finding.code)) {
+      throw new Error("unknown finding code: " + finding.code);
+    }
+    if (
+      !Array.isArray(finding.rule_ids) ||
+      finding.rule_ids.length === 0 ||
+      finding.rule_ids.some((id) => typeof id !== "string" || id.length === 0)
+    ) {
+      throw new Error("finding rule_ids must be a non-empty string array");
+    }
+  }
+  const expected = analyzePolicyBundlePayload(payload);
+  const findingKey = (finding) =>
+    finding.severity + "|" + finding.code + "|" + [...finding.rule_ids].sort().join(",");
+  const expectedKeys = expected.map(findingKey);
+  const reportKeys = report.findings.map(findingKey);
+  const missing = expectedKeys.filter((key) => !reportKeys.includes(key));
+  const extra = reportKeys.filter((key) => !expectedKeys.includes(key));
+  if (missing.length > 0 || extra.length > 0) {
+    throw new Error(
+      "policy analysis findings do not match a fresh recomputation" +
+        (missing.length > 0 ? " (missing: " + missing.join(", ") + ")" : "") +
+        (extra.length > 0 ? " (extra: " + extra.join(", ") + ")" : "")
+    );
+  }
+  const errors = report.findings.filter(
+    (finding) => finding.severity === "error"
+  ).length;
+  const warnings = report.findings.filter(
+    (finding) => finding.severity === "warning"
+  ).length;
+  const info = report.findings.filter(
+    (finding) => finding.severity === "info"
+  ).length;
+  const summary = report.summary;
+  if (typeof summary !== "object" || summary === null || Array.isArray(summary)) {
+    throw new Error("policy analysis report summary must be an object");
+  }
+  if (
+    summary.findings !== report.findings.length ||
+    summary.errors !== errors ||
+    summary.warnings !== warnings ||
+    summary.info !== info
+  ) {
+    throw new Error("policy analysis report summary is inconsistent");
+  }
+  const expectedResult = errors === 0 ? "PASS" : "FAIL";
+  if (report.overall_result !== expectedResult) {
+    throw new Error("policy analysis report overall_result is inconsistent");
+  }
+  return {
+    valid: true,
+    policy_id: report.policy_id,
+    bundle_version: report.bundle_version,
+    overall_result: report.overall_result,
+    summary: report.summary,
+    findings: report.findings,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -1239,5 +1454,6 @@ if (typeof globalThis !== "undefined") {
     validateActionVocabulary,
     validateObligationVocabulary,
     validateIdentitySyntax,
+    verifyPolicyAnalysisReport,
   };
 }

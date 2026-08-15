@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.19.0 - v2.19 first item (unreleased)
+
+- Browser verifier re-verifies `kinegrant:PolicyBundleAnalysis` reports
+  against the signed bundle (`verifyPolicyAnalysisReport`: type/schema,
+  bundle binding, summary consistency, and findings recomputed locally and
+  compared exactly; fail-closed on any mismatch); the HTML page and Node CLI
+  (`analysis` command) expose it, cross-tested against the Python
+  `analyze_policy_bundle`.
+
 ## 2.18.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.18.0 on the

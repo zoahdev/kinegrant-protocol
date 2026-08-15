@@ -23,6 +23,7 @@ import {
   validateActionVocabulary,
   validateObligationVocabulary,
   validateIdentitySyntax,
+  verifyPolicyAnalysisReport,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const DOMAIN = Buffer.from("KINEGRANT-SIGNED-ENVELOPE-V1\u0000", "utf8");
@@ -48,7 +49,7 @@ function signEnvelope(privateKey, payload) {
   return { alg: "EdDSA", kid, payload, signature: b64url(signature) };
 }
 
-function buildBundle(privateKey, publicKey, { version = 1, purposes = ["delivery"], constraints = {}, obligations = [] } = {}) {
+function buildBundle(privateKey, publicKey, { version = 1, purposes = ["delivery"], constraints = {}, obligations = [], extraRules = [] } = {}) {
   const now = Date.now();
   const kid = kidOf(publicKey);
   const policyId = "urn:policy:browser";
@@ -76,6 +77,7 @@ function buildBundle(privateKey, publicKey, { version = 1, purposes = ["delivery
         priority: 0,
         source: {},
       },
+      ...extraRules,
     ],
   };
   body.policy_digest =
@@ -564,4 +566,53 @@ test("browser verifier validates KineGrant identity syntax", () => {
   assert.throws(() => validateIdentitySyntax(["urn:kinegrant:robot:zoah:r1"]));
   assert.throws(() => validateIdentitySyntax(["urn:kinegrant:agent:zoah:" + "x".repeat(129)]));
   assert.throws(() => validateIdentitySyntax([]));
+});
+
+test("browser verifier validates policy analysis reports", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const kid = kidOf(publicKey);
+  const bundle = buildBundle(privateKey, publicKey, {
+    extraRules: [
+      {
+        policy_id: "urn:policy:browser",
+        issuer: kid,
+        target: "urn:space:door-*",
+        effect: "deny",
+        actions: ["open"],
+        subjects: ["*"],
+        purposes: ["delivery"],
+        constraints: {},
+        obligations: [],
+        priority: 0,
+        source: {},
+      },
+    ],
+  });
+  const report = {
+    type: "kinegrant:PolicyBundleAnalysis",
+    schema_version: "0.1",
+    policy_id: "urn:policy:browser",
+    bundle_id: bundle.payload.bundle_id,
+    bundle_version: 1,
+    overall_result: "FAIL",
+    summary: { findings: 1, errors: 1, warnings: 0, info: 0 },
+    findings: [
+      {
+        severity: "error",
+        code: "conflicting_effect",
+        rule_ids: ["urn:policy:browser", "urn:policy:browser"],
+      },
+    ],
+  };
+  const result = await verifyPolicyAnalysisReport(
+    report,
+    bundle,
+    new Set([bundle.kid])
+  );
+  assert.equal(result.overall_result, "FAIL");
+  assert.equal(result.findings.length, 1);
+  report.summary.errors = 0;
+  await assert.rejects(() =>
+    verifyPolicyAnalysisReport(report, bundle, new Set([bundle.kid]))
+  );
 });

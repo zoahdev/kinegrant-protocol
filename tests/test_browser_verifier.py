@@ -19,6 +19,7 @@ from kinegrant.policy_bundle import (
     PolicyAuthority,
     PolicyDistributor,
     PolicyRegistry,
+    analyze_policy_bundle,
     bundle_to_odrl,
 )
 from kinegrant.receipt import ReceiptLog
@@ -581,6 +582,66 @@ class BrowserVerifierInteropTests(unittest.TestCase):
                 encoding="utf-8",
             )
             rejected = self._run("identities", str(bad_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
+    def test_browser_verifier_verifies_python_policy_analysis(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:browser:policy:analysis"
+        rules = [
+            PolicyRule(
+                policy_id,
+                authority.kid,
+                "urn:space:browser:door-1",
+                "allow",
+                ("open",),
+                purposes=("delivery",),
+            ),
+            PolicyRule(
+                policy_id,
+                authority.kid,
+                "urn:space:browser:door-*",
+                "deny",
+                ("open",),
+                purposes=("delivery",),
+            ),
+        ]
+        bundle = authority.publish(policy_id, rules, ttl_seconds=3600)
+        report = analyze_policy_bundle(
+            bundle,
+            trusted_authorities={authority.kid},
+        )
+        self.assertEqual(report["overall_result"], "FAIL")
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            report_path = base / "analysis.json"
+            bundle_path = base / "bundle.json"
+            authorities_path = base / "authorities.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([authority.kid]),
+                encoding="utf-8",
+            )
+            verified = self._run(
+                "analysis",
+                str(report_path),
+                str(bundle_path),
+                str(authorities_path),
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("POLICY ANALYSIS VALID", verified.stdout)
+            tampered = dict(report)
+            tampered["summary"] = dict(report["summary"])
+            tampered["summary"]["errors"] = 0
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run(
+                "analysis",
+                str(tampered_path),
+                str(bundle_path),
+                str(authorities_path),
+            )
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
