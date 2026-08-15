@@ -31,6 +31,7 @@ import {
   verifySequenceCheckReport,
   verifyConformanceReport,
   verifyPolicyAuditSummary,
+  verifySecurityReviewKit,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -942,4 +943,60 @@ test("browser verifier validates policy audit summaries", () => {
   report.summary.verified = 1;
   report.overall_result = "FAIL";
   assert.throws(() => verifyPolicyAuditSummary(report));
+});
+
+test("browser verifier validates security review kits", () => {
+  const kit = {
+    type: "kinegrant:SecurityReviewKit",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T01:00:00Z",
+    reference_implementation: "2.25.0",
+    source_commit: "0".repeat(40),
+    overall_result: "PASS",
+    checks: {
+      conformance: { status: "PASS", detail: "23/23" },
+      machine_permission_test: {
+        status: "PASS",
+        detail: "22/22",
+        schema_version: "0.5",
+      },
+      red_team: { status: "PASS", detail: "11/11" },
+      benchmarks: {
+        status: "PASS",
+        detail: "machine-readable throughput emitted",
+        operations_per_second: 1234.5,
+      },
+      unit_tests: { status: "PASS", detail: "OK (skipped=10)" },
+      release_packet: { status: "SKIP", detail: "no release directory supplied" },
+    },
+    checklist: [
+      {
+        id: "default-deny",
+        name: "Default deny and deny-overrides",
+        evidence: "spec/KGP-001.md",
+        status: "PASS",
+      },
+    ],
+    commands: ["python -m unittest discover -s tests"],
+    artifacts: {
+      specification: "spec/KGP-001.md",
+      threat_model: "spec/THREAT-MODEL.md",
+      standards_mapping: "spec/STANDARD-MAPPING.md",
+      reproducing: "REPRODUCING.md",
+      deployment_cases: "docs/DEPLOYMENT-CASES.md",
+      releases: ["https://github.com/zoahdev/kinegrant-protocol/releases/tag/v2.24.0"],
+    },
+    limitations: ["not a security audit"],
+  };
+  const result = verifySecurityReviewKit(kit);
+  assert.equal(result.checks, 6);
+  assert.equal(result.overall_result, "PASS");
+  kit.overall_result = "FAIL";
+  assert.throws(() => verifySecurityReviewKit(kit));
+  kit.overall_result = "PASS";
+  kit.checks.unit_tests.status = "FAIL";
+  assert.throws(() => verifySecurityReviewKit(kit));
+  kit.checks.unit_tests.status = "PASS";
+  kit.checks.unit_tests.status = "SKIP";
+  assert.throws(() => verifySecurityReviewKit(kit));
 });

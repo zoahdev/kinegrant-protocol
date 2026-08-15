@@ -23,6 +23,7 @@ import {
   verifySequenceCheckReport,
   verifyConformanceReport,
   verifyPolicyAuditSummary,
+  verifySecurityReviewKit,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -214,6 +215,15 @@ try {
         `${result.summary.coverage_failures} coverage failures, ` +
         `${result.bundles} bundles)`
     );
+  } else if (command === "kit") {
+    const [kitPath] = args;
+    const kit = load(kitPath);
+    const result = verifySecurityReviewKit(kit);
+    console.log(
+      `SECURITY REVIEW KIT VALID (${result.overall_result}: ` +
+        `${result.checks} checks, ${result.checklist} checklist items, ` +
+        `reference=${result.reference_implementation})`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -247,7 +257,8 @@ try {
       "sequence-eval <policy.json> <request.json> <journal.json> | " +
       "mldsa <envelope.json> | " +
       "conformance <report.json> | " +
-      "fleet-audit <report.json>"
+      "fleet-audit <report.json> | " +
+      "kit <kit.json>"
     );
   }
 } catch (error) {

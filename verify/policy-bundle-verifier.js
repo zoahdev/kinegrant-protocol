@@ -2267,6 +2267,193 @@ export function verifyPolicyAuditSummary(report) {
   };
 }
 
+const KIT_CHECK_KEYS = new Set([
+  "conformance",
+  "machine_permission_test",
+  "red_team",
+  "benchmarks",
+  "unit_tests",
+  "release_packet",
+]);
+const KIT_AUTOMATED_KEYS = [
+  "conformance",
+  "machine_permission_test",
+  "red_team",
+  "benchmarks",
+  "unit_tests",
+];
+const KIT_STATUSES = new Set(["PASS", "FAIL", "SKIP"]);
+const KIT_CHECKLIST_KEYS = new Set(["id", "name", "evidence", "status"]);
+const KIT_ARTIFACT_KEYS = new Set([
+  "specification",
+  "threat_model",
+  "standards_mapping",
+  "reproducing",
+  "deployment_cases",
+  "releases",
+]);
+
+export function verifySecurityReviewKit(report) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("security review kit must be an object");
+  }
+  if (report.type !== "kinegrant:SecurityReviewKit") {
+    throw new Error("wrong security review kit type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported security review kit version");
+  }
+  if (
+    typeof report.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(report.generated_at)
+  ) {
+    throw new Error(
+      "security review kit generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(report.generated_at);
+  if (
+    typeof report.reference_implementation !== "string" ||
+    report.reference_implementation.length === 0
+  ) {
+    throw new Error("security review kit reference_implementation is invalid");
+  }
+  if (
+    report.source_commit !== null &&
+    (typeof report.source_commit !== "string" ||
+      !/^[0-9a-f]{40}$/i.test(report.source_commit))
+  ) {
+    throw new Error("security review kit source_commit must be null or a 40-hex sha");
+  }
+  const checks = report.checks;
+  if (typeof checks !== "object" || checks === null || Array.isArray(checks)) {
+    throw new Error("security review kit checks must be an object");
+  }
+  const checkKeys = Object.keys(checks);
+  if (
+    checkKeys.length !== KIT_CHECK_KEYS.size ||
+    checkKeys.some((key) => !KIT_CHECK_KEYS.has(key))
+  ) {
+    throw new Error("security review kit checks must have exactly the known check keys");
+  }
+  for (const key of KIT_AUTOMATED_KEYS) {
+    const check = checks[key];
+    if (typeof check !== "object" || check === null || Array.isArray(check)) {
+      throw new Error(`security review kit check ${key} must be an object`);
+    }
+    if (check.status !== "PASS" && check.status !== "FAIL") {
+      throw new Error(`security review kit check ${key} status must be PASS or FAIL`);
+    }
+    if (typeof check.detail !== "string") {
+      throw new Error(`security review kit check ${key} detail must be a string`);
+    }
+  }
+  const mpt = checks.machine_permission_test;
+  if (mpt.schema_version !== "0.5") {
+    throw new Error("security review kit MPT check schema_version must be 0.5");
+  }
+  const bench = checks.benchmarks;
+  if (
+    typeof bench.operations_per_second !== "number" ||
+    !Number.isFinite(bench.operations_per_second) ||
+    bench.operations_per_second <= 0
+  ) {
+    throw new Error("security review kit benchmarks operations_per_second is invalid");
+  }
+  const release = checks.release_packet;
+  if (
+    typeof release !== "object" ||
+    release === null ||
+    Array.isArray(release) ||
+    !KIT_STATUSES.has(release.status) ||
+    typeof release.detail !== "string"
+  ) {
+    throw new Error("security review kit release_packet check is invalid");
+  }
+  const automatedPass = KIT_AUTOMATED_KEYS.every(
+    (key) => checks[key].status === "PASS"
+  );
+  const expectedResult = automatedPass ? "PASS" : "FAIL";
+  if (report.overall_result !== expectedResult) {
+    throw new Error("security review kit overall_result is inconsistent");
+  }
+  if (!Array.isArray(report.checklist) || report.checklist.length === 0) {
+    throw new Error("security review kit checklist must be a non-empty array");
+  }
+  for (const item of report.checklist) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
+      throw new Error("each security review kit checklist item must be an object");
+    }
+    const fields = new Set(Object.keys(item));
+    if (
+      fields.size !== KIT_CHECKLIST_KEYS.size ||
+      [...fields].some((key) => !KIT_CHECKLIST_KEYS.has(key))
+    ) {
+      throw new Error("security review kit checklist item fields are invalid");
+    }
+    for (const field of ["id", "name", "evidence"]) {
+      if (typeof item[field] !== "string" || item[field].length === 0) {
+        throw new Error(`security review kit checklist ${field} must be a non-empty string`);
+      }
+    }
+    if (!KIT_STATUSES.has(item.status)) {
+      throw new Error("security review kit checklist status must be PASS, FAIL, or SKIP");
+    }
+  }
+  if (!Array.isArray(report.commands) || report.commands.length === 0) {
+    throw new Error("security review kit commands must be a non-empty array");
+  }
+  if (
+    report.commands.some(
+      (command) => typeof command !== "string" || command.length === 0
+    )
+  ) {
+    throw new Error("security review kit commands must be non-empty strings");
+  }
+  const artifacts = report.artifacts;
+  if (typeof artifacts !== "object" || artifacts === null || Array.isArray(artifacts)) {
+    throw new Error("security review kit artifacts must be an object");
+  }
+  if (
+    Object.keys(artifacts).some((key) => !KIT_ARTIFACT_KEYS.has(key))
+  ) {
+    throw new Error("security review kit artifacts has unknown keys");
+  }
+  for (const key of [
+    "specification",
+    "threat_model",
+    "standards_mapping",
+    "reproducing",
+    "deployment_cases",
+  ]) {
+    if (typeof artifacts[key] !== "string" || artifacts[key].length === 0) {
+      throw new Error(`security review kit artifacts ${key} must be a non-empty string`);
+    }
+  }
+  if (
+    !Array.isArray(artifacts.releases) ||
+    artifacts.releases.some(
+      (releaseUrl) => typeof releaseUrl !== "string" || releaseUrl.length === 0
+    )
+  ) {
+    throw new Error("security review kit artifacts releases must be non-empty strings");
+  }
+  if (!Array.isArray(report.limitations)) {
+    throw new Error("security review kit limitations must be an array");
+  }
+  if (report.limitations.some((item) => typeof item !== "string")) {
+    throw new Error("security review kit limitations must be strings");
+  }
+  return {
+    valid: true,
+    overall_result: report.overall_result,
+    reference_implementation: report.reference_implementation,
+    source_commit: report.source_commit,
+    checks: checkKeys.length,
+    checklist: report.checklist.length,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -2292,5 +2479,6 @@ if (typeof globalThis !== "undefined") {
     verifySequenceCheckReport,
     verifyConformanceReport,
     verifyPolicyAuditSummary,
+    verifySecurityReviewKit,
   };
 }

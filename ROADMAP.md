@@ -446,6 +446,14 @@ Exit criterion: an auditor can re-verify a conformance report in the browser wit
 
 Exit criterion: a fleet operator can re-verify a policy audit summary in the browser without trusting the report generator. Released as v2.24.0 (2026-08-15).
 
+## v2.25 - browser security kit verification
+
+- browser verifier re-verifies `kinegrant:SecurityReviewKit` artifacts (`verifySecurityReviewKit`: check statuses, MPT schema binding, benchmark output, checklist/commands/artifacts structure, overall result) (complete via PR #135);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify a security review kit in the browser without trusting the kit generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
