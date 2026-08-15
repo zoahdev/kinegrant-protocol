@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 2.39.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.39.0 on the
+  stable 1.0 wire format, adding fleet device export verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:FleetDeviceExportPacket`
+  (`verifyFleetDeviceExport`: every embedded device-to-policy export
+  packet is re-verified and must share the same policy bundle and trust
+  set; device, capability, and receipt ids must each be unique across
+  the fleet; summary counts and flags must be consistent; fail-closed on
+  any inconsistency); the HTML page and Node CLI (`fleet-device-export`
+  command) expose it, cross-tested against a Python-built fleet packet.
+
 ## 2.38.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.38.0 on the

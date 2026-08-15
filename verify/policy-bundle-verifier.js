@@ -3922,6 +3922,168 @@ export async function verifyDeviceToPolicyExport(
   };
 }
 
+const FLEET_DEVICE_KEYS = [
+  "devices",
+  "generated_at",
+  "overall_result",
+  "policy_bundle",
+  "schema_version",
+  "summary",
+  "trusted_policy_issuers",
+  "type",
+];
+const FLEET_DEVICE_SUMMARY_KEYS = [
+  "cross_references_ok",
+  "device_ids_unique",
+  "devices_total",
+  "devices_verified",
+  "policy_shared",
+];
+
+export async function verifyFleetDeviceExport(
+  packet,
+  {
+    trustedAuthorities,
+    trustedIssuers,
+    trustedExecutors,
+    trustedSensors,
+    trustedNotaries,
+    trustedDevices,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("fleet device export packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== FLEET_DEVICE_KEYS.join(",")) {
+    throw new Error("fleet device export packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:FleetDeviceExportPacket") {
+    throw new Error("wrong fleet device export packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported fleet device export packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "fleet device export packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("fleet device export packet overall_result must be PASS");
+  }
+  if (
+    !Array.isArray(packet.trusted_policy_issuers) ||
+    packet.trusted_policy_issuers.length === 0 ||
+    packet.trusted_policy_issuers.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "fleet device export packet trusted_policy_issuers must be a non-empty string array"
+    );
+  }
+  if (!Array.isArray(packet.devices) || packet.devices.length === 0) {
+    throw new Error("fleet device export packet devices must be a non-empty array");
+  }
+
+  const fleetPolicy = await verifyPolicyBundle(
+    packet.policy_bundle,
+    new Set(packet.trusted_policy_issuers),
+    { now }
+  );
+  const fleetTrust = [...packet.trusted_policy_issuers].sort();
+
+  const deviceIds = [];
+  const capabilityIds = [];
+  const receiptIds = [];
+  for (const devicePacket of packet.devices) {
+    if (
+      typeof devicePacket !== "object" ||
+      devicePacket === null ||
+      Array.isArray(devicePacket)
+    ) {
+      throw new Error("each fleet device export must be an object");
+    }
+    if (devicePacket.type !== "kinegrant:DeviceToPolicyExportPacket") {
+      throw new Error("fleet device export contains a wrong packet type");
+    }
+    if (
+      typeof devicePacket.policy_bundle !== "object" ||
+      devicePacket.policy_bundle === null ||
+      devicePacket.policy_bundle.payload?.bundle_id !== fleetPolicy.bundle_id
+    ) {
+      throw new Error(
+        "fleet device export policy bundle does not match the shared policy"
+      );
+    }
+    const deviceTrust = [...devicePacket.trusted_policy_issuers].sort();
+    if (deviceTrust.join(",") !== fleetTrust.join(",")) {
+      throw new Error(
+        "fleet device export trust set does not match the shared policy"
+      );
+    }
+    const result = await verifyDeviceToPolicyExport(devicePacket, {
+      trustedAuthorities,
+      trustedIssuers,
+      trustedExecutors,
+      trustedSensors,
+      trustedNotaries,
+      trustedDevices,
+      now,
+    });
+    deviceIds.push(result.device_id);
+    capabilityIds.push(result.capability_id);
+    receiptIds.push(result.receipt_id);
+  }
+
+  if (new Set(deviceIds).size !== deviceIds.length) {
+    throw new Error("fleet device export device ids are not unique");
+  }
+  if (new Set(capabilityIds).size !== capabilityIds.length) {
+    throw new Error("fleet device export capability ids are not unique");
+  }
+  if (new Set(receiptIds).size !== receiptIds.length) {
+    throw new Error("fleet device export receipt ids are not unique");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("fleet device export packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    FLEET_DEVICE_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("fleet device export packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    devices_total: packet.devices.length,
+    policy_shared: true,
+    devices_verified: packet.devices.length,
+    device_ids_unique: true,
+    cross_references_ok: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`fleet device export packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    policy_id: fleetPolicy.policy_id,
+    policy_digest: fleetPolicy.policy_digest,
+    devices_total: packet.devices.length,
+    device_ids: deviceIds,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -4344,6 +4506,7 @@ if (typeof globalThis !== "undefined") {
     verifyBridgeDemoReport,
     verifyHardwareTrustPacket,
     verifyDeviceToPolicyExport,
+    verifyFleetDeviceExport,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,

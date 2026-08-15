@@ -1897,6 +1897,183 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def _build_device_to_policy_packet(
+        self,
+        *,
+        authority_key: Ed25519KeyPair,
+        rule: PolicyRule,
+        bundle: dict,
+        device_id: str,
+        request_id: str,
+    ) -> dict:
+        from datetime import timedelta
+
+        from kinegrant.sensor_evidence import evidence_hash_for_commitment
+
+        issuer = CapabilityIssuer(authority_key)
+        executor = Ed25519KeyPair.generate()
+        sensor_key = Ed25519KeyPair.generate()
+        notary_key = Ed25519KeyPair.generate()
+        device_key = Ed25519KeyPair.generate()
+        request = ActionRequest(
+            request_id,
+            "urn:robot:browser:1",
+            "urn:space:browser:door-1",
+            "open",
+            "delivery",
+        )
+        decision = PolicyEngine(
+            [rule],
+            trusted_policy_issuers={authority_key.kid},
+        ).evaluate(request)
+        capability = issuer.issue(request, decision, ttl_seconds=300)
+        reading = SensorReading(
+            kind="force",
+            value={"newtons": 1.5},
+            source_id=device_id,
+            confidence=0.9,
+            observed_at="2026-08-15T00:00:00Z",
+        )
+        commitment = build_sensor_commitment(
+            [reading],
+            sensor_kid=sensor_key.kid,
+            key_pair=sensor_key,
+            committed_at="2026-08-15T00:00:00Z",
+        )
+        evidence_hash = evidence_hash_for_commitment(commitment)
+        log = ReceiptLog(executor)
+        gate = ActionGate(
+            trusted_issuers={authority_key.kid},
+            replay_store=InMemoryReplayStore(),
+        )
+        started = utc_now()
+        verified = gate.authorize(capability, request, now=started)
+        receipt = log.append(
+            verified,
+            result="succeeded",
+            evidence_hash=evidence_hash,
+            started_at=started,
+            finished_at=started + timedelta(seconds=1),
+            request=request,
+        )
+        checkpoint = build_receipt_checkpoint(
+            digest([receipt]),
+            notary_kid=notary_key.kid,
+            key_pair=notary_key,
+            period="daily",
+            issued_at="2026-08-15T00:00:00Z",
+        )
+        attestation = build_device_attestation(
+            device_id=device_id,
+            firmware_digest="sha256:" + "c" * 64,
+            boot_counter=3,
+            device_key=device_key,
+            measured_boot=[
+                {"stage": "bootloader", "digest": "sha256:" + "d" * 64}
+            ],
+            issued_at="2026-08-15T00:00:00Z",
+        )
+        cap_payload = capability["payload"]
+        return {
+            "type": "kinegrant:DeviceToPolicyExportPacket",
+            "schema_version": "0.1",
+            "device_id": device_id,
+            "generated_at": isoformat(started + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_policy_issuers": [authority_key.kid],
+            "policy_bundle": bundle,
+            "capability": capability,
+            "request": request.to_dict(),
+            "gate_decision": {
+                "allowed": True,
+                "reason": "allow",
+                "checked_at": isoformat(started),
+                "capability_id": cap_payload["capability_id"],
+                "policy_digest": cap_payload["policy_digest"],
+            },
+            "receipt": receipt,
+            "sensor_commitment": commitment,
+            "receipt_checkpoint": checkpoint,
+            "device_attestation": attestation,
+            "summary": {
+                "artifacts_total": 9,
+                "policy_verified": True,
+                "capability_verified": True,
+                "decision_consistent": True,
+                "receipt_bound": True,
+                "sensor_bound": True,
+                "checkpoint_bound": True,
+                "attestation_bound": True,
+                "cross_references_ok": True,
+            },
+        }
+
+    def test_browser_verifier_verifies_python_fleet_device_export_packet(
+        self,
+    ) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        rule = PolicyRule(
+            "device-to-policy-rule-1",
+            key.kid,
+            "urn:space:browser:*",
+            "allow",
+            ("open",),
+            purposes=("delivery",),
+        )
+        bundle = authority.publish(
+            "device-to-policy-rule-1",
+            [rule],
+            ttl_seconds=3600,
+        )
+        packet_1 = self._build_device_to_policy_packet(
+            authority_key=key,
+            rule=rule,
+            bundle=bundle,
+            device_id="device:esp32c3:paper-barrier:unit-1",
+            request_id="urn:kinegrant:browser:request:fleet-1",
+        )
+        packet_2 = self._build_device_to_policy_packet(
+            authority_key=key,
+            rule=rule,
+            bundle=bundle,
+            device_id="device:esp32c3:paper-barrier:unit-2",
+            request_id="urn:kinegrant:browser:request:fleet-2",
+        )
+        fleet = {
+            "type": "kinegrant:FleetDeviceExportPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=2)),
+            "overall_result": "PASS",
+            "trusted_policy_issuers": [key.kid],
+            "policy_bundle": bundle,
+            "devices": [packet_1, packet_2],
+            "summary": {
+                "devices_total": 2,
+                "policy_shared": True,
+                "devices_verified": 2,
+                "device_ids_unique": True,
+                "cross_references_ok": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            fleet_path = base / "fleet.json"
+            fleet_path.write_text(json.dumps(fleet), encoding="utf-8")
+            verified = self._run("fleet-device-export", str(fleet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("FLEET DEVICE EXPORT VALID", verified.stdout)
+            tampered = dict(fleet)
+            tampered["summary"] = dict(fleet["summary"])
+            tampered["summary"]["devices_verified"] = 1
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("fleet-device-export", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
