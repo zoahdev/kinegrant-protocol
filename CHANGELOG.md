@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.35.0 - v2.35 first item (unreleased)
+## 2.35.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.35.0 on the
+  stable 1.0 wire format, adding camera consent trace verification to
+  the browser verifier.
 
 - Browser verifier re-verifies camera-consent scenario traces
   (`verifyCameraConsentTrace`: record/consume/policy/sequence/obligation

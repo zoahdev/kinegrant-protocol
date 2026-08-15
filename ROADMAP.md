@@ -526,13 +526,13 @@ Exit criterion: an auditor can re-verify the combined hardware trust evidence of
 
 Exit criterion: an auditor can re-verify a gateway robot demo report in the browser without trusting the report generator. Released as v2.34.0 (2026-08-15).
 
-## v2.35 - browser camera consent verification
+## v2.35 - browser camera consent verification (complete with v2.35.0)
 
 - browser verifier re-verifies camera-consent scenario traces (`verifyCameraConsentTrace`: record/consume/policy/sequence/obligation flags consistent with passed) (complete via PR #156);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: an auditor can re-verify a camera-consent scenario trace in the browser without trusting the trace generator.
+Exit criterion: an auditor can re-verify a camera-consent scenario trace in the browser without trusting the trace generator. Released as v2.35.0 (2026-08-15).
 
 ## Success metrics
 
