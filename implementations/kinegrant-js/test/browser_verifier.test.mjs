@@ -42,6 +42,7 @@ import {
   verifyDeviceAttestation,
   verifyBridgeDemoReport,
   verifyHardwareTrustPacket,
+  verifyDeviceToPolicyExport,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -238,8 +239,8 @@ function buildScopedCapability(privateKey, publicKey, request, options = {}) {
       createHash("sha256")
         .update(Buffer.from(canonicalJson(request), "utf8"))
         .digest("hex"),
-    policy_digest: "sha256:" + "0".repeat(64),
-    matched_policy_ids: ["policy-1"],
+    policy_digest: options.policyDigest ?? "sha256:" + "0".repeat(64),
+    matched_policy_ids: options.matchedPolicyIds ?? ["policy-1"],
     obligations: ["emitActionReceipt"],
     issued_at: issuedAt,
     not_before: issuedAt,
@@ -268,12 +269,16 @@ function buildScopedCapability(privateKey, publicKey, request, options = {}) {
   return signEnvelope(privateKey, body);
 }
 
-function buildSensorCommitment(privateKey, publicKey, { signed = true } = {}) {
+function buildSensorCommitment(
+  privateKey,
+  publicKey,
+  { signed = true, sourceId = "sensor-1" } = {}
+) {
   const readings = [
     {
       kind: "force",
       value_hash: "sha256:" + "a".repeat(64),
-      source_id: "sensor-1",
+      source_id: sourceId,
       confidence: 0.9,
       observed_at: "2026-08-15T00:00:00Z",
     },
@@ -299,12 +304,16 @@ function buildSensorCommitment(privateKey, publicKey, { signed = true } = {}) {
   return signed ? signEnvelope(privateKey, body) : body;
 }
 
-function buildCheckpoint(privateKey, publicKey) {
+function buildCheckpoint(
+  privateKey,
+  publicKey,
+  { chainDigest = "sha256:" + "b".repeat(64) } = {}
+) {
   const body = {
     type: "kinegrant:ReceiptCheckpoint",
     schema_version: "0.1",
     notary: kidOf(publicKey),
-    chain_digest: "sha256:" + "b".repeat(64),
+    chain_digest: chainDigest,
     period: "daily",
     issued_at: "2026-08-15T00:00:00Z",
   };
@@ -317,11 +326,15 @@ function buildCheckpoint(privateKey, publicKey) {
   return signEnvelope(privateKey, body);
 }
 
-function buildAttestation(privateKey, publicKey) {
+function buildAttestation(
+  privateKey,
+  publicKey,
+  { deviceId = "device:esp32c3:paper-barrier:unit-1" } = {}
+) {
   const body = {
     type: "kinegrant:DeviceAttestation",
     schema_version: "0.1",
-    device_id: "device:esp32c3:paper-barrier:unit-1",
+    device_id: deviceId,
     firmware_digest: "sha256:" + "c".repeat(64),
     boot_counter: 3,
     measured_boot: [
@@ -408,22 +421,32 @@ function buildRobotOutcomes() {
   }));
 }
 
-function buildReceipt(privateKey, publicKey, { capabilityId, previous = null } = {}) {
+function buildReceipt(
+  privateKey,
+  publicKey,
+  {
+    capabilityId,
+    previous = null,
+    evidenceHash = null,
+    requestDigest = "sha256:" + "0".repeat(64),
+    target = "door-7",
+  } = {}
+) {
   const kid = kidOf(publicKey);
   const body = {
     type: "kinegrant:PhysicalActionReceipt",
     version: "0.1",
     executor: kid,
     capability_id: capabilityId || "kinegrant:cap:" + "a".repeat(64),
-    request_digest: "sha256:" + "0".repeat(64),
+    request_digest: requestDigest,
     agent: "robot-1",
-    target: "door-7",
+    target,
     action: "open",
     purpose: "delivery",
     result: "succeeded",
     started_at: new Date().toISOString(),
     finished_at: new Date().toISOString(),
-    evidence_hash: null,
+    evidence_hash: evidenceHash,
     previous_receipt_hash:
       previous === null
         ? null
@@ -1520,6 +1543,123 @@ test("browser verifier validates hardware trust packets", async () => {
   packet.summary.sensor_commitments = 1;
   packet.device_id = "other-device";
   await assert.rejects(() => verifyHardwareTrustPacket(packet));
+});
+
+test("browser verifier validates device-to-policy export packets", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  const bundlePayload = bundle.payload;
+  const request = {
+    type: "kinegrant:ActionRequest",
+    version: "0.1",
+    request_id: "req-1",
+    agent: "robot-1",
+    target: "urn:space:door-1",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const expectedPolicyDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        Buffer.from(
+          canonicalJson({
+            rules: bundlePayload.rules,
+            trusted_policy_issuers: [bundlePayload.issuer].sort(),
+          }),
+          "utf8"
+        )
+      )
+      .digest("hex");
+  const capability = buildScopedCapability(privateKey, publicKey, request, {
+    policyDigest: expectedPolicyDigest,
+    matchedPolicyIds: [bundlePayload.policy_id],
+  });
+  const deviceId = "device:esp32c3:paper-barrier:unit-1";
+  const commitment = buildSensorCommitment(privateKey, publicKey, {
+    signed: true,
+    sourceId: deviceId,
+  });
+  const sensorHash = await sensorEvidenceHash(commitment);
+  const receipt = buildReceipt(privateKey, publicKey, {
+    capabilityId: capability.payload.capability_id,
+    requestDigest: capability.payload.request_digest,
+    evidenceHash: sensorHash,
+    target: request.target,
+  });
+  const chainDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson([receipt]), "utf8"))
+      .digest("hex");
+  const checkpoint = buildCheckpoint(privateKey, publicKey, { chainDigest });
+  const attestation = buildAttestation(privateKey, publicKey, { deviceId });
+  const packet = {
+    type: "kinegrant:DeviceToPolicyExportPacket",
+    schema_version: "0.1",
+    device_id: deviceId,
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    trusted_policy_issuers: [bundlePayload.issuer],
+    policy_bundle: bundle,
+    capability,
+    request,
+    gate_decision: {
+      allowed: true,
+      reason: "allow",
+      checked_at: "2026-08-15T00:30:00Z",
+      capability_id: capability.payload.capability_id,
+      policy_digest: capability.payload.policy_digest,
+    },
+    receipt,
+    sensor_commitment: commitment,
+    receipt_checkpoint: checkpoint,
+    device_attestation: attestation,
+    summary: {
+      artifacts_total: 9,
+      policy_verified: true,
+      capability_verified: true,
+      decision_consistent: true,
+      receipt_bound: true,
+      sensor_bound: true,
+      checkpoint_bound: true,
+      attestation_bound: true,
+      cross_references_ok: true,
+    },
+  };
+  const result = await verifyDeviceToPolicyExport(packet);
+  assert.equal(result.device_id, deviceId);
+  assert.equal(result.policy_id, bundlePayload.policy_id);
+  assert.equal(result.capability_id, capability.payload.capability_id);
+  assert.equal(result.artifacts_total, 9);
+
+  const mismatchedReceipt = buildReceipt(privateKey, publicKey, {
+    capabilityId: capability.payload.capability_id,
+    requestDigest: capability.payload.request_digest,
+    evidenceHash: "sha256:" + "a".repeat(64),
+  });
+  await assert.rejects(() =>
+    verifyDeviceToPolicyExport({ ...packet, receipt: mismatchedReceipt })
+  );
+
+  const mismatchedCheckpoint = buildCheckpoint(privateKey, publicKey, {
+    chainDigest: "sha256:" + "b".repeat(64),
+  });
+  await assert.rejects(() =>
+    verifyDeviceToPolicyExport({
+      ...packet,
+      receipt_checkpoint: mismatchedCheckpoint,
+    })
+  );
+
+  await assert.rejects(() =>
+    verifyDeviceToPolicyExport({
+      ...packet,
+      summary: { ...packet.summary, cross_references_ok: false },
+    })
+  );
 });
 
 test("browser verifier validates robot demo reports", () => {
