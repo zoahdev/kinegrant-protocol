@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.20.0 - v2.20 first item (unreleased)
+## 2.20.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.20.0 on the
+  stable 1.0 wire format, adding delegation chain verification to the
+  browser verifier.
 
 - Browser verifier verifies scoped delegation chains end to end
   (`verifyDelegationChain` + `verifyAttenuation`: envelope signatures,
