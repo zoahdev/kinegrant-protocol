@@ -11,10 +11,10 @@ from unittest.mock import patch
 
 from kinegrant.capability import CapabilityIssuer
 from kinegrant.audit import ReceiptAuditor
-from kinegrant.canonical import content_id
-from kinegrant.crypto import Ed25519KeyPair
+from kinegrant.canonical import content_id, digest
+from kinegrant.crypto import Ed25519KeyPair, MLDSA65KeyPair
 from kinegrant.gate import ActionGate, InMemoryReplayStore
-from kinegrant.models import ActionRequest, PolicyRule, isoformat
+from kinegrant.models import ActionRequest, PolicyRule, isoformat, utc_now
 from kinegrant.mpt import run_machine_permission_test
 from kinegrant.policy import PolicyEngine
 from kinegrant.policy_bundle import (
@@ -850,6 +850,82 @@ class BrowserVerifierInteropTests(unittest.TestCase):
                 str(policy_path),
                 str(request_path),
                 str(journal_path),
+            )
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
+    def test_browser_verifier_verifies_mldsa65_bundle(self) -> None:
+        key = MLDSA65KeyPair.generate()
+        now = utc_now()
+        payload = {
+            "type": "kinegrant:PolicyBundle",
+            "schema_version": "0.1",
+            "policy_id": "urn:kinegrant:policy:mldsa:1",
+            "issuer": key.kid,
+            "version": 1,
+            "previous_version_digest": None,
+            "issued_at": isoformat(now),
+            "not_before": isoformat(now),
+            "not_after": isoformat(now.replace(year=2099)),
+            "rules": [
+                {
+                    "policy_id": "urn:kinegrant:policy:mldsa:1",
+                    "issuer": key.kid,
+                    "target": "urn:space:door-1",
+                    "effect": "allow",
+                    "actions": ["open"],
+                    "subjects": ["*"],
+                    "purposes": ["delivery"],
+                    "constraints": {},
+                    "obligations": [],
+                    "priority": 0,
+                    "source": {},
+                }
+            ],
+        }
+        payload["policy_digest"] = digest({"rules": payload["rules"]})
+        payload["bundle_id"] = content_id("kinegrant:policy-bundle", payload)
+        envelope = key.sign_envelope(payload)
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            bundle_path = base / "mldsa-bundle.json"
+            authorities_path = base / "mldsa-authorities.json"
+            bundle_path.write_text(json.dumps(envelope), encoding="utf-8")
+            authorities_path.write_text(
+                json.dumps([key.kid]),
+                encoding="utf-8",
+            )
+            verified = self._run(
+                "verify",
+                str(bundle_path),
+                str(authorities_path),
+                "urn:kinegrant:policy:mldsa:1",
+            )
+            if (
+                verified.returncode == 2
+                and "ML-DSA-65 is not supported" in verified.stderr
+            ):
+                self.skipTest("ML-DSA-65 WebCrypto is not available in node")
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("POLICY BUNDLE VALID", verified.stdout)
+            mldsa = self._run("mldsa", str(bundle_path))
+            if (
+                mldsa.returncode == 2
+                and "ML-DSA-65 is not supported" in mldsa.stderr
+            ):
+                self.skipTest("ML-DSA-65 WebCrypto is not available in node")
+            self.assertEqual(mldsa.returncode, 0, mldsa.stderr)
+            self.assertIn("ML-DSA-65 ENVELOPE VALID", mldsa.stdout)
+            tampered = dict(envelope)
+            tampered["payload"] = dict(envelope["payload"])
+            tampered["payload"]["rules"] = []
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run(
+                "verify",
+                str(tampered_path),
+                str(authorities_path),
+                "urn:kinegrant:policy:mldsa:1",
             )
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)

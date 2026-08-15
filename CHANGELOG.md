@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 2.22.0 - v2.22 first item (unreleased)
+
+- Browser verifier verifies post-quantum FIPS 204 ML-DSA-65 signed envelopes
+  (`verifyMldsaEnvelope`; `verifyEnvelope` now accepts `alg: "ML-DSA-65"`
+  everywhere, so policy bundles, capabilities, receipts, revocation bundles,
+  distribution reports, and delegation chains can be post-quantum signed);
+  WebCrypto SPKI import + native verification, fail-closed with a clear
+  message when the browser lacks ML-DSA support; cross-tested against Python
+  `cryptography` ML-DSA-65 signatures. CI pins Node 24 so the ML-DSA tests
+  run in every pipeline.
+
 ## 2.21.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.21.0 on the

@@ -422,6 +422,14 @@ Exit criterion: a gate operator can verify a delegated capability chain in the b
 
 Exit criterion: a gate operator can verify a forbidden-combination verdict in the browser without trusting the policy or journal generator. Released as v2.21.0 (2026-08-15).
 
+## v2.22 - browser post-quantum verification
+
+- browser verifier verifies post-quantum FIPS 204 ML-DSA-65 signed envelopes (`verifyMldsaEnvelope`; every envelope path accepts `alg: "ML-DSA-65"`) (complete via PR #129);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can verify an ML-DSA-65 signed bundle or receipt in the browser without installing anything.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

@@ -109,6 +109,12 @@ Forbidden combinations are recomputed in the browser as well
 (`evaluateSequencePolicy` / `verifySequenceCheckReport`): the journal and
 request digests are bound and the verdict is re-derived without trusting the
 report generator.
+Envelopes may be signed with Ed25519 or the post-quantum FIPS 204
+ML-DSA-65 algorithm (`alg: "ML-DSA-65"`, `kinegrant:key:mldsa65:*` key ids);
+the browser verifier verifies both through WebCrypto (SPKI import + native
+verification), cross-tested against Python `cryptography` ML-DSA-65
+signatures. Browsers without ML-DSA WebCrypto fail closed with a clear
+message instead of guessing.
 
 ## Audit aggregation
 
