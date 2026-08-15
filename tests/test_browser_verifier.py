@@ -3704,6 +3704,70 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_cross_implementation(self) -> None:
+        from datetime import timedelta
+
+        packet = {
+            "type": "kinegrant:CrossImplementationReportPacket",
+            "schema_version": "0.1",
+            "evidence_id": "evidence-1",
+            "evidence_type": "kinegrant:PolicyBundle",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "checks": [
+                {
+                    "check_id": "c1",
+                    "tool": "kinegrant-python",
+                    "check": "policy_bundle",
+                    "result": "PASS",
+                    "detail": "verified by python",
+                    "verified": True,
+                },
+                {
+                    "check_id": "c2",
+                    "tool": "kinegrant-js",
+                    "check": "policy_bundle",
+                    "result": "PASS",
+                    "detail": "verified by js",
+                    "verified": True,
+                },
+                {
+                    "check_id": "c3",
+                    "tool": "kinegrant-go",
+                    "check": "policy_bundle",
+                    "result": "PASS",
+                    "detail": "verified by go",
+                    "verified": True,
+                },
+            ],
+            "summary": {
+                "artifacts_total": 3,
+                "checks_total": 3,
+                "checks_verified": 3,
+                "tools_total": 3,
+                "tools_unique": 3,
+                "agreement": True,
+                "consistent": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "cross-implementation.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("cross-implementation", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("CROSS IMPLEMENTATION VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["checks"] = [
+                dict(entry) for entry in packet["checks"]
+            ]
+            tampered["checks"][2]["result"] = "FAIL"
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("cross-implementation", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

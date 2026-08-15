@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.55.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.55.0 on the
+  stable 1.0 wire format, adding cross implementation consistency
+  verification to the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:CrossImplementationReportPacket`
+  (`verifyCrossImplementationReport`: every check must come from a known
+  implementation (python/js/go), carry a PASS/FAIL/SKIP result and a
+  non-empty detail, and be marked verified; for every check name, the
+  results across all tools must agree and none may be FAIL; summary
+  counts and flags must be consistent; fail-closed on any
+  inconsistency); the HTML page and Node CLI (`cross-implementation`
+  command) expose it, cross-tested against Python-built reports.
+
 ## 2.54.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.54.0 on the

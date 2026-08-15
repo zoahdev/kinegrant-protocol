@@ -769,6 +769,17 @@ bundles.
 Exit criterion: an auditor can verify in the browser that the answer to
 an audit query exactly matches the provided evidence records.
 
+## v2.55 - browser cross implementation consistency verification
+
+- browser verifier re-verifies `kinegrant:CrossImplementationReportPacket`
+  (`verifyCrossImplementationReport`: python/js/go checks with PASS/FAIL/
+  SKIP results; per-check agreement across all tools; no FAIL);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can verify in the browser that independent
+implementations agree on the same evidence.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

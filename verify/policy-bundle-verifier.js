@@ -7087,6 +7087,179 @@ export async function verifyAuditQuery(packet, { now } = {}) {
   };
 }
 
+const CROSS_IMPLEMENTATION_KEYS = [
+  "checks",
+  "evidence_id",
+  "evidence_type",
+  "generated_at",
+  "overall_result",
+  "schema_version",
+  "summary",
+  "type",
+];
+const CROSS_IMPLEMENTATION_SUMMARY_KEYS = [
+  "agreement",
+  "artifacts_total",
+  "checks_total",
+  "checks_verified",
+  "consistent",
+  "tools_total",
+  "tools_unique",
+];
+const CROSS_IMPLEMENTATION_CHECK_KEYS = [
+  "check",
+  "check_id",
+  "detail",
+  "result",
+  "tool",
+  "verified",
+];
+const CROSS_IMPLEMENTATION_TOOLS = new Set([
+  "kinegrant-python",
+  "kinegrant-js",
+  "kinegrant-go",
+]);
+const CROSS_IMPLEMENTATION_RESULTS = new Set(["PASS", "FAIL", "SKIP"]);
+
+export async function verifyCrossImplementationReport(packet, { now } = {}) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("cross implementation report packet must be an object");
+  }
+  if (
+    Object.keys(packet).sort().join(",") !==
+    CROSS_IMPLEMENTATION_KEYS.join(",")
+  ) {
+    throw new Error("cross implementation report packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:CrossImplementationReportPacket") {
+    throw new Error("wrong cross implementation report packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported cross implementation report packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "cross implementation report packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("cross implementation report packet overall_result must be PASS");
+  }
+  if (typeof packet.evidence_id !== "string" || packet.evidence_id.length === 0) {
+    throw new Error("cross implementation report packet evidence_id must be non-empty");
+  }
+  if (typeof packet.evidence_type !== "string" || packet.evidence_type.length === 0) {
+    throw new Error(
+      "cross implementation report packet evidence_type must be non-empty"
+    );
+  }
+  if (!Array.isArray(packet.checks) || packet.checks.length === 0) {
+    throw new Error(
+      "cross implementation report packet checks must be a non-empty array"
+    );
+  }
+
+  const checkIds = new Set();
+  const tools = new Set();
+  const resultsByCheck = new Map();
+  for (const entry of packet.checks) {
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      Array.isArray(entry) ||
+      Object.keys(entry).sort().join(",") !==
+        CROSS_IMPLEMENTATION_CHECK_KEYS.join(",")
+    ) {
+      throw new Error("cross implementation check fields are invalid");
+    }
+    if (typeof entry.check_id !== "string" || entry.check_id.length === 0) {
+      throw new Error("check_id must be non-empty");
+    }
+    if (checkIds.has(entry.check_id)) {
+      throw new Error("check ids must be unique");
+    }
+    checkIds.add(entry.check_id);
+    if (!CROSS_IMPLEMENTATION_TOOLS.has(entry.tool)) {
+      throw new Error("cross implementation tool is unknown");
+    }
+    tools.add(entry.tool);
+    if (typeof entry.check !== "string" || entry.check.length === 0) {
+      throw new Error("cross implementation check name must be non-empty");
+    }
+    if (!CROSS_IMPLEMENTATION_RESULTS.has(entry.result)) {
+      throw new Error("cross implementation result must be PASS, FAIL, or SKIP");
+    }
+    if (typeof entry.detail !== "string" || entry.detail.length === 0) {
+      throw new Error("cross implementation detail must be non-empty");
+    }
+    if (entry.verified !== true) {
+      throw new Error("cross implementation check verified must be true");
+    }
+    if (!resultsByCheck.has(entry.check)) {
+      resultsByCheck.set(entry.check, new Map());
+    }
+    resultsByCheck.get(entry.check).set(entry.tool, entry.result);
+  }
+  let agreement = true;
+  for (const [check, byTool] of resultsByCheck) {
+    const results = [...byTool.values()];
+    if (
+      results.some((result) => result !== results[0]) ||
+      results[0] === "FAIL"
+    ) {
+      agreement = false;
+    }
+    if (byTool.size !== tools.size) {
+      agreement = false;
+    }
+  }
+  if (!agreement) {
+    throw new Error("cross implementation results do not agree across tools");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("cross implementation report packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    CROSS_IMPLEMENTATION_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("cross implementation report packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 3,
+    checks_total: packet.checks.length,
+    checks_verified: packet.checks.length,
+    tools_total: packet.checks.length,
+    tools_unique: tools.size,
+    agreement: true,
+    consistent: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(
+        `cross implementation report packet summary ${key} is inconsistent`
+      );
+    }
+  }
+  return {
+    valid: true,
+    evidence_id: packet.evidence_id,
+    checks_total: packet.checks.length,
+    tools_unique: tools.size,
+    agreement: true,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -7525,6 +7698,7 @@ if (typeof globalThis !== "undefined") {
     verifyPolicyImpactAudit,
     verifyCrossDomainAudit,
     verifyAuditQuery,
+    verifyCrossImplementationReport,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,

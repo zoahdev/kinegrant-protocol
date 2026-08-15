@@ -51,6 +51,7 @@ import {
   verifyPolicyImpactAudit,
   verifyCrossDomainAudit,
   verifyAuditQuery,
+  verifyCrossImplementationReport,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -496,6 +497,14 @@ try {
         `${result.conditions_total} conditions, ${result.records_total} records, ` +
         `${result.matches_total} matches)`
     );
+  } else if (command === "cross-implementation") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyCrossImplementationReport(packet);
+    console.log(
+      `CROSS IMPLEMENTATION VALID (evidence=${result.evidence_id}, ` +
+        `${result.checks_total} checks, ${result.tools_unique} tools, agreement=true)`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -599,6 +608,7 @@ try {
       "policy-impact <packet.json> | " +
       "cross-domain <packet.json> | " +
       "audit-query <packet.json> | " +
+      "cross-implementation <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +
