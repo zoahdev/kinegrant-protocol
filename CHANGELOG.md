@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.31.0 - v2.31 first item (unreleased)
+## 2.31.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.31.0 on the
+  stable 1.0 wire format, adding device attestation verification to the
+  browser verifier.
 
 - Browser verifier re-verifies v0.4 device attestations
   (`verifyDeviceAttestation`: device binding, firmware digest, boot counter,
