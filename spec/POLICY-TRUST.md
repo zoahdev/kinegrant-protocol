@@ -146,6 +146,12 @@ for consistency, cross-tested against Python `PolicyDistributor` +
 (`verifyBenchmarkReport`): iteration counts and the full ten-operation
 operations-per-second surface are checked for structure and positivity,
 cross-tested against the Python benchmark runner output.
+The one-stop `kinegrant:PolicyLifecycleTrace` is re-verified in the browser
+too (`verifyPolicyLifecycleTrace`): the trace must bind exactly to the signed
+policy bundle (policy id, bundle id, version), follow the canonical
+publish → enforce → odrl → distribute → audit → revoke order, and keep
+per-phase statuses, summary, and overall result consistent; fail-closed on
+any deviation, cross-tested against a Python-generated lifecycle trace.
 
 ## Audit aggregation
 

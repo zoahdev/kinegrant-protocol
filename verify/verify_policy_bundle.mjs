@@ -27,6 +27,7 @@ import {
   verifyEsp32c3Evidence,
   verifyFleetOperationsReport,
   verifyBenchmarkReport,
+  verifyPolicyLifecycleTrace,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -261,6 +262,21 @@ try {
       `BENCHMARK REPORT VALID (${result.operations} operations, ` +
         `iterations=${result.iterations})`
     );
+  } else if (command === "lifecycle") {
+    const [tracePath, bundlePath, authoritiesPath] = args;
+    const trace = load(tracePath);
+    const bundle = load(bundlePath);
+    const trustedAuthorities = new Set(load(authoritiesPath));
+    const result = await verifyPolicyLifecycleTrace(
+      trace,
+      bundle,
+      trustedAuthorities
+    );
+    console.log(
+      `POLICY LIFECYCLE TRACE VALID (${result.overall_result}: ` +
+        `${result.summary.passed}/${result.summary.phases_total} phases, ` +
+        `${result.summary.failed} failed, policy=${result.policy_id})`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -298,7 +314,8 @@ try {
       "kit <kit.json> | " +
       "esp32 <evidence.json> | " +
       "fleet-ops <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +
-      "bench <report.json>"
+      "bench <report.json> | " +
+      "lifecycle <trace.json> <bundle.json> <authorities.json>"
     );
   }
 } catch (error) {

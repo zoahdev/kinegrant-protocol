@@ -35,6 +35,7 @@ import {
   verifyEsp32c3Evidence,
   verifyFleetOperationsReport,
   verifyBenchmarkReport,
+  verifyPolicyLifecycleTrace,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -1216,4 +1217,49 @@ test("browser verifier validates benchmark reports", () => {
   report.iterations = 2000;
   delete report.operations_per_second.jcs_digest;
   assert.throws(() => verifyBenchmarkReport(report));
+});
+
+test("browser verifier validates policy lifecycle traces", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  const trace = {
+    type: "kinegrant:PolicyLifecycleTrace",
+    schema_version: "0.1",
+    policy_id: "urn:policy:browser",
+    bundle_id: bundle.payload.bundle_id,
+    bundle_version: 1,
+    generated_at: "2026-08-15T01:00:00Z",
+    phases: [
+      { phase: "publish", status: "PASS", detail: "signed bundle verified", artifact: null },
+      {
+        phase: "enforce",
+        status: "PASS",
+        detail: "capability and receipt verified",
+        artifact: "kinegrant:receipt:" + "a".repeat(64),
+      },
+      { phase: "odrl", status: "PASS", detail: "kgp-v0.2 mapping", artifact: null },
+      { phase: "distribute", status: "PASS", detail: "fleet policy distribution", artifact: null },
+      { phase: "audit", status: "PASS", detail: "fleet audit summary", artifact: null },
+      { phase: "revoke", status: "PASS", detail: "revocation rollback", artifact: null },
+    ],
+    summary: { phases_total: 6, passed: 6, failed: 0 },
+    overall_result: "PASS",
+  };
+  const result = await verifyPolicyLifecycleTrace(
+    trace,
+    bundle,
+    new Set([bundle.kid])
+  );
+  assert.equal(result.overall_result, "PASS");
+  trace.summary.passed = 5;
+  await assert.rejects(() =>
+    verifyPolicyLifecycleTrace(trace, bundle, new Set([bundle.kid]))
+  );
+  trace.summary.passed = 6;
+  trace.phases[2].status = "FAIL";
+  trace.summary.failed = 1;
+  trace.overall_result = "PASS";
+  await assert.rejects(() =>
+    verifyPolicyLifecycleTrace(trace, bundle, new Set([bundle.kid]))
+  );
 });
