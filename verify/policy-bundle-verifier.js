@@ -6148,6 +6148,184 @@ export async function verifyLeastPrivilegeAudit(
   };
 }
 
+const DENIAL_EXPLAINABILITY_KEYS = [
+  "denials",
+  "device_id",
+  "generated_at",
+  "overall_result",
+  "policy_bundle",
+  "schema_version",
+  "summary",
+  "trusted_authorities",
+  "type",
+];
+const DENIAL_EXPLAINABILITY_SUMMARY_KEYS = [
+  "artifacts_total",
+  "denials_total",
+  "explanations_complete",
+  "policy_bound",
+  "reasons_explained",
+  "request_bound",
+  "rules_referenced",
+];
+const DENIAL_ENTRY_KEYS = [
+  "denial_id",
+  "denied_at",
+  "explanation",
+  "policy_digest",
+  "reason",
+  "request_digest",
+  "rule_id",
+];
+
+export async function verifyDenialExplainability(
+  packet,
+  {
+    trustedAuthorities,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("denial explainability packet must be an object");
+  }
+  if (
+    Object.keys(packet).sort().join(",") !==
+    DENIAL_EXPLAINABILITY_KEYS.join(",")
+  ) {
+    throw new Error("denial explainability packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:DenialExplainabilityPacket") {
+    throw new Error("wrong denial explainability packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported denial explainability packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "denial explainability packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("denial explainability packet overall_result must be PASS");
+  }
+  if (typeof packet.device_id !== "string" || packet.device_id.length === 0) {
+    throw new Error("denial explainability packet device_id must be non-empty");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "denial explainability packet trusted_authorities must be a non-empty string array"
+    );
+  }
+
+  const policyPayload = await verifyPolicyBundle(
+    packet.policy_bundle,
+    new Set(packet.trusted_authorities),
+    { now }
+  );
+  const expectedPolicyDigest =
+    "sha256:" +
+    (await sha256Hex(
+      new TextEncoder().encode(
+        canonicalJson({
+          rules: policyPayload.rules,
+          trusted_policy_issuers: [...packet.trusted_authorities].sort(),
+        })
+      )
+    ));
+  const ruleIds = new Set(policyPayload.rules.map((rule) => rule.policy_id));
+  if (!Array.isArray(packet.denials) || packet.denials.length === 0) {
+    throw new Error("denial explainability packet denials must be a non-empty array");
+  }
+
+  const denialIds = new Set();
+  let rulesReferenced = 0;
+  for (const entry of packet.denials) {
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      Array.isArray(entry) ||
+      Object.keys(entry).sort().join(",") !== DENIAL_ENTRY_KEYS.join(",")
+    ) {
+      throw new Error("denial entry fields are invalid");
+    }
+    if (typeof entry.denial_id !== "string" || entry.denial_id.length === 0) {
+      throw new Error("denial_id must be non-empty");
+    }
+    if (denialIds.has(entry.denial_id)) {
+      throw new Error("denial ids must be unique");
+    }
+    denialIds.add(entry.denial_id);
+    if (typeof entry.denied_at !== "string" || Number.isNaN(Date.parse(entry.denied_at))) {
+      throw new Error("denied_at is invalid");
+    }
+    if (
+      typeof entry.request_digest !== "string" ||
+      !SHA256_RE.test(entry.request_digest)
+    ) {
+      throw new Error("request_digest is invalid");
+    }
+    if (entry.policy_digest !== expectedPolicyDigest) {
+      throw new Error("denial does not bind the audit policy");
+    }
+    if (typeof entry.reason !== "string" || entry.reason.length === 0) {
+      throw new Error("denial reason must be non-empty");
+    }
+    if (typeof entry.explanation !== "string" || entry.explanation.length === 0) {
+      throw new Error("denial explanation must be non-empty");
+    }
+    if (entry.rule_id !== null) {
+      if (typeof entry.rule_id !== "string" || !ruleIds.has(entry.rule_id)) {
+        throw new Error("denial rule_id does not reference a policy rule");
+      }
+      rulesReferenced += 1;
+    }
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("denial explainability packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    DENIAL_EXPLAINABILITY_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("denial explainability packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 3,
+    denials_total: packet.denials.length,
+    reasons_explained: packet.denials.length,
+    explanations_complete: packet.denials.length,
+    rules_referenced: rulesReferenced,
+    policy_bound: true,
+    request_bound: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`denial explainability packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    device_id: packet.device_id,
+    policy_id: policyPayload.policy_id,
+    denials_total: packet.denials.length,
+    rules_referenced: rulesReferenced,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -6581,6 +6759,7 @@ if (typeof globalThis !== "undefined") {
     verifyIdentifierRotation,
     verifyMinimalDisclosure,
     verifyLeastPrivilegeAudit,
+    verifyDenialExplainability,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,

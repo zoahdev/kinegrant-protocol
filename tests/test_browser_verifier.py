@@ -3169,6 +3169,105 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_denial_explainability(self) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        deny_rule = PolicyRule(
+            "deny-rule-1",
+            key.kid,
+            "urn:space:browser:door-1",
+            "deny",
+            ("kg.action.open",),
+            purposes=("delivery",),
+        )
+        bundle = authority.publish(
+            "deny-rule-1",
+            [deny_rule],
+            ttl_seconds=3600,
+        )
+        engine = PolicyEngine(
+            [deny_rule],
+            trusted_policy_issuers={key.kid},
+            require_known_actions=True,
+        )
+        started = utc_now()
+        denied_request = ActionRequest(
+            "urn:kinegrant:browser:request:deny-1",
+            "urn:robot:browser:1",
+            "urn:space:browser:door-1",
+            "kg.action.open",
+            "delivery",
+        )
+        denied_decision = engine.evaluate(denied_request, now=started)
+        self.assertFalse(denied_decision.allowed)
+        unknown_request = ActionRequest(
+            "urn:kinegrant:browser:request:deny-2",
+            "urn:robot:browser:1",
+            "urn:space:browser:door-1",
+            "kg.action.teleport",
+            "delivery",
+        )
+        unknown_decision = engine.evaluate(unknown_request, now=started)
+        self.assertFalse(unknown_decision.allowed)
+        policy_digest = denied_decision.policy_digest
+        packet = {
+            "type": "kinegrant:DenialExplainabilityPacket",
+            "schema_version": "0.1",
+            "device_id": "device:esp32c3:paper-barrier:unit-1",
+            "generated_at": isoformat(started + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid],
+            "policy_bundle": bundle,
+            "denials": [
+                {
+                    "denial_id": "denial-1",
+                    "denied_at": isoformat(started - timedelta(minutes=5)),
+                    "request_digest": denied_request.digest,
+                    "policy_digest": policy_digest,
+                    "rule_id": denied_decision.matched_policy_ids[0],
+                    "reason": denied_decision.reason,
+                    "explanation": "the request matched an explicit deny rule",
+                },
+                {
+                    "denial_id": "denial-2",
+                    "denied_at": isoformat(started - timedelta(minutes=4)),
+                    "request_digest": unknown_request.digest,
+                    "policy_digest": policy_digest,
+                    "rule_id": None,
+                    "reason": unknown_decision.reason,
+                    "explanation": "the requested action is not in the known action vocabulary",
+                },
+            ],
+            "summary": {
+                "artifacts_total": 3,
+                "denials_total": 2,
+                "reasons_explained": 2,
+                "explanations_complete": 2,
+                "rules_referenced": 1,
+                "policy_bound": True,
+                "request_bound": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "denial-explainability.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("denial-explainability", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("DENIAL EXPLAINABILITY VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["denials"] = [
+                dict(entry) for entry in packet["denials"]
+            ]
+            tampered["denials"][0]["explanation"] = ""
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("denial-explainability", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
