@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 2.27.0 - v2.27 first item (unreleased)
+
+- Browser verifier re-verifies combined `kinegrant:FleetOperationsReport`
+  artifacts (`verifyFleetOperationsReport`: embedded policy distribution and
+  revocation distribution reports re-verified against their signed bundles,
+  then gate sets and fleet totals joined and checked for consistency;
+  fail-closed on any inconsistency); the HTML page and Node CLI
+  (`fleet-ops` command) expose it, cross-tested against Python
+  `PolicyDistributor` + `RevocationDistributor` output.
+
 ## 2.26.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.26.0 on the

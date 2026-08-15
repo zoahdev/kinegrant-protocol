@@ -1154,6 +1154,136 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(checked.returncode, 0, checked.stderr)
             self.assertIn("ESP32-C3 EVIDENCE VALID (SIMULATION_PASS", checked.stdout)
 
+    def test_browser_verifier_verifies_python_fleet_operations_report(self) -> None:
+        authority = PolicyAuthority(Ed25519KeyPair.generate())
+        policy_id = "urn:kinegrant:policy:ops:1"
+        bundle = authority.publish(
+            policy_id,
+            [
+                PolicyRule(
+                    "ops-rule-1",
+                    authority.kid,
+                    "door-1",
+                    "allow",
+                    ("open",),
+                    purposes=("delivery",),
+                )
+            ],
+            ttl_seconds=3600,
+        )
+        registry_a = PolicyRegistry(trusted_authorities={authority.kid})
+        registry_b = PolicyRegistry(trusted_authorities={authority.kid})
+        policy_report = PolicyDistributor(
+            trusted_authorities={authority.kid}
+        ).distribute(
+            bundle,
+            {"gate-a": registry_a, "gate-b": registry_b},
+        )
+        revocations = RevocationList()
+        revocations.revoke(
+            "kinegrant:cap:" + "d" * 64,
+            reason="fleet maintenance",
+        )
+        revocation_key = Ed25519KeyPair.generate()
+        revocation_bundle = sign_revocation_bundle(
+            build_revocation_bundle(
+                revocations,
+                issuer=revocation_key.kid,
+            ),
+            revocation_key,
+        )
+        gate_a = RevocationList()
+        gate_b = RevocationList()
+        revocation_report = RevocationDistributor(
+            trusted_authorities={revocation_key.kid}
+        ).distribute(
+            revocation_bundle,
+            {"gate-a": gate_a, "gate-b": gate_b},
+        )
+        gates_total = len(policy_report["acks"])
+        policy_applied = sum(
+            1 for ack in policy_report["acks"] if ack["applied"]
+        )
+        revocation_applied = sum(
+            1 for ack in revocation_report["acks"] if ack["applied"]
+        )
+        fleet = {
+            "type": "kinegrant:FleetOperationsReport",
+            "schema_version": "0.1",
+            "generated_at": "2026-08-15T01:00:00Z",
+            "overall_result": (
+                "PASS"
+                if policy_applied == gates_total
+                and revocation_applied == gates_total
+                else "FAIL"
+            ),
+            "summary": {
+                "gates_total": gates_total,
+                "policy_applied": policy_applied,
+                "policy_failures": gates_total - policy_applied,
+                "revocation_applied": revocation_applied,
+                "revocation_failures": gates_total - revocation_applied,
+            },
+            "policy_distribution": policy_report,
+            "revocation_distribution": revocation_report,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            fleet_path = base / "fleet-ops.json"
+            policy_path = base / "policy.json"
+            revocation_path = base / "revocation.json"
+            authorities_path = base / "authorities.json"
+            fleet_path.write_text(json.dumps(fleet), encoding="utf-8")
+            policy_path.write_text(json.dumps(bundle), encoding="utf-8")
+            revocation_path.write_text(
+                json.dumps(revocation_bundle),
+                encoding="utf-8",
+            )
+            authorities_path.write_text(
+                json.dumps([authority.kid, revocation_key.kid]),
+                encoding="utf-8",
+            )
+            verified = self._run(
+                "fleet-ops",
+                str(fleet_path),
+                str(policy_path),
+                str(revocation_path),
+                str(authorities_path),
+            )
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("FLEET OPERATIONS REPORT VALID", verified.stdout)
+            tampered = dict(fleet)
+            tampered["summary"] = dict(fleet["summary"])
+            tampered["summary"]["policy_applied"] -= 1
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run(
+                "fleet-ops",
+                str(tampered_path),
+                str(policy_path),
+                str(revocation_path),
+                str(authorities_path),
+            )
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+            mismatched = dict(fleet)
+            mismatched["policy_distribution"] = dict(policy_report)
+            mismatched["policy_distribution"]["acks"] = [
+                dict(ack) for ack in policy_report["acks"]
+            ]
+            mismatched["policy_distribution"]["acks"][0]["gate_id"] = "gate-c"
+            mismatched_path = base / "mismatched.json"
+            mismatched_path.write_text(json.dumps(mismatched), encoding="utf-8")
+            gate_rejected = self._run(
+                "fleet-ops",
+                str(mismatched_path),
+                str(policy_path),
+                str(revocation_path),
+                str(authorities_path),
+            )
+            self.assertEqual(gate_rejected.returncode, 2)
+            self.assertIn("INVALID", gate_rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

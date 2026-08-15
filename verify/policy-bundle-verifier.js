@@ -2861,6 +2861,121 @@ export function verifyEsp32c3Evidence(evidence) {
   };
 }
 
+const FLEET_OPS_SUMMARY_KEYS = [
+  "gates_total",
+  "policy_applied",
+  "policy_failures",
+  "revocation_applied",
+  "revocation_failures",
+];
+
+export async function verifyFleetOperationsReport(
+  report,
+  policyBundle,
+  revocationBundle,
+  trustedAuthorities,
+  { now } = {}
+) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("fleet operations report must be an object");
+  }
+  if (report.type !== "kinegrant:FleetOperationsReport") {
+    throw new Error("wrong fleet operations report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported fleet operations report version");
+  }
+  if (
+    typeof report.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(report.generated_at)
+  ) {
+    throw new Error(
+      "fleet operations report generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(report.generated_at);
+  const policy = report.policy_distribution;
+  const revocation = report.revocation_distribution;
+  if (typeof policy !== "object" || policy === null || Array.isArray(policy)) {
+    throw new Error("fleet operations report policy_distribution must be an object");
+  }
+  if (
+    typeof revocation !== "object" ||
+    revocation === null ||
+    Array.isArray(revocation)
+  ) {
+    throw new Error(
+      "fleet operations report revocation_distribution must be an object"
+    );
+  }
+  await verifyPolicyDistributionReport(policy, policyBundle, trustedAuthorities, {
+    now,
+  });
+  await verifyRevocationDistributionReport(
+    revocation,
+    revocationBundle,
+    trustedAuthorities
+  );
+  const policyAcks = policy.acks;
+  const revocationAcks = revocation.acks;
+  if (!Array.isArray(policyAcks) || policyAcks.length === 0) {
+    throw new Error("policy distribution acks must be a non-empty array");
+  }
+  if (!Array.isArray(revocationAcks) || revocationAcks.length === 0) {
+    throw new Error("revocation distribution acks must be a non-empty array");
+  }
+  const policyGates = policyAcks.map((ack) => ack.gate_id).sort();
+  const revocationGates = revocationAcks.map((ack) => ack.gate_id).sort();
+  if (policyGates.join(",") !== revocationGates.join(",")) {
+    throw new Error(
+      "fleet operations report gate sets differ between distributions"
+    );
+  }
+  const gatesTotal = new Set(policyGates).size;
+  if (gatesTotal === 0) {
+    throw new Error("fleet operations report has no gates");
+  }
+  const policyApplied = policyAcks.filter((ack) => ack.applied === true).length;
+  const revocationApplied = revocationAcks.filter(
+    (ack) => ack.applied === true
+  ).length;
+  const summary = report.summary;
+  if (typeof summary !== "object" || summary === null || Array.isArray(summary)) {
+    throw new Error("fleet operations report summary must be an object");
+  }
+  if (Object.keys(summary).sort().join(",") !== FLEET_OPS_SUMMARY_KEYS.join(",")) {
+    throw new Error("fleet operations report summary fields are invalid");
+  }
+  if (summary.gates_total !== gatesTotal) {
+    throw new Error("fleet operations report gates_total is inconsistent");
+  }
+  if (summary.policy_applied !== policyApplied) {
+    throw new Error("fleet operations report policy_applied is inconsistent");
+  }
+  if (summary.policy_failures !== gatesTotal - policyApplied) {
+    throw new Error("fleet operations report policy_failures is inconsistent");
+  }
+  if (summary.revocation_applied !== revocationApplied) {
+    throw new Error("fleet operations report revocation_applied is inconsistent");
+  }
+  if (summary.revocation_failures !== gatesTotal - revocationApplied) {
+    throw new Error("fleet operations report revocation_failures is inconsistent");
+  }
+  const expectedResult =
+    policyApplied === gatesTotal && revocationApplied === gatesTotal
+      ? "PASS"
+      : "FAIL";
+  if (report.overall_result !== expectedResult) {
+    throw new Error("fleet operations report overall_result is inconsistent");
+  }
+  return {
+    valid: true,
+    overall_result: report.overall_result,
+    summary: report.summary,
+    gates: gatesTotal,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -2888,5 +3003,6 @@ if (typeof globalThis !== "undefined") {
     verifyPolicyAuditSummary,
     verifySecurityReviewKit,
     verifyEsp32c3Evidence,
+    verifyFleetOperationsReport,
   };
 }
