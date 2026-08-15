@@ -1,0 +1,5 @@
+Contact: https://github.com/zoahdev/kinegrant-protocol/security
+Expires: 2027-08-16T00:00:00Z
+Preferred-Languages: en, zh
+Canonical: https://kinegrant.com/.well-known/security.txt
+Policy: https://github.com/zoahdev/kinegrant-protocol/blob/main/SECURITY.md
