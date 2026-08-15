@@ -8,7 +8,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
-[Website](https://kinegrant.com) · [Public verifier](https://kinegrant.com/verify) · [Technical whitepaper](docs/whitepaper/KineGrant-KGP-001-Whitepaper-v0.1.pdf) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Open in Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=main&quickstart=1) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md) · [中文说明](README.zh-CN.md)
+[Website](https://kinegrant.com) · [Public verifier](https://kinegrant.com/verify) · [Technical whitepaper](docs/whitepaper/KineGrant-KGP-001-Whitepaper-v0.1.pdf) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Open in Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=main&quickstart=1) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md) · [中文说明](README.zh-CN.md) · [हिन्दी](README.hi.md)
 
 **Try it now, no install:** open the [offline browser verifier](https://zoahdev.github.io/verify/policy-bundle-verifier.html) — signed bundles, capabilities, delegation chains, forbidden combinations, receipts, MPT evidence, fleet operations, hardware evidence and more are all verified locally in your browser. If KineGrant is useful to you or your team, **give this repo a ⭐** — it helps independent reviewers and robot vendors find the project.
 
