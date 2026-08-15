@@ -685,6 +685,18 @@ Exit criterion: an auditor can re-verify the rotation and revocation
 state of a privacy-preserving identifier in the browser without trusting
 the export generator.
 
+## v2.48 - browser minimal disclosure audit verification
+
+- browser verifier re-verifies `kinegrant:MinimalDisclosureAuditPacket`
+  (`verifyMinimalDisclosure`: Merkle proofs reach the root; disclosed
+  fields cover every required field with no extra fields, proving minimal
+  necessary disclosure);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can prove in the browser that a disclosure
+reveals exactly the minimum necessary fields of a committed document.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.48.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.48.0 on the
+  stable 1.0 wire format, adding minimal disclosure audit verification
+  to the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:MinimalDisclosureAuditPacket`
+  (`verifyMinimalDisclosure`: every revealed field's Merkle inclusion
+  proof must reach the committed root; the disclosed field set must cover
+  every required field and must not contain any extra field, proving
+  minimal necessary disclosure; summary counts and flags must be
+  consistent; fail-closed on any inconsistency); the HTML page and Node
+  CLI (`minimal-disclosure` command) expose it, cross-tested against
+  Python-built Merkle redactions.
+
 ## 2.47.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.47.0 on the

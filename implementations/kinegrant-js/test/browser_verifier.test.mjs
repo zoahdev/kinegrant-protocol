@@ -52,6 +52,7 @@ import {
   verifyObligationFulfillment,
   verifySelectiveDisclosure,
   verifyIdentifierRotation,
+  verifyMinimalDisclosure,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -2982,6 +2983,90 @@ test("browser verifier validates identifier rotation chains", async () => {
     verifyIdentifierRotation({
       ...packet,
       summary: { ...packet.summary, active_total: 2 },
+    })
+  );
+});
+
+test("browser verifier validates minimal disclosure audits", async () => {
+  const merkleLeaf = (field, value) =>
+    "sha256:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson({ field, value }), "utf8"))
+      .digest("hex");
+  const merkleNode = (left, right) =>
+    "sha256:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson({ left, right }), "utf8"))
+      .digest("hex");
+  const document = {
+    action: "open",
+    agent: "robot-1",
+    purpose: "delivery",
+    target: "door-7",
+  };
+  const fields = Object.keys(document).sort();
+  const leaves = fields.map((field) => merkleLeaf(field, document[field]));
+  const layer1 = [merkleNode(leaves[0], leaves[1]), merkleNode(leaves[2], leaves[3])];
+  const root = merkleNode(layer1[0], layer1[1]);
+  const proofFor = (field) => {
+    const index = fields.indexOf(field);
+    const pair = index >> 1;
+    return [
+      { hash: leaves[index ^ 1], left: index % 2 === 1 },
+      { hash: pair === 0 ? layer1[1] : layer1[0], left: pair === 1 },
+    ];
+  };
+  const packet = {
+    type: "kinegrant:MinimalDisclosureAuditPacket",
+    schema_version: "0.1",
+    document_id: "receipt-1",
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    root,
+    required_fields: ["action", "purpose"],
+    visible: [
+      { field: "action", value: "open", proof: proofFor("action") },
+      { field: "purpose", value: "delivery", proof: proofFor("purpose") },
+    ],
+    summary: {
+      artifacts_total: 4,
+      fields_total: 2,
+      proofs_verified: 2,
+      required_covered: true,
+      no_extra_fields: true,
+      root_bound: true,
+      document_bound: true,
+      minimal_disclosure: true,
+    },
+  };
+  const result = await verifyMinimalDisclosure(packet);
+  assert.equal(result.fields_total, 2);
+  assert.equal(result.required_total, 2);
+
+  await assert.rejects(() =>
+    verifyMinimalDisclosure({
+      ...packet,
+      visible: [
+        { field: "action", value: "open", proof: proofFor("action") },
+        { field: "purpose", value: "delivery", proof: proofFor("purpose") },
+        { field: "agent", value: "robot-1", proof: proofFor("agent") },
+      ],
+      summary: { ...packet.summary, fields_total: 3, proofs_verified: 3 },
+    })
+  );
+  await assert.rejects(() =>
+    verifyMinimalDisclosure({
+      ...packet,
+      visible: [
+        { field: "action", value: "open", proof: proofFor("action") },
+      ],
+      summary: { ...packet.summary, fields_total: 1, proofs_verified: 1 },
+    })
+  );
+  await assert.rejects(() =>
+    verifyMinimalDisclosure({
+      ...packet,
+      summary: { ...packet.summary, minimal_disclosure: false },
     })
   );
 });
