@@ -29,6 +29,7 @@ import {
   verifyMldsaEnvelope,
   evaluateSequencePolicy,
   verifySequenceCheckReport,
+  verifyConformanceReport,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -858,4 +859,45 @@ test("browser verifier accepts ML-DSA-65 signed policy bundles", async (t) => {
   await assert.rejects(() =>
     verifyPolicyBundle(tampered, new Set([fixture.kid]))
   );
+});
+
+test("browser verifier validates conformance reports", () => {
+  const report = {
+    type: "kinegrant:ConformanceReport",
+    schema_version: "0.1",
+    overall_result: "PASS",
+    summary: { total: 2, passed: 2, failed: 0 },
+    marks: [
+      { name: "default_deny", level: "L1", passed: true, detail: "default_deny" },
+      {
+        name: "post_quantum_envelopes",
+        level: "L4",
+        passed: true,
+        detail: "ML-DSA-65 verified",
+      },
+    ],
+    independent_verification: {
+      schema_version: "0.1",
+      overall_result: "PASS",
+      checks: [
+        {
+          tool: "kinegrant-js",
+          detail: "cross-verified",
+          capability: "PASS",
+          receipts: "SKIP",
+          policy_bundle: "PASS",
+          policy_current_version: "PASS",
+        },
+      ],
+    },
+    limitations: ["self-assessment"],
+  };
+  const result = verifyConformanceReport(report);
+  assert.equal(result.marks, 2);
+  assert.equal(result.summary.passed, 2);
+  report.summary.passed = 1;
+  assert.throws(() => verifyConformanceReport(report));
+  report.summary.passed = 2;
+  report.overall_result = "FAIL";
+  assert.throws(() => verifyConformanceReport(report));
 });

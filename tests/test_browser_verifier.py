@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -927,6 +928,32 @@ class BrowserVerifierInteropTests(unittest.TestCase):
                 str(authorities_path),
                 "urn:kinegrant:policy:mldsa:1",
             )
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
+    def test_browser_verifier_verifies_python_conformance_report(self) -> None:
+        proc = subprocess.run(
+            [sys.executable, "-m", "kinegrant.conformance"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr[:1000])
+        report = json.loads(proc.stdout)
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            report_path = base / "conformance.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            verified = self._run("conformance", str(report_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("CONFORMANCE REPORT VALID", verified.stdout)
+            tampered = dict(report)
+            tampered["summary"] = dict(report["summary"])
+            tampered["summary"]["passed"] -= 1
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("conformance", str(tampered_path))
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 

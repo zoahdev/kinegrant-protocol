@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -174,6 +174,13 @@
   <p><button id="verify-mldsa">验证后量子信封</button></p>
   <div class="row">
     <div class="col">
+      <label>一致性报告 JSON（kinegrant:ConformanceReport，kinegrant-conformance 输出）</label>
+      <textarea id="conformance" placeholder='{ "type": "kinegrant:ConformanceReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 23, "passed": 23, "failed": 0 }, "marks": [...], "independent_verification": { "schema_version": "0.1", "overall_result": "PASS", "checks": [...] }, "limitations": [] }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-conformance">验证一致性报告</button></p>
+  <div class="row">
+    <div class="col">
       <label>禁止组合报告 JSON（kinegrant:SequenceCheckReport）</label>
       <textarea id="sequence-report" placeholder='{ "type": "kinegrant:SequenceCheckReport", "schema_version": "0.1", "request_digest": "sha256:...", "journal_digest": "sha256:...", "checked_at": "...", "verdict": { "allowed": false, "reason": "forbidden_combination", "matched_combination_ids": ["forbid-1"] } }'></textarea>
     </div>
@@ -216,6 +223,7 @@
       verifyMldsaEnvelope,
       evaluateSequencePolicy,
       verifySequenceCheckReport,
+      verifyConformanceReport,
     } from "./policy-bundle-verifier.js";
 
     const bundleInput = document.getElementById("bundle");
@@ -246,6 +254,7 @@
     const delegationRequestInput = document.getElementById("delegation-request");
     const delegationIssuersInput = document.getElementById("delegation-issuers");
     const mldsaInput = document.getElementById("mldsa");
+    const conformanceInput = document.getElementById("conformance");
     const sequenceReportInput = document.getElementById("sequence-report");
     const sequencePolicyInput = document.getElementById("sequence-policy");
     const sequenceRequestInput = document.getElementById("sequence-request");
@@ -520,6 +529,21 @@
         showOk(
           `ML-DSA-65 ENVELOPE VALID (type=${payload.type}, ` +
             `version=${payload.version ?? payload.schema_version ?? "n/a"})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-conformance").addEventListener("click", () => {
+      try {
+        const report = parseJson(conformanceInput.value, "一致性报告");
+        const result = verifyConformanceReport(report);
+        showOk(
+          `CONFORMANCE REPORT VALID (${result.overall_result}: ` +
+            `${result.summary.passed}/${result.summary.total} marks, ` +
+            `independent=${result.independent_verification.overall_result}, ` +
+            `${result.independent_verification.checks} checks)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

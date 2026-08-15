@@ -308,7 +308,7 @@ Exit criterion: anyone can verify a signed policy bundle in a browser without in
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: a visitor can verify a policy bundle, a capability, and a receipt chain in the browser without installing anything. Released as v2.22.0 (2026-08-15). Released as v2.12.0 (2026-08-15). Released as v2.7.0 (2026-08-15).
+Exit criterion: a visitor can verify a policy bundle, a capability, and a receipt chain in the browser without installing anything. Released as v2.12.0 (2026-08-15). Released as v2.7.0 (2026-08-15).
 
 ## v2.8 - browser challenge verification (complete with v2.8.0)
 
@@ -428,7 +428,15 @@ Exit criterion: a gate operator can verify a forbidden-combination verdict in th
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: an auditor can verify an ML-DSA-65 signed bundle or receipt in the browser without installing anything.
+Exit criterion: an auditor can verify an ML-DSA-65 signed bundle or receipt in the browser without installing anything. Released as v2.22.0 (2026-08-15).
+
+## v2.23 - browser conformance verification
+
+- browser verifier re-verifies `kinegrant:ConformanceReport` artifacts (`verifyConformanceReport`: L1-L4 marks, summary consistency, overall result, independent-verification statuses) (complete via PR #131);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify a conformance report in the browser without trusting the report generator.
 
 ## Success metrics
 

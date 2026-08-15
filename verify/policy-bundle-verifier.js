@@ -1999,6 +1999,126 @@ export async function verifySequenceCheckReport(
   };
 }
 
+const CONFORMANCE_LEVELS = new Set(["L1", "L2", "L3", "L4"]);
+const IV_STATUSES = new Set(["PASS", "SKIP", "FAIL", "ERROR"]);
+const IV_CHECK_FIELDS = [
+  "capability",
+  "receipts",
+  "policy_bundle",
+  "policy_current_version",
+];
+
+export function verifyConformanceReport(report) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("conformance report must be an object");
+  }
+  if (report.type !== "kinegrant:ConformanceReport") {
+    throw new Error("wrong conformance report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported conformance report version");
+  }
+  if (!Array.isArray(report.marks) || report.marks.length === 0) {
+    throw new Error("conformance report marks must be a non-empty array");
+  }
+  let passed = 0;
+  for (const mark of report.marks) {
+    if (typeof mark !== "object" || mark === null || Array.isArray(mark)) {
+      throw new Error("each conformance mark must be an object");
+    }
+    const fields = new Set(Object.keys(mark));
+    if (
+      fields.size !== 4 ||
+      !fields.has("name") ||
+      !fields.has("level") ||
+      !fields.has("passed") ||
+      !fields.has("detail")
+    ) {
+      throw new Error(
+        "each conformance mark must have exactly name, level, passed, detail"
+      );
+    }
+    if (typeof mark.name !== "string" || mark.name.length === 0) {
+      throw new Error("conformance mark name must be a non-empty string");
+    }
+    if (!CONFORMANCE_LEVELS.has(mark.level)) {
+      throw new Error("conformance mark level must be L1, L2, L3, or L4");
+    }
+    if (typeof mark.passed !== "boolean") {
+      throw new Error("conformance mark passed must be a boolean");
+    }
+    if (typeof mark.detail !== "string") {
+      throw new Error("conformance mark detail must be a string");
+    }
+    if (mark.passed) passed += 1;
+  }
+  const summary = report.summary;
+  if (typeof summary !== "object" || summary === null || Array.isArray(summary)) {
+    throw new Error("conformance report summary must be an object");
+  }
+  if (
+    summary.total !== report.marks.length ||
+    summary.passed !== passed ||
+    summary.failed !== report.marks.length - passed
+  ) {
+    throw new Error("conformance report summary is inconsistent");
+  }
+  const expectedResult = passed === report.marks.length ? "PASS" : "FAIL";
+  if (report.overall_result !== expectedResult) {
+    throw new Error("conformance report overall_result is inconsistent");
+  }
+  const iv = report.independent_verification;
+  if (typeof iv !== "object" || iv === null || Array.isArray(iv)) {
+    throw new Error("conformance report independent_verification must be an object");
+  }
+  if (iv.schema_version !== "0.1") {
+    throw new Error("unsupported independent verification version");
+  }
+  if (!Array.isArray(iv.checks) || iv.checks.length === 0) {
+    throw new Error("independent verification checks must be a non-empty array");
+  }
+  let ivPass = true;
+  for (const check of iv.checks) {
+    if (typeof check !== "object" || check === null || Array.isArray(check)) {
+      throw new Error("each independent verification check must be an object");
+    }
+    if (typeof check.tool !== "string" || check.tool.length === 0) {
+      throw new Error("independent verification check tool must be a non-empty string");
+    }
+    if (typeof check.detail !== "string") {
+      throw new Error("independent verification check detail must be a string");
+    }
+    for (const field of IV_CHECK_FIELDS) {
+      if (!IV_STATUSES.has(check[field])) {
+        throw new Error(
+          `independent verification check ${field} must be PASS, SKIP, FAIL, or ERROR`
+        );
+      }
+      if (check[field] !== "PASS" && check[field] !== "SKIP") ivPass = false;
+    }
+  }
+  const expectedIvResult = ivPass ? "PASS" : "FAIL";
+  if (iv.overall_result !== expectedIvResult) {
+    throw new Error("independent verification overall_result is inconsistent");
+  }
+  if (!Array.isArray(report.limitations)) {
+    throw new Error("conformance report limitations must be an array");
+  }
+  if (report.limitations.some((item) => typeof item !== "string")) {
+    throw new Error("conformance report limitations must be strings");
+  }
+  return {
+    valid: true,
+    overall_result: report.overall_result,
+    summary: report.summary,
+    marks: report.marks.length,
+    independent_verification: {
+      overall_result: iv.overall_result,
+      checks: iv.checks.length,
+    },
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -2022,5 +2142,6 @@ if (typeof globalThis !== "undefined") {
     verifyMldsaEnvelope,
     evaluateSequencePolicy,
     verifySequenceCheckReport,
+    verifyConformanceReport,
   };
 }

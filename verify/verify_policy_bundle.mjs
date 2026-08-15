@@ -21,6 +21,7 @@ import {
   verifyMldsaEnvelope,
   evaluateSequencePolicy,
   verifySequenceCheckReport,
+  verifyConformanceReport,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -191,6 +192,16 @@ try {
       `ML-DSA-65 ENVELOPE VALID (type=${payload.type}, ` +
         `version=${payload.version ?? payload.schema_version ?? "n/a"})`
     );
+  } else if (command === "conformance") {
+    const [reportPath] = args;
+    const report = load(reportPath);
+    const result = verifyConformanceReport(report);
+    console.log(
+      `CONFORMANCE REPORT VALID (${result.overall_result}: ` +
+        `${result.summary.passed}/${result.summary.total} marks, ` +
+        `independent=${result.independent_verification.overall_result}, ` +
+        `${result.independent_verification.checks} checks)`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -222,7 +233,8 @@ try {
       "delegation <chain.json> <request.json> <issuers.json> | " +
       "sequence <report.json> <policy.json> <request.json> <journal.json> | " +
       "sequence-eval <policy.json> <request.json> <journal.json> | " +
-      "mldsa <envelope.json>"
+      "mldsa <envelope.json> | " +
+      "conformance <report.json>"
     );
   }
 } catch (error) {
