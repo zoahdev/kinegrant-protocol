@@ -7898,6 +7898,297 @@ export async function verifySros2PolicyMapping(
   };
 }
 
+const MODEL_CHECK_PACKET_KEYS = [
+  "actions",
+  "agents",
+  "generated_at",
+  "max_requests",
+  "outcomes",
+  "overall_result",
+  "purposes",
+  "report",
+  "schema_version",
+  "summary",
+  "targets",
+  "type",
+];
+const MODEL_CHECK_REPORT_KEYS = [
+  "allowed",
+  "denied",
+  "evaluated",
+  "exceptions",
+  "overall_result",
+  "rules",
+  "schema_version",
+  "shadowed_allows",
+  "space_size",
+  "type",
+];
+const MODEL_CHECK_RULE_KEYS = [
+  "applicable_count",
+  "effect",
+  "policy_id",
+  "reachable",
+  "winning_count",
+];
+const MODEL_CHECK_SUMMARY_KEYS = [
+  "allowed",
+  "artifacts_total",
+  "consistent",
+  "denied",
+  "evaluated",
+  "exceptions",
+  "rules_total",
+  "shadowed_total",
+  "space_bound",
+  "space_size",
+];
+const MODEL_CHECK_OUTCOME_KEYS = [
+  "action",
+  "agent",
+  "allowed",
+  "matched_policy_ids",
+  "purpose",
+  "reason",
+  "target",
+];
+const MODEL_CHECK_EXCEPTION_KEYS = [
+  "action",
+  "agent",
+  "exception",
+  "purpose",
+  "target",
+];
+
+function modelCheckSpace(packet) {
+  const space = [];
+  for (const agent of packet.agents) {
+    for (const target of packet.targets) {
+      for (const action of packet.actions) {
+        for (const purpose of packet.purposes) {
+          if (space.length >= packet.max_requests) return space;
+          space.push({ agent, target, action, purpose });
+        }
+      }
+    }
+  }
+  return space;
+}
+
+export function verifyModelCheckAudit(packet) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("model check audit packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== MODEL_CHECK_PACKET_KEYS.join(",")) {
+    throw new Error("model check audit packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:ModelCheckAuditPacket") {
+    throw new Error("wrong model check audit packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported model check audit packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "model check audit packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("model check audit packet overall_result must be PASS");
+  }
+  for (const field of ["agents", "targets", "actions", "purposes"]) {
+    if (
+      !Array.isArray(packet[field]) ||
+      packet[field].length === 0 ||
+      packet[field].some((item) => typeof item !== "string" || item.length === 0)
+    ) {
+      throw new Error(`model check audit ${field} must be a non-empty string array`);
+    }
+  }
+  if (!Number.isInteger(packet.max_requests) || packet.max_requests < 1) {
+    throw new Error("model check audit max_requests must be a positive integer");
+  }
+
+  const space = modelCheckSpace(packet);
+  if (!Array.isArray(packet.outcomes) || packet.outcomes.length !== space.length) {
+    throw new Error("model check audit outcomes do not cover the request space");
+  }
+  let allowed = 0;
+  let denied = 0;
+  let exceptions = 0;
+  for (let index = 0; index < space.length; index += 1) {
+    const outcome = packet.outcomes[index];
+    const expected = space[index];
+    if (typeof outcome !== "object" || outcome === null || Array.isArray(outcome)) {
+      throw new Error("each model check outcome must be an object");
+    }
+    const keys = Object.keys(outcome).sort().join(",");
+    const hasAllowed = keys === MODEL_CHECK_OUTCOME_KEYS.join(",");
+    const hasException = keys === MODEL_CHECK_EXCEPTION_KEYS.join(",");
+    if (!hasAllowed && !hasException) {
+      throw new Error("model check outcome fields are invalid");
+    }
+    for (const field of ["agent", "target", "action", "purpose"]) {
+      if (outcome[field] !== expected[field]) {
+        throw new Error("model check outcome does not match the request space");
+      }
+    }
+    if (hasException) {
+      if (typeof outcome.exception !== "string" || outcome.exception.length === 0) {
+        throw new Error("model check outcome exception must be a non-empty string");
+      }
+      exceptions += 1;
+      continue;
+    }
+    if (typeof outcome.allowed !== "boolean") {
+      throw new Error("model check outcome allowed must be a boolean");
+    }
+    if (typeof outcome.reason !== "string" || outcome.reason.length === 0) {
+      throw new Error("model check outcome reason must be a non-empty string");
+    }
+    if (
+      !Array.isArray(outcome.matched_policy_ids) ||
+      outcome.matched_policy_ids.some(
+        (item) => typeof item !== "string" || item.length === 0
+      )
+    ) {
+      throw new Error("model check outcome matched_policy_ids is invalid");
+    }
+    if (outcome.allowed) allowed += 1;
+    else denied += 1;
+  }
+
+  const report = packet.report;
+  if (
+    typeof report !== "object" ||
+    report === null ||
+    Array.isArray(report) ||
+    Object.keys(report).sort().join(",") !== MODEL_CHECK_REPORT_KEYS.join(",")
+  ) {
+    throw new Error("model check audit report fields are invalid");
+  }
+  if (report.type !== "kinegrant:BoundedModelCheck") {
+    throw new Error("wrong model check report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported model check report version");
+  }
+  if (
+    report.space_size !== space.length ||
+    report.evaluated !== packet.outcomes.length ||
+    report.allowed !== allowed ||
+    report.denied !== denied ||
+    report.exceptions !== exceptions
+  ) {
+    throw new Error("model check audit report counts are inconsistent");
+  }
+
+  if (!Array.isArray(report.rules) || report.rules.length === 0) {
+    throw new Error("model check audit report has no rules");
+  }
+  const shadowed = [];
+  for (const rule of report.rules) {
+    if (
+      typeof rule !== "object" ||
+      rule === null ||
+      Array.isArray(rule) ||
+      Object.keys(rule).sort().join(",") !== MODEL_CHECK_RULE_KEYS.join(",")
+    ) {
+      throw new Error("model check audit rule fields are invalid");
+    }
+    if (typeof rule.policy_id !== "string" || rule.policy_id.length === 0) {
+      throw new Error("model check audit rule policy_id is invalid");
+    }
+    if (rule.effect !== "allow" && rule.effect !== "deny") {
+      throw new Error("model check audit rule effect must be allow or deny");
+    }
+    for (const field of ["applicable_count", "winning_count"]) {
+      if (!Number.isInteger(rule[field]) || rule[field] < 0) {
+        throw new Error(`model check audit rule ${field} is invalid`);
+      }
+    }
+    if (typeof rule.reachable !== "boolean") {
+      throw new Error("model check audit rule reachable must be a boolean");
+    }
+    let applicable = 0;
+    let winning = 0;
+    for (const outcome of packet.outcomes) {
+      if (!Array.isArray(outcome.matched_policy_ids)) continue;
+      if (!outcome.matched_policy_ids.includes(rule.policy_id)) continue;
+      applicable += 1;
+      const wins =
+        rule.effect === "allow"
+          ? outcome.allowed === true
+          : outcome.allowed === false;
+      if (wins) winning += 1;
+    }
+    if (
+      rule.applicable_count !== applicable ||
+      rule.winning_count !== winning ||
+      rule.reachable !== (winning > 0)
+    ) {
+      throw new Error("model check audit rule stats are inconsistent with outcomes");
+    }
+    if (
+      rule.effect === "allow" &&
+      rule.applicable_count > 0 &&
+      rule.winning_count === 0
+    ) {
+      shadowed.push(rule.policy_id);
+    }
+  }
+  shadowed.sort();
+  if (
+    !Array.isArray(report.shadowed_allows) ||
+    [...report.shadowed_allows].sort().join(",") !== shadowed.join(",")
+  ) {
+    throw new Error("model check audit shadowed allows are inconsistent");
+  }
+  const expectedResult =
+    exceptions === 0 && report.shadowed_allows.length === 0 ? "PASS" : "FAIL";
+  if (report.overall_result !== expectedResult) {
+    throw new Error("model check audit overall_result is inconsistent");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary) ||
+    Object.keys(summary).sort().join(",") !== MODEL_CHECK_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("model check audit packet summary fields are invalid");
+  }
+  if (
+    summary.artifacts_total !== 4 ||
+    summary.space_size !== space.length ||
+    summary.evaluated !== packet.outcomes.length ||
+    summary.allowed !== allowed ||
+    summary.denied !== denied ||
+    summary.exceptions !== exceptions ||
+    summary.rules_total !== report.rules.length ||
+    summary.shadowed_total !== report.shadowed_allows.length ||
+    summary.consistent !== true ||
+    summary.space_bound !== true
+  ) {
+    throw new Error("model check audit packet summary is inconsistent");
+  }
+  return {
+    valid: true,
+    space_size: space.length,
+    evaluated: packet.outcomes.length,
+    allowed,
+    denied,
+    exceptions,
+    rules_total: report.rules.length,
+    shadowed_total: report.shadowed_allows.length,
+  };
+}
+
 const RULE_COVERAGE_KEYS = [
   "coverage",
   "generated_at",
@@ -8626,6 +8917,7 @@ if (typeof globalThis !== "undefined") {
     verifyPolicyTemplateAudit,
     verifyObligationBatchAudit,
     verifySros2PolicyMapping,
+    verifyModelCheckAudit,
     verifyRuleCoverageAudit,
     verifyRedTeamReport,
     verifyRobotDemoReport,

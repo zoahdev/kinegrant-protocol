@@ -423,6 +423,13 @@
   <p><button id="verify-sros2-mapping">验证 SROS2 策略映射</button></p>
   <div class="row">
     <div class="col">
+      <label>模型检查审计包 JSON（kinegrant:ModelCheckAuditPacket：请求空间枚举与规则可达性统计必须逐条可复算一致）</label>
+      <textarea id="model-check" placeholder='{ "type": "kinegrant:ModelCheckAuditPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "agents": [ "robot-1" ], "targets": [ "door-7" ], "actions": [ "open", "close" ], "purposes": [ "delivery" ], "max_requests": 200, "outcomes": [ { "agent": "robot-1", "target": "door-7", "action": "open", "purpose": "delivery", "allowed": true, "reason": "...", "matched_policy_ids": [ "rule-1" ] } ], "report": { "type": "kinegrant:BoundedModelCheck", "schema_version": "0.1", "space_size": 2, "evaluated": 2, "allowed": 1, "denied": 1, "exceptions": 0, "rules": [ { "policy_id": "rule-1", "effect": "allow", "applicable_count": 1, "winning_count": 1, "reachable": true } ], "shadowed_allows": [], "overall_result": "PASS" }, "summary": { "artifacts_total": 4, "space_size": 2, "evaluated": 2, "allowed": 1, "denied": 1, "exceptions": 0, "rules_total": 1, "shadowed_total": 0, "consistent": true, "space_bound": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-model-check">验证模型检查审计</button></p>
+  <div class="row">
+    <div class="col">
       <label>验证红队报告 JSON（kinegrant:RedTeamReport：11 项对抗场景的 expected/observed/passed 一致性）</label>
       <textarea id="red-team" placeholder='{ "type": "kinegrant:RedTeamReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 11, "passed": 11, "failed": 0 }, "cases": [ { "id": "RT-001", "category": "replay", "name": "...", "expected": "DENY", "observed": "DENY", "passed": true, "detail": "..." } ] }'></textarea>
     </div>
@@ -613,6 +620,7 @@
     const obligationBatchInput = document.getElementById("obligation-batch");
     const ruleCoverageInput = document.getElementById("rule-coverage");
     const sros2MappingInput = document.getElementById("sros2-mapping");
+    const modelCheckInput = document.getElementById("model-check");
     const redTeamInput = document.getElementById("red-team");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
@@ -1376,6 +1384,20 @@
         showOk(
           `SROS2 POLICY MAPPING VALID (policy=${result.policy_id}, rules=${result.rules_total}, ` +
             `declarations=${result.declarations_total})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-model-check").addEventListener("click", () => {
+      try {
+        const packet = parseJson(modelCheckInput.value, "模型检查审计包");
+        const result = verifyModelCheckAudit(packet);
+        showOk(
+          `MODEL CHECK AUDIT VALID (space=${result.space_size}, evaluated=${result.evaluated}, ` +
+            `allowed=${result.allowed}, denied=${result.denied}, exceptions=${result.exceptions}, ` +
+            `rules=${result.rules_total}, shadowed=${result.shadowed_total})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

@@ -63,6 +63,7 @@ import {
   verifyPolicyTemplateAudit,
   verifyObligationBatchAudit,
   verifySros2PolicyMapping,
+  verifyModelCheckAudit,
   verifyRuleCoverageAudit,
   verifyRedTeamReport,
   verifyRobotDemoReport,
@@ -542,6 +543,82 @@ function buildSros2Packet(privateKey, publicKey, overrides = {}) {
       enforcement: "enforce",
       deterministic: true,
       bundle_bound: true,
+    },
+    ...overrides,
+  };
+}
+
+function buildModelCheckPacket(overrides = {}) {
+  const outcomes = [
+    {
+      agent: "robot-1",
+      target: "door-7",
+      action: "open",
+      purpose: "delivery",
+      allowed: true,
+      reason: "allow",
+      matched_policy_ids: ["allow-open"],
+    },
+    {
+      agent: "robot-1",
+      target: "door-7",
+      action: "close",
+      purpose: "delivery",
+      allowed: false,
+      reason: "deny",
+      matched_policy_ids: ["deny-close"],
+    },
+  ];
+  const report = {
+    type: "kinegrant:BoundedModelCheck",
+    schema_version: "0.1",
+    space_size: 2,
+    evaluated: 2,
+    allowed: 1,
+    denied: 1,
+    exceptions: 0,
+    rules: [
+      {
+        policy_id: "allow-open",
+        effect: "allow",
+        applicable_count: 1,
+        winning_count: 1,
+        reachable: true,
+      },
+      {
+        policy_id: "deny-close",
+        effect: "deny",
+        applicable_count: 1,
+        winning_count: 1,
+        reachable: true,
+      },
+    ],
+    shadowed_allows: [],
+    overall_result: "PASS",
+  };
+  return {
+    type: "kinegrant:ModelCheckAuditPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T04:00:00Z",
+    overall_result: "PASS",
+    agents: ["robot-1"],
+    targets: ["door-7"],
+    actions: ["open", "close"],
+    purposes: ["delivery"],
+    max_requests: 200,
+    outcomes,
+    report,
+    summary: {
+      artifacts_total: 4,
+      space_size: 2,
+      evaluated: 2,
+      allowed: 1,
+      denied: 1,
+      exceptions: 0,
+      rules_total: 2,
+      shadowed_total: 0,
+      consistent: true,
+      space_bound: true,
     },
     ...overrides,
   };
@@ -4004,6 +4081,30 @@ test("browser verifier validates obligation batch audits", async () => {
       summary: { ...packet.summary, obligations_covered: 1 },
     })
   );
+});
+
+test("browser verifier validates model check audits", () => {
+  const packet = buildModelCheckPacket();
+  const result = verifyModelCheckAudit(packet);
+  assert.equal(result.space_size, 2);
+  assert.equal(result.allowed, 1);
+  assert.equal(result.shadowed_total, 0);
+
+  const flipped = buildModelCheckPacket();
+  flipped.outcomes[0] = { ...flipped.outcomes[0], allowed: false };
+  assert.throws(() => verifyModelCheckAudit(flipped));
+
+  const badRule = buildModelCheckPacket();
+  badRule.report.rules[0] = {
+    ...badRule.report.rules[0],
+    winning_count: 0,
+    reachable: false,
+  };
+  assert.throws(() => verifyModelCheckAudit(badRule));
+
+  const badSpace = buildModelCheckPacket();
+  badSpace.outcomes[0] = { ...badSpace.outcomes[0], target: "other" };
+  assert.throws(() => verifyModelCheckAudit(badSpace));
 });
 
 test("browser verifier validates sros2 policy mappings", async () => {

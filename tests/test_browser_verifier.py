@@ -4138,6 +4138,90 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_model_check_audit(self) -> None:
+        from datetime import timedelta
+
+        from kinegrant.modelcheck import bounded_model_check
+
+        key = Ed25519KeyPair.generate()
+        allow_rule = PolicyRule(
+            "allow-open",
+            key.kid,
+            "urn:space:browser:door-1",
+            "allow",
+            ("kg.action.open",),
+            subjects=("robot-1",),
+            purposes=("delivery",),
+        )
+        deny_rule = PolicyRule(
+            "deny-close",
+            key.kid,
+            "*",
+            "deny",
+            ("kg.action.close",),
+        )
+        engine = PolicyEngine(
+            [allow_rule, deny_rule],
+            trusted_policy_issuers={key.kid},
+        )
+        agents = ["robot-1"]
+        targets = ["urn:space:browser:door-1", "urn:space:browser:door-2"]
+        actions = ["kg.action.open", "kg.action.close"]
+        purposes = ["delivery"]
+        max_requests = 200
+        model_report = bounded_model_check(
+            engine,
+            agents=agents,
+            targets=targets,
+            actions=actions,
+            purposes=purposes,
+            max_requests=max_requests,
+            include_outcomes=True,
+        )
+        outcomes = model_report.pop("outcomes")
+        report = model_report
+        packet = {
+            "type": "kinegrant:ModelCheckAuditPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "agents": agents,
+            "targets": targets,
+            "actions": actions,
+            "purposes": purposes,
+            "max_requests": max_requests,
+            "outcomes": outcomes,
+            "report": report,
+            "summary": {
+                "artifacts_total": 4,
+                "space_size": report["space_size"],
+                "evaluated": report["evaluated"],
+                "allowed": report["allowed"],
+                "denied": report["denied"],
+                "exceptions": report["exceptions"],
+                "rules_total": len(report["rules"]),
+                "shadowed_total": len(report["shadowed_allows"]),
+                "consistent": True,
+                "space_bound": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "model-check.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("model-check", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("MODEL CHECK AUDIT VALID", verified.stdout)
+
+            tampered = dict(packet)
+            tampered["outcomes"] = [dict(item) for item in packet["outcomes"]]
+            tampered["outcomes"][0]["allowed"] = not tampered["outcomes"][0]["allowed"]
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("model-check", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

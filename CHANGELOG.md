@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## 2.61.0 2026-08-15
+
+- Milestone release: reference implementation version 2.61.0 on the
+  stable 1.0 wire format, adding model check audit verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:ModelCheckAuditPacket`
+  (`verifyModelCheckAudit`: the request space is re-enumerated in the
+  exact agent x target x action x purpose order; every outcome must
+  match its space slot and be an allowed/denied decision or an
+  explicit exception; allowed/denied/exception counts, per-rule
+  applicable/winning/reachable stats, shadowed allows, overall_result
+  and the summary must all be recomputed consistently; fail-closed on
+  any inconsistency); the HTML page and Node CLI (`model-check`
+  command) expose it, cross-tested against Python model check
+  reports; `bounded_model_check` gains an additive `include_outcomes`
+  flag.
+
 ## 2.60.0 2026-08-15
 
 - Milestone release: reference implementation version 2.60.0 on the

@@ -55,6 +55,7 @@ import {
   verifyPolicyTemplateAudit,
   verifyObligationBatchAudit,
   verifySros2PolicyMapping,
+  verifyModelCheckAudit,
   verifyRuleCoverageAudit,
   verifyRedTeamReport,
   verifyRobotDemoReport,
@@ -542,6 +543,15 @@ try {
       `SROS2 POLICY MAPPING VALID (policy=${result.policy_id}, rules=${result.rules_total}, ` +
         `declarations=${result.declarations_total})`
     );
+  } else if (command === "model-check") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = verifyModelCheckAudit(packet);
+    console.log(
+      `MODEL CHECK AUDIT VALID (space=${result.space_size}, evaluated=${result.evaluated}, ` +
+        `allowed=${result.allowed}, denied=${result.denied}, exceptions=${result.exceptions}, ` +
+        `rules=${result.rules_total}, shadowed=${result.shadowed_total})`
+    );
   } else if (command === "red-team") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -657,6 +667,7 @@ try {
       "policy-template <packet.json> | " +
       "obligation-batch <packet.json> | " +
       "sros2-mapping <packet.json> | " +
+      "model-check <packet.json> | " +
       "rule-coverage <packet.json> | " +
       "red-team <report.json> | " +
       "robot-demo <report.json> | " +
