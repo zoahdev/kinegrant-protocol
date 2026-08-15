@@ -290,6 +290,13 @@
   <p><button id="verify-end-to-end-audit">验证全链路审计导出包</button></p>
   <div class="row">
     <div class="col">
+      <label>撤销-重签闭环包 JSON（kinegrant:RevocationReissueClosurePacket：撤销分发→旧能力被拒绝→重新签发→新能力放行→收据绑定）</label>
+      <textarea id="revocation-reissue" placeholder='{ "type": "kinegrant:RevocationReissueClosurePacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "revocation_bundle": { ... }, "revoked_capability_id": "kinegrant:cap:...", "request": { ... }, "reissued_capability": { ... }, "gate_log": { "revoked_denied": { "allowed": false, "reason": "revoked", "checked_at": "...", "capability_id": "kinegrant:cap:...", "policy_digest": "sha256:..." }, "reissued_allowed": { "allowed": true, "reason": "allow", "checked_at": "...", "capability_id": "kinegrant:cap:...", "policy_digest": "sha256:..." } }, "receipt": { ... }, "summary": { "artifacts_total": 8, "policy_verified": true, "revocation_verified": true, "revoked_capability_revoked": true, "deny_recorded": true, "reissue_verified": true, "allow_recorded": true, "receipt_bound": true, "closure_complete": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-revocation-reissue">验证撤销-重签闭环包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -382,6 +389,7 @@
       verifyDeviceToPolicyExport,
       verifyFleetDeviceExport,
       verifyEndToEndAuditExport,
+      verifyRevocationReissueClosure,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -436,6 +444,7 @@
     const deviceToPolicyInput = document.getElementById("device-to-policy");
     const fleetDeviceExportInput = document.getElementById("fleet-device-export");
     const endToEndAuditInput = document.getElementById("end-to-end-audit");
+    const revocationReissueInput = document.getElementById("revocation-reissue");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -942,6 +951,20 @@
           `END-TO-END AUDIT EXPORT VALID (policy=${result.policy_id}, ` +
             `${result.phases_total} lifecycle phases, ${result.devices_total} devices, ` +
             `${result.artifacts_total} artifacts)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-revocation-reissue").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(revocationReissueInput.value, "撤销-重签闭环包");
+        const result = await verifyRevocationReissueClosure(packet);
+        showOk(
+          `REVOCATION-REISSUE CLOSURE VALID (policy=${result.policy_id}, ` +
+            `revoked=${result.revoked_capability_id}, ` +
+            `reissued=${result.reissued_capability_id}, receipt=${result.receipt_id})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

@@ -592,6 +592,20 @@ Exit criterion: an auditor can re-verify governance lifecycle and
 multi-device execution evidence in one browser export without trusting
 the export generator.
 
+## v2.41 - browser revocation-reissue closure verification
+
+- browser verifier re-verifies `kinegrant:RevocationReissueClosurePacket`
+  (`verifyRevocationReissueClosure`: revoked id present in the signed
+  revocation bundle; fresh reissued capability bound to the same request
+  and policy digest; gate log records revoked denial before reissue
+  allow; receipt binds the reissued capability);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify a revocation -> denial ->
+reissue -> allow -> receipt closure in the browser without trusting the
+export generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

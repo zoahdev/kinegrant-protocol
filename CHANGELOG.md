@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.41.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.41.0 on the
+  stable 1.0 wire format, adding revocation-reissue closure verification
+  to the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:RevocationReissueClosurePacket`
+  (`verifyRevocationReissueClosure`: the revoked capability id must be in
+  the signed revocation bundle; the reissued capability must be fresh,
+  bound to the same request and policy digest; the gate log must record
+  the revoked denial before the reissue allow; the receipt must bind the
+  reissued capability; fail-closed on any inconsistency); the HTML page
+  and Node CLI (`revocation-reissue` command) expose it, cross-tested
+  against a Python-built packet.
+
 ## 2.40.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.40.0 on the

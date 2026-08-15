@@ -4237,6 +4237,294 @@ export async function verifyEndToEndAuditExport(
   };
 }
 
+const REVOCATION_REISSUE_KEYS = [
+  "gate_log",
+  "generated_at",
+  "overall_result",
+  "policy_bundle",
+  "receipt",
+  "reissued_capability",
+  "request",
+  "revocation_bundle",
+  "revoked_capability_id",
+  "schema_version",
+  "summary",
+  "trusted_authorities",
+  "trusted_policy_issuers",
+  "type",
+];
+const GATE_LOG_KEYS = ["reissued_allowed", "revoked_denied"];
+const GATE_ENTRY_KEYS = [
+  "allowed",
+  "capability_id",
+  "checked_at",
+  "policy_digest",
+  "reason",
+];
+const REVOCATION_REISSUE_SUMMARY_KEYS = [
+  "allow_recorded",
+  "artifacts_total",
+  "closure_complete",
+  "deny_recorded",
+  "policy_verified",
+  "receipt_bound",
+  "reissue_verified",
+  "revocation_verified",
+  "revoked_capability_revoked",
+];
+
+export async function verifyRevocationReissueClosure(
+  packet,
+  {
+    trustedAuthorities,
+    trustedIssuers,
+    trustedExecutors,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("revocation-reissue closure packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== REVOCATION_REISSUE_KEYS.join(",")) {
+    throw new Error("revocation-reissue closure packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:RevocationReissueClosurePacket") {
+    throw new Error("wrong revocation-reissue closure packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported revocation-reissue closure packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "revocation-reissue closure packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("revocation-reissue closure packet overall_result must be PASS");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "revocation-reissue closure packet trusted_authorities must be a non-empty string array"
+    );
+  }
+  if (
+    !Array.isArray(packet.trusted_policy_issuers) ||
+    packet.trusted_policy_issuers.length === 0 ||
+    packet.trusted_policy_issuers.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "revocation-reissue closure packet trusted_policy_issuers must be a non-empty string array"
+    );
+  }
+  if (
+    typeof packet.revoked_capability_id !== "string" ||
+    packet.revoked_capability_id.length === 0
+  ) {
+    throw new Error(
+      "revocation-reissue closure packet revoked_capability_id must be non-empty"
+    );
+  }
+
+  const trustedAuthoritiesSet = new Set(packet.trusted_authorities);
+  const policyPayload = await verifyPolicyBundle(
+    packet.policy_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+  if (!packet.trusted_policy_issuers.includes(policyPayload.issuer)) {
+    throw new Error(
+      "revocation-reissue closure policy authority is not in trusted_policy_issuers"
+    );
+  }
+  const revocationPayload = await verifyRevocationBundle(
+    packet.revocation_bundle,
+    trustedAuthoritiesSet
+  );
+  if (
+    !Array.isArray(revocationPayload.revocations) ||
+    !revocationPayload.revocations.some(
+      (entry) => entry.capability_id === packet.revoked_capability_id
+    )
+  ) {
+    throw new Error(
+      "revocation-reissue closure revoked capability id is not in the revocation bundle"
+    );
+  }
+
+  const request = packet.request;
+  if (
+    typeof request !== "object" ||
+    request === null ||
+    Array.isArray(request)
+  ) {
+    throw new Error("revocation-reissue closure packet request must be an object");
+  }
+  if (request.type !== "kinegrant:ActionRequest" || request.version !== "0.1") {
+    throw new Error(
+      "revocation-reissue closure packet request must be a v0.1 action request"
+    );
+  }
+  const requestDigest = await digestOfObject(request);
+  const reissuedPayload = await verifyCapability(
+    packet.reissued_capability,
+    request,
+    trustedIssuers ?? new Set(packet.trusted_policy_issuers)
+  );
+  if (reissuedPayload.request_digest !== requestDigest) {
+    throw new Error("reissued capability does not authorize this request");
+  }
+  if (reissuedPayload.capability_id === packet.revoked_capability_id) {
+    throw new Error("reissued capability is the revoked capability");
+  }
+  const expectedPolicyDigest =
+    "sha256:" +
+    (await sha256Hex(
+      new TextEncoder().encode(
+        canonicalJson({
+          rules: policyPayload.rules,
+          trusted_policy_issuers: [...packet.trusted_policy_issuers].sort(),
+        })
+      )
+    ));
+  if (reissuedPayload.policy_digest !== expectedPolicyDigest) {
+    throw new Error(
+      "reissued capability policy digest does not match the policy bundle and trust set"
+    );
+  }
+  const rulePolicyIds = new Set(
+    policyPayload.rules.map((rule) => rule.policy_id)
+  );
+  if (
+    !Array.isArray(reissuedPayload.matched_policy_ids) ||
+    reissuedPayload.matched_policy_ids.length === 0 ||
+    reissuedPayload.matched_policy_ids.some((id) => !rulePolicyIds.has(id))
+  ) {
+    throw new Error("reissued capability matched policies do not match the policy bundle");
+  }
+
+  const gateLog = packet.gate_log;
+  if (
+    typeof gateLog !== "object" ||
+    gateLog === null ||
+    Array.isArray(gateLog)
+  ) {
+    throw new Error("gate log must be an object");
+  }
+  if (Object.keys(gateLog).sort().join(",") !== GATE_LOG_KEYS.join(",")) {
+    throw new Error("gate log fields are invalid");
+  }
+  const denied = gateLog.revoked_denied;
+  const allowed = gateLog.reissued_allowed;
+  for (const entry of [denied, allowed]) {
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      Array.isArray(entry) ||
+      Object.keys(entry).sort().join(",") !== GATE_ENTRY_KEYS.join(",")
+    ) {
+      throw new Error("gate log entries are invalid");
+    }
+    if (typeof entry.checked_at !== "string" || Number.isNaN(Date.parse(entry.checked_at))) {
+      throw new Error("gate log entry checked_at is invalid");
+    }
+    if (typeof entry.reason !== "string" || entry.reason.length === 0) {
+      throw new Error("gate log entry reason is invalid");
+    }
+    if (entry.policy_digest !== reissuedPayload.policy_digest) {
+      throw new Error("gate log entry does not reference the verified policy");
+    }
+  }
+  if (denied.allowed !== false || denied.capability_id !== packet.revoked_capability_id) {
+    throw new Error("gate log revoked denial does not reference the revoked capability");
+  }
+  if (allowed.allowed !== true || allowed.capability_id !== reissuedPayload.capability_id) {
+    throw new Error("gate log reissue allow does not reference the reissued capability");
+  }
+  if (
+    Date.parse(allowed.checked_at) <= Date.parse(denied.checked_at)
+  ) {
+    throw new Error("gate log reissue allow must follow the revoked denial");
+  }
+
+  const receipt = packet.receipt;
+  if (typeof receipt !== "object" || receipt === null || Array.isArray(receipt)) {
+    throw new Error("revocation-reissue closure packet receipt must be an object");
+  }
+  await verifyReceiptChain([receipt], trustedExecutors);
+  const receiptPayload = await verifyEnvelope(receipt);
+  if (receiptPayload.type !== "kinegrant:PhysicalActionReceipt") {
+    throw new Error("receipt payload type is invalid");
+  }
+  if (receiptPayload.capability_id !== reissuedPayload.capability_id) {
+    throw new Error("receipt does not bind the reissued capability");
+  }
+  if (receiptPayload.request_digest !== requestDigest) {
+    throw new Error("receipt request digest does not match the request");
+  }
+  if (
+    receiptPayload.agent !== request.agent ||
+    receiptPayload.action !== request.action ||
+    receiptPayload.purpose !== request.purpose ||
+    !globMatch(receiptPayload.target, request.target)
+  ) {
+    throw new Error("receipt execution details do not match the request");
+  }
+  if (
+    typeof receiptPayload.evidence_hash !== "string" ||
+    !SHA256_RE.test(receiptPayload.evidence_hash)
+  ) {
+    throw new Error("receipt evidence_hash is invalid");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("revocation-reissue closure packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    REVOCATION_REISSUE_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("revocation-reissue closure packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 8,
+    policy_verified: true,
+    revocation_verified: true,
+    revoked_capability_revoked: true,
+    deny_recorded: true,
+    reissue_verified: true,
+    allow_recorded: true,
+    receipt_bound: true,
+    closure_complete: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(
+        `revocation-reissue closure packet summary ${key} is inconsistent`
+      );
+    }
+  }
+  return {
+    valid: true,
+    policy_id: policyPayload.policy_id,
+    revoked_capability_id: packet.revoked_capability_id,
+    reissued_capability_id: reissuedPayload.capability_id,
+    receipt_id: receiptPayload.receipt_id,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -4661,6 +4949,7 @@ if (typeof globalThis !== "undefined") {
     verifyDeviceToPolicyExport,
     verifyFleetDeviceExport,
     verifyEndToEndAuditExport,
+    verifyRevocationReissueClosure,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,
