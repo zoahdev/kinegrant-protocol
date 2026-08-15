@@ -5261,6 +5261,222 @@ export async function verifyComplianceTimeline(
   };
 }
 
+const OBLIGATION_FULFILLMENT_KEYS = [
+  "capability",
+  "device_id",
+  "generated_at",
+  "overall_result",
+  "policy_bundle",
+  "receipts",
+  "request",
+  "schema_version",
+  "summary",
+  "trusted_authorities",
+  "type",
+];
+const OBLIGATION_FULFILLMENT_SUMMARY_KEYS = [
+  "artifacts_total",
+  "capabilities",
+  "obligations_covered",
+  "obligations_required",
+  "receipts_total",
+  "references_ok",
+];
+const OBLIGATION_FULFILLMENT_STATUSES = new Set(["satisfied", "failed", "pending"]);
+
+export async function verifyObligationFulfillment(
+  packet,
+  {
+    trustedAuthorities,
+    trustedIssuers,
+    trustedExecutors,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("obligation fulfillment packet must be an object");
+  }
+  if (
+    Object.keys(packet).sort().join(",") !==
+    OBLIGATION_FULFILLMENT_KEYS.join(",")
+  ) {
+    throw new Error("obligation fulfillment packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:ObligationFulfillmentPacket") {
+    throw new Error("wrong obligation fulfillment packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported obligation fulfillment packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "obligation fulfillment packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("obligation fulfillment packet overall_result must be PASS");
+  }
+  if (typeof packet.device_id !== "string" || packet.device_id.length === 0) {
+    throw new Error("obligation fulfillment packet device_id must be non-empty");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "obligation fulfillment packet trusted_authorities must be a non-empty string array"
+    );
+  }
+
+  const trustedAuthoritiesSet = new Set(packet.trusted_authorities);
+  const policyPayload = await verifyPolicyBundle(
+    packet.policy_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+  const expectedPolicyDigest =
+    "sha256:" +
+    (await sha256Hex(
+      new TextEncoder().encode(
+        canonicalJson({
+          rules: policyPayload.rules,
+          trusted_policy_issuers: [...packet.trusted_authorities].sort(),
+        })
+      )
+    ));
+  const request = packet.request;
+  if (
+    typeof request !== "object" ||
+    request === null ||
+    Array.isArray(request)
+  ) {
+    throw new Error("obligation fulfillment packet request must be an object");
+  }
+  if (request.type !== "kinegrant:ActionRequest" || request.version !== "0.1") {
+    throw new Error(
+      "obligation fulfillment packet request must be a v0.1 action request"
+    );
+  }
+  const requestDigest = await digestOfObject(request);
+  const capPayload = await verifyCapability(
+    packet.capability,
+    request,
+    trustedIssuers ?? trustedAuthoritiesSet
+  );
+  if (capPayload.request_digest !== requestDigest) {
+    throw new Error("capability does not authorize this request");
+  }
+  if (capPayload.policy_digest !== expectedPolicyDigest) {
+    throw new Error("capability policy digest does not match the policy bundle and trust set");
+  }
+  if (!Array.isArray(capPayload.obligations) || capPayload.obligations.length === 0) {
+    throw new Error("capability carries no obligations to track");
+  }
+  const requiredObligations = new Set(capPayload.obligations);
+
+  if (!Array.isArray(packet.receipts) || packet.receipts.length === 0) {
+    throw new Error("obligation fulfillment packet receipts must be a non-empty array");
+  }
+  await verifyReceiptChain(packet.receipts, trustedExecutors);
+  const covered = new Set();
+  for (const receipt of packet.receipts) {
+    const receiptPayload = await verifyEnvelope(receipt);
+    if (receiptPayload.type !== "kinegrant:PhysicalActionReceipt") {
+      throw new Error("receipt payload type is invalid");
+    }
+    if (receiptPayload.version !== "1.0") {
+      throw new Error("obligation tracking requires receipt version 1.0");
+    }
+    if (receiptPayload.capability_id !== capPayload.capability_id) {
+      throw new Error("receipt does not bind the tracked capability");
+    }
+    if (receiptPayload.request_digest !== requestDigest) {
+      throw new Error("receipt request digest does not match the request");
+    }
+    if (
+      !Array.isArray(receiptPayload.obligation_results) ||
+      receiptPayload.obligation_results.length === 0
+    ) {
+      throw new Error("receipt has no obligation results");
+    }
+    for (const result of receiptPayload.obligation_results) {
+      if (
+        typeof result !== "object" ||
+        result === null ||
+        Array.isArray(result) ||
+        typeof result.obligation !== "string" ||
+        !KNOWN_OBLIGATIONS.has(result.obligation) ||
+        typeof result.status !== "string" ||
+        !OBLIGATION_FULFILLMENT_STATUSES.has(result.status)
+      ) {
+        throw new Error("receipt obligation result is invalid");
+      }
+      if (requiredObligations.has(result.obligation)) {
+        if (result.status === "pending") {
+          throw new Error(
+            `required obligation ${result.obligation} is still pending`
+          );
+        }
+        if (
+          result.status === "failed" &&
+          (typeof result.failure_reason !== "string" ||
+            result.failure_reason.length === 0)
+        ) {
+          throw new Error(
+            `failed obligation ${result.obligation} requires a failure_reason`
+          );
+        }
+        covered.add(result.obligation);
+      }
+    }
+  }
+  if (covered.size !== requiredObligations.size) {
+    throw new Error("receipts do not cover every required obligation");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("obligation fulfillment packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    OBLIGATION_FULFILLMENT_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("obligation fulfillment packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 5 + packet.receipts.length,
+    capabilities: 1,
+    receipts_total: packet.receipts.length,
+    obligations_required: requiredObligations.size,
+    obligations_covered: covered.size,
+    references_ok: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`obligation fulfillment packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    device_id: packet.device_id,
+    policy_id: policyPayload.policy_id,
+    capability_id: capPayload.capability_id,
+    receipts_total: packet.receipts.length,
+    obligations_required: requiredObligations.size,
+    obligations_covered: covered.size,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -5689,6 +5905,7 @@ if (typeof globalThis !== "undefined") {
     verifyUnifiedAuditExport,
     verifyPolicyMigrationAudit,
     verifyComplianceTimeline,
+    verifyObligationFulfillment,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,

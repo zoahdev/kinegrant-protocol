@@ -2814,6 +2814,97 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_obligation_fulfillment(self) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        issuer = CapabilityIssuer(key)
+        rule = PolicyRule(
+            "obligation-rule-1",
+            key.kid,
+            "urn:space:browser:*",
+            "allow",
+            ("open",),
+            purposes=("delivery",),
+            obligations=("emitActionReceipt", "logAuditEvent"),
+        )
+        bundle = authority.publish(
+            "obligation-rule-1",
+            [rule],
+            ttl_seconds=3600,
+        )
+        request = ActionRequest(
+            "urn:kinegrant:browser:request:obligation",
+            "urn:robot:browser:1",
+            "urn:space:browser:door-1",
+            "open",
+            "delivery",
+        )
+        decision = PolicyEngine(
+            [rule],
+            trusted_policy_issuers={key.kid},
+        ).evaluate(request)
+        capability = issuer.issue(request, decision, ttl_seconds=300)
+        gate = ActionGate(
+            trusted_issuers={key.kid},
+            replay_store=InMemoryReplayStore(),
+        )
+        started = utc_now()
+        verified = gate.authorize(capability, request, now=started)
+        executor = Ed25519KeyPair.generate()
+        log = ReceiptLog(executor)
+        receipt = log.append(
+            verified,
+            result="succeeded",
+            evidence_hash="sha256:" + "a" * 64,
+            started_at=started,
+            finished_at=started + timedelta(seconds=1),
+            request=request,
+            obligation_results=[
+                {"obligation": "emitActionReceipt", "status": "satisfied"},
+                {"obligation": "logAuditEvent", "status": "satisfied"},
+            ],
+        )
+        packet = {
+            "type": "kinegrant:ObligationFulfillmentPacket",
+            "schema_version": "0.1",
+            "device_id": "device:esp32c3:paper-barrier:unit-1",
+            "generated_at": isoformat(started + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid],
+            "policy_bundle": bundle,
+            "request": request.to_dict(),
+            "capability": capability,
+            "receipts": [receipt],
+            "summary": {
+                "artifacts_total": 6,
+                "capabilities": 1,
+                "receipts_total": 1,
+                "obligations_required": 2,
+                "obligations_covered": 2,
+                "references_ok": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "obligation.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("obligation-fulfillment", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("OBLIGATION FULFILLMENT VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["receipts"] = [dict(receipt)]
+            tampered["receipts"][0]["payload"] = dict(receipt["payload"])
+            tampered["receipts"][0]["payload"]["obligation_results"] = [
+                {"obligation": "emitActionReceipt", "status": "satisfied"}
+            ]
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("obligation-fulfillment", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

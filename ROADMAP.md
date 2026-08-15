@@ -647,6 +647,19 @@ Exit criterion: an auditor can re-verify the chronological event stream
 of a device's authorization lifecycle in the browser without trusting
 the export generator.
 
+## v2.45 - browser obligation fulfillment verification
+
+- browser verifier re-verifies `kinegrant:ObligationFulfillmentPacket`
+  (`verifyObligationFulfillment`: every capability obligation covered by
+  receipt obligation results, satisfied or explicitly failed; pending
+  fails closed; receipts 1.0 and chain-valid);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify that every obligation attached
+to an authorization was fulfilled or explicitly failed in the browser
+without trusting the export generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

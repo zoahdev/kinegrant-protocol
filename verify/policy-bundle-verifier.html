@@ -318,6 +318,13 @@
   <p><button id="verify-timeline">验证合规时间线</button></p>
   <div class="row">
     <div class="col">
+      <label>义务履行追踪包 JSON（kinegrant:ObligationFulfillmentPacket：能力义务列表与收据义务结果逐项对照）</label>
+      <textarea id="obligation-fulfillment" placeholder='{ "type": "kinegrant:ObligationFulfillmentPacket", "schema_version": "0.1", "device_id": "...", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "request": { ... }, "capability": { ... }, "receipts": [ { "alg": "EdDSA", "kid": "...", "payload": { "type": "kinegrant:PhysicalActionReceipt", "version": "1.0", "obligation_results": [ { "obligation": "emitActionReceipt", "status": "satisfied" }, { "obligation": "logAuditEvent", "status": "satisfied" } ], ... }, "signature": "..." } ], "summary": { "artifacts_total": 6, "capabilities": 1, "receipts_total": 1, "obligations_required": 2, "obligations_covered": 2, "references_ok": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-obligation-fulfillment">验证义务履行追踪包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -414,6 +421,7 @@
       verifyUnifiedAuditExport,
       verifyPolicyMigrationAudit,
       verifyComplianceTimeline,
+      verifyObligationFulfillment,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -472,6 +480,7 @@
     const unifiedAuditInput = document.getElementById("unified-audit");
     const migrationAuditInput = document.getElementById("migration-audit");
     const timelineInput = document.getElementById("timeline");
+    const obligationFulfillmentInput = document.getElementById("obligation-fulfillment");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1035,6 +1044,20 @@
         showOk(
           `COMPLIANCE TIMELINE VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
             `${result.events_total} events, ${result.first_at} -> ${result.last_at})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-obligation-fulfillment").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(obligationFulfillmentInput.value, "义务履行追踪包");
+        const result = await verifyObligationFulfillment(packet);
+        showOk(
+          `OBLIGATION FULFILLMENT VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
+            `${result.obligations_covered}/${result.obligations_required} obligations, ` +
+            `${result.receipts_total} receipts)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

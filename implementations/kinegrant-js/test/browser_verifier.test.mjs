@@ -49,6 +49,7 @@ import {
   verifyUnifiedAuditExport,
   verifyPolicyMigrationAudit,
   verifyComplianceTimeline,
+  verifyObligationFulfillment,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -258,7 +259,7 @@ function buildScopedCapability(privateKey, publicKey, request, options = {}) {
         .digest("hex"),
     policy_digest: options.policyDigest ?? "sha256:" + "0".repeat(64),
     matched_policy_ids: options.matchedPolicyIds ?? ["policy-1"],
-    obligations: ["emitActionReceipt"],
+    obligations: options.obligations ?? ["emitActionReceipt"],
     issued_at: issuedAt,
     not_before: issuedAt,
     expires_at: expiresAt,
@@ -447,12 +448,14 @@ function buildReceipt(
     evidenceHash = null,
     requestDigest = "sha256:" + "0".repeat(64),
     target = "door-7",
+    version = "0.1",
+    obligationResults = null,
   } = {}
 ) {
   const kid = kidOf(publicKey);
   const body = {
     type: "kinegrant:PhysicalActionReceipt",
-    version: "0.1",
+    version,
     executor: kid,
     capability_id: capabilityId || "kinegrant:cap:" + "a".repeat(64),
     request_digest: requestDigest,
@@ -472,6 +475,9 @@ function buildReceipt(
             .update(Buffer.from(canonicalJson(previous), "utf8"))
             .digest("hex"),
   };
+  if (obligationResults !== null) {
+    body.obligation_results = obligationResults;
+  }
   const unsigned = { ...body };
   body.receipt_id =
     "kinegrant:receipt:" +
@@ -2723,6 +2729,112 @@ test("browser verifier validates compliance timelines", async () => {
     verifyComplianceTimeline({
       ...packet,
       summary: { ...packet.summary, timeline_complete: false },
+    })
+  );
+});
+
+test("browser verifier validates obligation fulfillment packets", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  const bundlePayload = bundle.payload;
+  const trusted = [bundlePayload.issuer];
+  const request = {
+    type: "kinegrant:ActionRequest",
+    version: "0.1",
+    request_id: "req-1",
+    agent: "robot-1",
+    target: "urn:space:door-1",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const expectedPolicyDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        Buffer.from(
+          canonicalJson({
+            rules: bundlePayload.rules,
+            trusted_policy_issuers: trusted.sort(),
+          }),
+          "utf8"
+        )
+      )
+      .digest("hex");
+  const capability = buildScopedCapability(privateKey, publicKey, request, {
+    policyDigest: expectedPolicyDigest,
+    matchedPolicyIds: [bundlePayload.policy_id],
+    nonce: "obligation-nonce-000000000000000",
+    obligations: ["emitActionReceipt", "logAuditEvent"],
+  });
+  const receipt = buildReceipt(privateKey, publicKey, {
+    capabilityId: capability.payload.capability_id,
+    requestDigest: capability.payload.request_digest,
+    evidenceHash: "sha256:" + "a".repeat(64),
+    target: request.target,
+    version: "1.0",
+    obligationResults: [
+      { obligation: "emitActionReceipt", status: "satisfied" },
+      { obligation: "logAuditEvent", status: "satisfied" },
+    ],
+  });
+  const packet = {
+    type: "kinegrant:ObligationFulfillmentPacket",
+    schema_version: "0.1",
+    device_id: "device:esp32c3:paper-barrier:unit-1",
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: trusted,
+    policy_bundle: bundle,
+    request,
+    capability,
+    receipts: [receipt],
+    summary: {
+      artifacts_total: 6,
+      capabilities: 1,
+      receipts_total: 1,
+      obligations_required: 2,
+      obligations_covered: 2,
+      references_ok: true,
+    },
+  };
+  const result = await verifyObligationFulfillment(packet);
+  assert.equal(result.obligations_required, 2);
+  assert.equal(result.obligations_covered, 2);
+  assert.equal(result.receipts_total, 1);
+
+  const partialReceipt = buildReceipt(privateKey, publicKey, {
+    capabilityId: capability.payload.capability_id,
+    requestDigest: capability.payload.request_digest,
+    evidenceHash: "sha256:" + "a".repeat(64),
+    target: request.target,
+    version: "1.0",
+    obligationResults: [{ obligation: "emitActionReceipt", status: "satisfied" }],
+  });
+  await assert.rejects(() =>
+    verifyObligationFulfillment({ ...packet, receipts: [partialReceipt] })
+  );
+
+  const pendingReceipt = buildReceipt(privateKey, publicKey, {
+    capabilityId: capability.payload.capability_id,
+    requestDigest: capability.payload.request_digest,
+    evidenceHash: "sha256:" + "a".repeat(64),
+    target: request.target,
+    version: "1.0",
+    obligationResults: [
+      { obligation: "emitActionReceipt", status: "satisfied" },
+      { obligation: "logAuditEvent", status: "pending" },
+    ],
+  });
+  await assert.rejects(() =>
+    verifyObligationFulfillment({ ...packet, receipts: [pendingReceipt] })
+  );
+
+  await assert.rejects(() =>
+    verifyObligationFulfillment({
+      ...packet,
+      summary: { ...packet.summary, obligations_covered: 1 },
     })
   );
 });
