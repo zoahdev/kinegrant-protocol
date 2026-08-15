@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.29.0 - v2.29 first item (unreleased)
+## 2.29.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.29.0 on the
+  stable 1.0 wire format, adding policy lifecycle trace verification to
+  the browser verifier.
 
 - Browser verifier re-verifies one-stop `kinegrant:PolicyLifecycleTrace`
   artifacts (`verifyPolicyLifecycleTrace`: exact binding to the signed policy
