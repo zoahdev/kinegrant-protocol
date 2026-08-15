@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.32.0 - v2.32 first item (unreleased)
+## 2.32.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.32.0 on the
+  stable 1.0 wire format, adding bridge demo report verification to the
+  browser verifier.
 
 - Browser verifier re-verifies v0.3 bridge demo reports
   (`verifyBridgeDemoReport`: `kinegrant:Ros2McpDemoReport` and

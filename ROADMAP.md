@@ -502,13 +502,13 @@ Exit criterion: an auditor can re-verify v0.4 sensor commitments and receipt che
 
 Exit criterion: an auditor can re-verify a device attestation in the browser without trusting the device or the attestation generator. Released as v2.31.0 (2026-08-15).
 
-## v2.32 - browser bridge verification
+## v2.32 - browser bridge verification (complete with v2.32.0)
 
 - browser verifier re-verifies `kinegrant:Ros2McpDemoReport` and `kinegrant:BridgeDemoReport` (`verifyBridgeDemoReport`: outcome structure, expected/allowed/passed consistency, summary counts, bridge flags, overall result) (complete via PR #149);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: an engineer can re-verify a ROS2/MCP or adapter bridge demo report in the browser without trusting the report generator.
+Exit criterion: an engineer can re-verify a ROS2/MCP or adapter bridge demo report in the browser without trusting the report generator. Released as v2.32.0 (2026-08-15).
 
 ## Success metrics
 
