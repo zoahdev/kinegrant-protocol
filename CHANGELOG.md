@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.51.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.51.0 on the
+  stable 1.0 wire format, adding policy diff audit verification to the
+  browser verifier.
+
+- Browser verifier re-verifies `kinegrant:PolicyDiffAuditPacket`
+  (`verifyPolicyDiffAudit`: the new bundle must chain to the old bundle
+  digest at exactly version + 1; added, removed, unchanged, and changed
+  rule ids are recomputed from the two rule sets by canonical digest and
+  must match the report exactly; summary counts and flags must be
+  consistent; fail-closed on any inconsistency); the HTML page and Node
+  CLI (`policy-diff` command) expose it, cross-tested against
+  Python-published bundle pairs.
+
 ## 2.50.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.50.0 on the

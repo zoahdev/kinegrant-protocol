@@ -360,6 +360,13 @@
   <p><button id="verify-denial-explainability">验证拒绝原因可解释性包</button></p>
   <div class="row">
     <div class="col">
+      <label>策略差异报告 JSON（kinegrant:PolicyDiffAuditPacket：新旧规则集 diff、变更计数、版本链交叉一致）</label>
+      <textarea id="policy-diff" placeholder='{ "type": "kinegrant:PolicyDiffAuditPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "old_policy_bundle": { ... }, "new_policy_bundle": { ... }, "diff": { "added_rule_ids": [ "rule-2" ], "removed_rule_ids": [], "unchanged_rule_ids": [], "changed_rule_ids": [ "rule-1" ] }, "summary": { "artifacts_total": 4, "rules_total": 2, "rules_added": 1, "rules_removed": 0, "rules_unchanged": 0, "rules_changed": 1, "version_chain": true, "diff_complete": true, "policy_bound": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-policy-diff">验证策略差异报告</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -462,6 +469,7 @@
       verifyMinimalDisclosure,
       verifyLeastPrivilegeAudit,
       verifyDenialExplainability,
+      verifyPolicyDiffAudit,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -526,6 +534,7 @@
     const minimalDisclosureInput = document.getElementById("minimal-disclosure");
     const leastPrivilegeInput = document.getElementById("least-privilege");
     const denialExplainabilityInput = document.getElementById("denial-explainability");
+    const policyDiffInput = document.getElementById("policy-diff");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1169,6 +1178,20 @@
         showOk(
           `DENIAL EXPLAINABILITY VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
             `${result.denials_total} denials, ${result.rules_referenced} rules referenced)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-policy-diff").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(policyDiffInput.value, "策略差异报告");
+        const result = await verifyPolicyDiffAudit(packet);
+        showOk(
+          `POLICY DIFF AUDIT VALID (policy=${result.policy_id}, v${result.old_version} -> v${result.new_version}, ` +
+            `added=${result.added.length}, removed=${result.removed.length}, ` +
+            `unchanged=${result.unchanged.length}, changed=${result.changed.length})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

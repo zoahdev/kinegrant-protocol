@@ -720,6 +720,18 @@ granted exactly the minimum permission needed for the executed action.
 Exit criterion: an auditor can verify in the browser that every denial
 is fully explainable against the audited policy.
 
+## v2.51 - browser policy diff audit verification
+
+- browser verifier re-verifies `kinegrant:PolicyDiffAuditPacket`
+  (`verifyPolicyDiffAudit`: version chain at exactly +1; added/removed/
+  unchanged/changed rule ids recomputed by canonical digest and matched
+  exactly; consistent summary);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can verify in the browser that a policy
+difference report exactly matches the two signed bundles.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

@@ -47,6 +47,7 @@ import {
   verifyMinimalDisclosure,
   verifyLeastPrivilegeAudit,
   verifyDenialExplainability,
+  verifyPolicyDiffAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -458,6 +459,15 @@ try {
       `DENIAL EXPLAINABILITY VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
         `${result.denials_total} denials, ${result.rules_referenced} rules referenced)`
     );
+  } else if (command === "policy-diff") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyPolicyDiffAudit(packet);
+    console.log(
+      `POLICY DIFF AUDIT VALID (policy=${result.policy_id}, v${result.old_version} -> v${result.new_version}, ` +
+        `added=${result.added.length}, removed=${result.removed.length}, ` +
+        `unchanged=${result.unchanged.length}, changed=${result.changed.length})`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -557,6 +567,7 @@ try {
       "minimal-disclosure <packet.json> | " +
       "least-privilege <packet.json> | " +
       "denial-explainability <packet.json> | " +
+      "policy-diff <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +
