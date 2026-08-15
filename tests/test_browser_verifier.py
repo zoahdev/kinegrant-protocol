@@ -2074,6 +2074,131 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_end_to_end_audit_export_packet(
+        self,
+    ) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        policy_id = "urn:kinegrant:policy:audit:1"
+        rule = PolicyRule(
+            "audit-rule-1",
+            key.kid,
+            "urn:space:browser:*",
+            "allow",
+            ("open",),
+            purposes=("delivery",),
+        )
+        bundle = authority.publish(
+            policy_id,
+            [rule],
+            ttl_seconds=3600,
+        )
+        registry = PolicyRegistry(trusted_authorities={key.kid})
+        distribution = PolicyDistributor(
+            trusted_authorities={key.kid}
+        ).distribute(bundle, {"gate-a": registry})
+        audit = audit_policy_bundles(
+            {"fleet-a": bundle},
+            trusted_authorities={key.kid},
+        )
+        revocations = RevocationList()
+        revocations.revoke(
+            "kinegrant:cap:" + "d" * 64,
+            reason="fleet maintenance",
+        )
+        revocation_key = Ed25519KeyPair.generate()
+        revocation_bundle = sign_revocation_bundle(
+            build_revocation_bundle(
+                revocations,
+                issuer=revocation_key.kid,
+            ),
+            revocation_key,
+        )
+        revocation_gate = RevocationList()
+        revocation = RevocationDistributor(
+            trusted_authorities={revocation_key.kid}
+        ).distribute(revocation_bundle, {"gate-a": revocation_gate})
+        lifecycle_report = {
+            "type": "kinegrant:FullLifecycleReport",
+            "schema_version": "0.1",
+            "policy_id": policy_id,
+            "bundle_id": bundle["payload"]["bundle_id"],
+            "bundle_version": 1,
+            "generated_at": "2026-08-15T01:00:00Z",
+            "overall_result": "PASS",
+            "summary": {"phases_total": 4, "passed": 4, "failed": 0},
+            "policy_distribution": distribution,
+            "audit_summary": audit,
+            "revocation_distribution": revocation,
+        }
+        packet_1 = self._build_device_to_policy_packet(
+            authority_key=key,
+            rule=rule,
+            bundle=bundle,
+            device_id="device:esp32c3:paper-barrier:unit-1",
+            request_id="urn:kinegrant:browser:request:audit-1",
+        )
+        packet_2 = self._build_device_to_policy_packet(
+            authority_key=key,
+            rule=rule,
+            bundle=bundle,
+            device_id="device:esp32c3:paper-barrier:unit-2",
+            request_id="urn:kinegrant:browser:request:audit-2",
+        )
+        fleet_export = {
+            "type": "kinegrant:FleetDeviceExportPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=2)),
+            "overall_result": "PASS",
+            "trusted_policy_issuers": [key.kid],
+            "policy_bundle": bundle,
+            "devices": [packet_1, packet_2],
+            "summary": {
+                "devices_total": 2,
+                "policy_shared": True,
+                "devices_verified": 2,
+                "device_ids_unique": True,
+                "cross_references_ok": True,
+            },
+        }
+        packet = {
+            "type": "kinegrant:EndToEndAuditExportPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=3)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid, revocation_key.kid],
+            "policy_bundle": bundle,
+            "revocation_bundle": revocation_bundle,
+            "lifecycle_report": lifecycle_report,
+            "fleet_export": fleet_export,
+            "summary": {
+                "artifacts_total": 7,
+                "phases_total": 4,
+                "devices_total": 2,
+                "policy_shared": True,
+                "lifecycle_verified": True,
+                "fleet_verified": True,
+                "cross_references_ok": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "audit-export.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("end-to-end-audit", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("END-TO-END AUDIT EXPORT VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["summary"] = dict(packet["summary"])
+            tampered["summary"]["devices_total"] = 1
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("end-to-end-audit", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

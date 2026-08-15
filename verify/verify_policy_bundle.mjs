@@ -36,6 +36,7 @@ import {
   verifyHardwareTrustPacket,
   verifyDeviceToPolicyExport,
   verifyFleetDeviceExport,
+  verifyEndToEndAuditExport,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -351,6 +352,15 @@ try {
       `FLEET DEVICE EXPORT VALID (policy=${result.policy_id}, ` +
         `${result.devices_total} devices: ${result.device_ids.join(", ")})`
     );
+  } else if (command === "end-to-end-audit") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyEndToEndAuditExport(packet);
+    console.log(
+      `END-TO-END AUDIT EXPORT VALID (policy=${result.policy_id}, ` +
+        `${result.phases_total} lifecycle phases, ${result.devices_total} devices, ` +
+        `${result.artifacts_total} artifacts)`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -439,6 +449,7 @@ try {
       "hardware-packet <packet.json> | " +
       "device-to-policy <packet.json> | " +
       "fleet-device-export <packet.json> | " +
+      "end-to-end-audit <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +

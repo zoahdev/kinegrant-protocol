@@ -283,6 +283,13 @@
   <p><button id="verify-fleet-device-export">验证多设备联合证据导出包</button></p>
   <div class="row">
     <div class="col">
+      <label>全链路审计导出包 JSON（kinegrant:EndToEndAuditExportPacket：治理生命周期 发布→分发→审计→撤销 + 多设备执行证据，共用同一策略包）</label>
+      <textarea id="end-to-end-audit" placeholder='{ "type": "kinegrant:EndToEndAuditExportPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "revocation_bundle": { ... }, "lifecycle_report": { ... }, "fleet_export": { ... }, "summary": { "artifacts_total": 7, "phases_total": 4, "devices_total": 2, "policy_shared": true, "lifecycle_verified": true, "fleet_verified": true, "cross_references_ok": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-end-to-end-audit">验证全链路审计导出包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -374,6 +381,7 @@
       verifyHardwareTrustPacket,
       verifyDeviceToPolicyExport,
       verifyFleetDeviceExport,
+      verifyEndToEndAuditExport,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -427,6 +435,7 @@
     const hardwarePacketInput = document.getElementById("hardware-packet");
     const deviceToPolicyInput = document.getElementById("device-to-policy");
     const fleetDeviceExportInput = document.getElementById("fleet-device-export");
+    const endToEndAuditInput = document.getElementById("end-to-end-audit");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -919,6 +928,20 @@
         showOk(
           `FLEET DEVICE EXPORT VALID (policy=${result.policy_id}, ` +
             `${result.devices_total} devices: ${result.device_ids.join(", ")})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-end-to-end-audit").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(endToEndAuditInput.value, "全链路审计导出包");
+        const result = await verifyEndToEndAuditExport(packet);
+        showOk(
+          `END-TO-END AUDIT EXPORT VALID (policy=${result.policy_id}, ` +
+            `${result.phases_total} lifecycle phases, ${result.devices_total} devices, ` +
+            `${result.artifacts_total} artifacts)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

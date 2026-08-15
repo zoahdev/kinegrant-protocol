@@ -579,6 +579,19 @@ Exit criterion: an auditor can re-verify multi-device physical-action
 evidence under one policy in the browser without trusting the export
 generator.
 
+## v2.40 - browser end-to-end audit export verification
+
+- browser verifier re-verifies `kinegrant:EndToEndAuditExportPacket`
+  (`verifyEndToEndAuditExport`: full lifecycle report and multi-device
+  fleet export share one policy bundle and trust anchors; consistent
+  summary);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify governance lifecycle and
+multi-device execution evidence in one browser export without trusting
+the export generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

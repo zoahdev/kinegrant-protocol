@@ -44,6 +44,7 @@ import {
   verifyHardwareTrustPacket,
   verifyDeviceToPolicyExport,
   verifyFleetDeviceExport,
+  verifyEndToEndAuditExport,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -1823,6 +1824,181 @@ test("browser verifier validates fleet device export packets", async () => {
     verifyFleetDeviceExport({
       ...fleet,
       summary: { ...fleet.summary, cross_references_ok: false },
+    })
+  );
+});
+
+test("browser verifier validates end-to-end audit export packets", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const policyBundle = buildBundle(privateKey, publicKey);
+  const revocationBundle = buildRevocationBundle(privateKey, publicKey);
+  const distribution = {
+    type: "kinegrant:PolicyDistributionReport",
+    schema_version: "0.1",
+    policy_id: "urn:policy:browser",
+    bundle_id: policyBundle.payload.bundle_id,
+    bundle_version: 1,
+    overall_result: "PASS",
+    summary: { registries: 1, applied_total: 1, already_present_total: 0 },
+    acks: [
+      {
+        gate_id: "gate-a",
+        policy_id: "urn:policy:browser",
+        bundle_id: policyBundle.payload.bundle_id,
+        applied: true,
+        current_before: null,
+        current_after: 1,
+        detail: "policy bundle activated",
+      },
+    ],
+  };
+  const audit = {
+    type: "kinegrant:PolicyAuditSummary",
+    schema_version: "0.1",
+    overall_result: "PASS",
+    summary: {
+      bundles_total: 1,
+      verified: 1,
+      failed: 0,
+      analysis_failures: 0,
+      coverage_failures: 0,
+      findings_by_code: {},
+      allowed: 0,
+      denied: 1,
+      exceptions: 0,
+      shadowed_allows: 0,
+    },
+    bundles: [
+      {
+        label: "fleet-a",
+        verified: true,
+        policy_id: "urn:policy:browser",
+        bundle_version: 1,
+        analysis_result: "PASS",
+        coverage_result: "PASS",
+        error_findings: [],
+        shadowed_allows: [],
+        error: null,
+      },
+    ],
+    independent_verification: {
+      schema_version: "0.1",
+      overall_result: "PASS",
+      checks: [
+        {
+          tool: "kinegrant-js",
+          detail: "cross-verified",
+          capability: "PASS",
+          receipts: "SKIP",
+          policy_bundle: "PASS",
+          policy_current_version: "PASS",
+        },
+      ],
+    },
+    limitations: ["self-assessment"],
+  };
+  const revocation = {
+    type: "kinegrant:RevocationDistributionReport",
+    schema_version: "0.1",
+    bundle_id: revocationBundle.payload.bundle_id,
+    bundle_version: 1,
+    overall_result: "PASS",
+    summary: { gates: 1, added_total: 1, already_present_total: 0 },
+    acks: [
+      {
+        gate_id: "gate-a",
+        bundle_id: revocationBundle.payload.bundle_id,
+        applied: true,
+        added_count: 1,
+        already_present: 0,
+        detail: "applied",
+      },
+    ],
+  };
+  const lifecycleReport = {
+    type: "kinegrant:FullLifecycleReport",
+    schema_version: "0.1",
+    policy_id: "urn:policy:browser",
+    bundle_id: policyBundle.payload.bundle_id,
+    bundle_version: 1,
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    summary: { phases_total: 4, passed: 4, failed: 0 },
+    policy_distribution: distribution,
+    audit_summary: audit,
+    revocation_distribution: revocation,
+  };
+  const device1 = generateKeyPairSync("ed25519");
+  const device2 = generateKeyPairSync("ed25519");
+  const first = await buildDeviceToPolicyPacket(
+    privateKey,
+    publicKey,
+    device1.privateKey,
+    device1.publicKey,
+    { deviceId: "device:a-1", requestId: "req-1", bundle: policyBundle }
+  );
+  const second = await buildDeviceToPolicyPacket(
+    privateKey,
+    publicKey,
+    device2.privateKey,
+    device2.publicKey,
+    { deviceId: "device:a-2", requestId: "req-2", bundle: policyBundle }
+  );
+  const fleetExport = {
+    type: "kinegrant:FleetDeviceExportPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T02:00:00Z",
+    overall_result: "PASS",
+    trusted_policy_issuers: [policyBundle.kid],
+    policy_bundle: policyBundle,
+    devices: [first.packet, second.packet],
+    summary: {
+      devices_total: 2,
+      policy_shared: true,
+      devices_verified: 2,
+      device_ids_unique: true,
+      cross_references_ok: true,
+    },
+  };
+  const packet = {
+    type: "kinegrant:EndToEndAuditExportPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T03:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: [policyBundle.kid],
+    policy_bundle: policyBundle,
+    revocation_bundle: revocationBundle,
+    lifecycle_report: lifecycleReport,
+    fleet_export: fleetExport,
+    summary: {
+      artifacts_total: 7,
+      phases_total: 4,
+      devices_total: 2,
+      policy_shared: true,
+      lifecycle_verified: true,
+      fleet_verified: true,
+      cross_references_ok: true,
+    },
+  };
+  const result = await verifyEndToEndAuditExport(packet);
+  assert.equal(result.policy_id, "urn:policy:browser");
+  assert.equal(result.phases_total, 4);
+  assert.equal(result.devices_total, 2);
+  assert.equal(result.artifacts_total, 7);
+
+  await assert.rejects(() =>
+    verifyEndToEndAuditExport({
+      ...packet,
+      summary: { ...packet.summary, lifecycle_verified: false },
+    })
+  );
+  await assert.rejects(() =>
+    verifyEndToEndAuditExport({
+      ...packet,
+      lifecycle_report: {
+        ...packet.lifecycle_report,
+        summary: { ...packet.lifecycle_report.summary, passed: 3 },
+      },
     })
   );
 });
