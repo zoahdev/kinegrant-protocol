@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 2.63.0 2026-08-16
+
+- Milestone release: reference implementation version 2.63.0, making
+  the conformance suite clean when run from an installed wheel.
+
+- The independent JavaScript and Go cross-verification checks are now
+  reported as SKIP (with detail `toolchain unavailable`) instead of
+  FAIL when their sources are not present (for example, after
+  `pip install kinegrant-protocol`), so `kinegrant-conformance`
+  reports PASS from a clean install while still failing closed when
+  the toolchains are present but disagree.
+
 ## 2.62.0 2026-08-16
 
 - Milestone release: reference implementation version 2.62.0, adding

@@ -868,6 +868,16 @@ space and the policy rules.
 Exit criterion: a new user can install and run a live authorization
 demo from pip or Docker without cloning the repository.
 
+## v2.63 - clean conformance from pip
+
+- conformance reports SKIP (not FAIL) for optional cross-toolchain
+  checks when their sources are absent in an installed wheel;
+- RFC-0003 acceptance vote closing (community/steering action);
+- community outreach and pilot intake (external action).
+
+Exit criterion: `pip install kinegrant-protocol` followed by
+`kinegrant-conformance` reports PASS on a machine without Node.js/Go.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
