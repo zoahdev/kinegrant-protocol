@@ -61,6 +61,7 @@ import {
   verifyAuditQuery,
   verifyCrossImplementationReport,
   verifyPolicyTemplateAudit,
+  verifyObligationBatchAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -3808,6 +3809,103 @@ test("browser verifier validates policy template audits", async () => {
     verifyPolicyTemplateAudit({
       ...packet,
       summary: { ...packet.summary, consistent: false },
+    })
+  );
+});
+
+test("browser verifier validates obligation batch audits", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  const bundlePayload = bundle.payload;
+  const trusted = [bundlePayload.issuer];
+  const expectedPolicyDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        Buffer.from(
+          canonicalJson({
+            rules: bundlePayload.rules,
+            trusted_policy_issuers: trusted.sort(),
+          }),
+          "utf8"
+        )
+      )
+      .digest("hex");
+  const makeEntry = (entryId, requestId) => {
+    const request = {
+      type: "kinegrant:ActionRequest",
+      version: "0.1",
+      request_id: requestId,
+      agent: "robot-1",
+      target: "urn:space:door-1",
+      action: "open",
+      purpose: "delivery",
+      issued_at: new Date().toISOString(),
+      context: {},
+    };
+    const capability = buildScopedCapability(privateKey, publicKey, request, {
+      policyDigest: expectedPolicyDigest,
+      matchedPolicyIds: [bundlePayload.policy_id],
+      nonce: "batch-" + entryId + "-nonce-0000000000",
+      obligations: ["emitActionReceipt", "logAuditEvent"],
+    });
+    const receipt = buildReceipt(privateKey, publicKey, {
+      capabilityId: capability.payload.capability_id,
+      requestDigest: capability.payload.request_digest,
+      evidenceHash: "sha256:" + "a".repeat(64),
+      target: request.target,
+      version: "1.0",
+      obligationResults: [
+        { obligation: "emitActionReceipt", status: "satisfied" },
+        { obligation: "logAuditEvent", status: "satisfied" },
+      ],
+    });
+    return { entry_id: entryId, request, capability, receipt };
+  };
+  const entries = [makeEntry("e1", "req-1"), makeEntry("e2", "req-2")];
+  const packet = {
+    type: "kinegrant:ObligationBatchAuditPacket",
+    schema_version: "0.1",
+    device_id: "device:esp32c3:paper-barrier:unit-1",
+    generated_at: "2026-08-15T02:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: trusted,
+    policy_bundle: bundle,
+    entries,
+    summary: {
+      artifacts_total: 4,
+      entries_total: 2,
+      receipts_verified: 2,
+      obligations_required: 2,
+      obligations_covered: 2,
+      capabilities_bound: true,
+      batch_complete: true,
+    },
+  };
+  const result = await verifyObligationBatchAudit(packet);
+  assert.equal(result.entries_total, 2);
+  assert.equal(result.obligations_covered, 2);
+
+  const partial = makeEntry("e3", "req-3");
+  partial.receipt = buildReceipt(privateKey, publicKey, {
+    capabilityId: partial.capability.payload.capability_id,
+    requestDigest: partial.capability.payload.request_digest,
+    evidenceHash: "sha256:" + "a".repeat(64),
+    target: partial.request.target,
+    version: "1.0",
+    obligationResults: [{ obligation: "emitActionReceipt", status: "satisfied" }],
+  });
+  await assert.rejects(() =>
+    verifyObligationBatchAudit({
+      ...packet,
+      entries: [entries[0], partial],
+      summary: { ...packet.summary, entries_total: 2 },
+    })
+  );
+  await assert.rejects(() =>
+    verifyObligationBatchAudit({
+      ...packet,
+      summary: { ...packet.summary, obligations_covered: 1 },
     })
   );
 });

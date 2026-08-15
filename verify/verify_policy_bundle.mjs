@@ -53,6 +53,7 @@ import {
   verifyAuditQuery,
   verifyCrossImplementationReport,
   verifyPolicyTemplateAudit,
+  verifyObligationBatchAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -514,6 +515,14 @@ try {
       `POLICY TEMPLATE AUDIT VALID (policy=${result.policy_id}, template=${result.template_id}, ` +
         `${result.rules_total} rules)`
     );
+  } else if (command === "obligation-batch") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyObligationBatchAudit(packet);
+    console.log(
+      `OBLIGATION BATCH AUDIT VALID (device=${result.device_id}, ` +
+        `${result.entries_total} entries, ${result.obligations_covered}/${result.obligations_required} obligations)`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -619,6 +628,7 @@ try {
       "audit-query <packet.json> | " +
       "cross-implementation <packet.json> | " +
       "policy-template <packet.json> | " +
+      "obligation-batch <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +

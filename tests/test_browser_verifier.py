@@ -3843,6 +3843,111 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_obligation_batch_audit(self) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        issuer = CapabilityIssuer(key)
+        rule = PolicyRule(
+            "obligation-batch-rule",
+            key.kid,
+            "urn:space:browser:*",
+            "allow",
+            ("kg.action.open",),
+            purposes=("delivery",),
+            obligations=("emitActionReceipt", "logAuditEvent"),
+        )
+        bundle = authority.publish(
+            "obligation-batch-rule",
+            [rule],
+            ttl_seconds=3600,
+        )
+        entries = []
+        for index in range(2):
+            request = ActionRequest(
+                f"urn:kinegrant:browser:request:batch-{index}",
+                "urn:robot:browser:1",
+                f"urn:space:browser:door-{index + 1}",
+                "kg.action.open",
+                "delivery",
+            )
+            decision = PolicyEngine(
+                [rule],
+                trusted_policy_issuers={key.kid},
+            ).evaluate(request)
+            capability = issuer.issue(request, decision, ttl_seconds=300)
+            now = utc_now()
+            gate = ActionGate(
+                trusted_issuers={key.kid},
+                replay_store=InMemoryReplayStore(),
+            )
+            verified = gate.authorize(capability, request, now=now)
+            executor = Ed25519KeyPair.generate()
+            log = ReceiptLog(executor)
+            receipt = log.append(
+                verified,
+                result="succeeded",
+                evidence_hash="sha256:" + f"{index + 1}".zfill(2) * 32,
+                started_at=now,
+                finished_at=now + timedelta(seconds=1),
+                request=request,
+                obligation_results=[
+                    {"obligation": "emitActionReceipt", "status": "satisfied"},
+                    {"obligation": "logAuditEvent", "status": "satisfied"},
+                ],
+            )
+            entries.append(
+                {
+                    "entry_id": f"e{index + 1}",
+                    "request": request.to_dict(),
+                    "capability": capability,
+                    "receipt": receipt,
+                }
+            )
+        packet = {
+            "type": "kinegrant:ObligationBatchAuditPacket",
+            "schema_version": "0.1",
+            "device_id": "device:esp32c3:paper-barrier:unit-1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid],
+            "policy_bundle": bundle,
+            "entries": entries,
+            "summary": {
+                "artifacts_total": 4,
+                "entries_total": 2,
+                "receipts_verified": 2,
+                "obligations_required": 2,
+                "obligations_covered": 2,
+                "capabilities_bound": True,
+                "batch_complete": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "obligation-batch.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("obligation-batch", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("OBLIGATION BATCH AUDIT VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["entries"] = [
+                dict(entry) for entry in packet["entries"]
+            ]
+            tampered["entries"][1]["receipt"] = dict(tampered["entries"][1]["receipt"])
+            tampered["entries"][1]["receipt"]["payload"] = dict(
+                tampered["entries"][1]["receipt"]["payload"]
+            )
+            tampered["entries"][1]["receipt"]["payload"]["obligation_results"] = [
+                {"obligation": "emitActionReceipt", "status": "satisfied"}
+            ]
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("obligation-batch", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
