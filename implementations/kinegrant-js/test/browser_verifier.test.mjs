@@ -55,6 +55,7 @@ import {
   verifyMinimalDisclosure,
   verifyLeastPrivilegeAudit,
   verifyDenialExplainability,
+  verifyPolicyDiffAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -3265,6 +3266,104 @@ test("browser verifier validates denial explainability packets", async () => {
     verifyDenialExplainability({
       ...packet,
       summary: { ...packet.summary, rules_referenced: 2 },
+    })
+  );
+});
+
+test("browser verifier validates policy diff audits", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const oldBundle = buildBundle(privateKey, publicKey, { version: 1 });
+  const oldPayload = oldBundle.payload;
+  const newBundle = buildBundle(privateKey, publicKey, {
+    version: 2,
+    previousVersionDigest: oldPayload.policy_digest,
+    purposes: ["delivery", "maintenance"],
+    extraRules: [
+      {
+        policy_id: "urn:policy:browser:rule-2",
+        issuer: oldPayload.issuer,
+        target: "urn:space:door-2",
+        effect: "deny",
+        actions: ["close"],
+        subjects: ["*"],
+        purposes: ["maintenance"],
+        constraints: {},
+        obligations: [],
+        priority: 1,
+        source: {},
+      },
+    ],
+  });
+  const newPayload = newBundle.payload;
+  const packet = {
+    type: "kinegrant:PolicyDiffAuditPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T02:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: [oldPayload.issuer],
+    old_policy_bundle: oldBundle,
+    new_policy_bundle: newBundle,
+    diff: {
+      added_rule_ids: ["urn:policy:browser:rule-2"],
+      removed_rule_ids: [],
+      unchanged_rule_ids: [],
+      changed_rule_ids: ["urn:policy:browser"],
+    },
+    summary: {
+      artifacts_total: 4,
+      rules_total: 2,
+      rules_added: 1,
+      rules_removed: 0,
+      rules_unchanged: 0,
+      rules_changed: 1,
+      version_chain: true,
+      diff_complete: true,
+      policy_bound: true,
+    },
+  };
+  const result = await verifyPolicyDiffAudit(packet);
+  assert.equal(result.old_version, 1);
+  assert.equal(result.new_version, 2);
+  assert.deepEqual(result.added, ["urn:policy:browser:rule-2"]);
+  assert.deepEqual(result.changed, ["urn:policy:browser"]);
+
+  await assert.rejects(() =>
+    verifyPolicyDiffAudit({
+      ...packet,
+      diff: {
+        ...packet.diff,
+        added_rule_ids: ["urn:policy:browser:rule-2", "urn:policy:ghost"],
+      },
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyPolicyDiffAudit({
+      ...packet,
+      summary: { ...packet.summary, rules_added: 2 },
+    })
+  );
+  const brokenChain = buildBundle(privateKey, publicKey, {
+    version: 2,
+    previousVersionDigest: "sha256:" + "0".repeat(64),
+  });
+  await assert.rejects(() =>
+    verifyPolicyDiffAudit({
+      ...packet,
+      new_policy_bundle: brokenChain,
+      diff: {
+        ...packet.diff,
+        added_rule_ids: [],
+        changed_rule_ids: [],
+        unchanged_rule_ids: ["urn:policy:browser"],
+      },
+      summary: {
+        ...packet.summary,
+        rules_total: 1,
+        rules_added: 0,
+        rules_changed: 0,
+        rules_unchanged: 1,
+      },
     })
   );
 });

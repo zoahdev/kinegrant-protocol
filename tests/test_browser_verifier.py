@@ -3268,6 +3268,110 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_policy_diff_audit(self) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        rule_a_v1 = PolicyRule(
+            "diff-rule-a",
+            key.kid,
+            "urn:space:browser:door-1",
+            "allow",
+            ("kg.action.open",),
+            purposes=("delivery",),
+            obligations=("emitActionReceipt",),
+        )
+        rule_a_v2 = PolicyRule(
+            "diff-rule-a",
+            key.kid,
+            "urn:space:browser:door-1",
+            "allow",
+            ("kg.action.open",),
+            purposes=("delivery",),
+            obligations=("emitActionReceipt", "logAuditEvent"),
+        )
+        rule_b = PolicyRule(
+            "diff-rule-b",
+            key.kid,
+            "urn:space:browser:door-2",
+            "deny",
+            ("kg.action.close",),
+            purposes=("maintenance",),
+        )
+        old_bundle = authority.publish(
+            "urn:kinegrant:policy:diff:1",
+            [rule_a_v1],
+            ttl_seconds=3600,
+        )
+        new_bundle = authority.publish(
+            "urn:kinegrant:policy:diff:1",
+            [rule_a_v2, rule_b],
+            ttl_seconds=3600,
+        )
+
+        def rule_map(bundle: dict) -> dict[str, dict]:
+            return {
+                rule["policy_id"]: rule
+                for rule in bundle["payload"]["rules"]
+            }
+
+        old_rules = rule_map(old_bundle)
+        new_rules = rule_map(new_bundle)
+        added = sorted(set(new_rules) - set(old_rules))
+        removed = sorted(set(old_rules) - set(new_rules))
+        unchanged = sorted(
+            rule_id
+            for rule_id in set(old_rules) & set(new_rules)
+            if digest(old_rules[rule_id]) == digest(new_rules[rule_id])
+        )
+        changed = sorted(
+            rule_id
+            for rule_id in set(old_rules) & set(new_rules)
+            if digest(old_rules[rule_id]) != digest(new_rules[rule_id])
+        )
+        packet = {
+            "type": "kinegrant:PolicyDiffAuditPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid],
+            "old_policy_bundle": old_bundle,
+            "new_policy_bundle": new_bundle,
+            "diff": {
+                "added_rule_ids": added,
+                "removed_rule_ids": removed,
+                "unchanged_rule_ids": unchanged,
+                "changed_rule_ids": changed,
+            },
+            "summary": {
+                "artifacts_total": 4,
+                "rules_total": len(new_rules),
+                "rules_added": len(added),
+                "rules_removed": len(removed),
+                "rules_unchanged": len(unchanged),
+                "rules_changed": len(changed),
+                "version_chain": True,
+                "diff_complete": True,
+                "policy_bound": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "policy-diff.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("policy-diff", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("POLICY DIFF AUDIT VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["summary"] = dict(packet["summary"])
+            tampered["summary"]["rules_added"] += 1
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("policy-diff", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
