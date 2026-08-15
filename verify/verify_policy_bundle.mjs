@@ -35,6 +35,7 @@ import {
   verifyBridgeDemoReport,
   verifyHardwareTrustPacket,
   verifyDeviceToPolicyExport,
+  verifyFleetDeviceExport,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -342,6 +343,14 @@ try {
         `receipt=${result.receipt_id}, boot_counter=${result.boot_counter}, ` +
         `${result.artifacts_total} artifacts)`
     );
+  } else if (command === "fleet-device-export") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyFleetDeviceExport(packet);
+    console.log(
+      `FLEET DEVICE EXPORT VALID (policy=${result.policy_id}, ` +
+        `${result.devices_total} devices: ${result.device_ids.join(", ")})`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -429,6 +438,7 @@ try {
       "bridge <report.json> | " +
       "hardware-packet <packet.json> | " +
       "device-to-policy <packet.json> | " +
+      "fleet-device-export <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +

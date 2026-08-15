@@ -43,6 +43,7 @@ import {
   verifyBridgeDemoReport,
   verifyHardwareTrustPacket,
   verifyDeviceToPolicyExport,
+  verifyFleetDeviceExport,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -462,6 +463,107 @@ function buildReceipt(
       .update(Buffer.from(canonicalJson(unsigned), "utf8"))
       .digest("hex");
   return signEnvelope(privateKey, body);
+}
+
+async function buildDeviceToPolicyPacket(
+  authorityPrivateKey,
+  authorityPublicKey,
+  devicePrivateKey,
+  devicePublicKey,
+  { deviceId, requestId, bundle } = {}
+) {
+  const policyBundle = bundle || buildBundle(authorityPrivateKey, authorityPublicKey);
+  const bundlePayload = policyBundle.payload;
+  const request = {
+    type: "kinegrant:ActionRequest",
+    version: "0.1",
+    request_id: requestId || "req-" + deviceId,
+    agent: "robot-1",
+    target: "urn:space:door-1",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const expectedPolicyDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        Buffer.from(
+          canonicalJson({
+            rules: bundlePayload.rules,
+            trusted_policy_issuers: [bundlePayload.issuer].sort(),
+          }),
+          "utf8"
+        )
+      )
+      .digest("hex");
+  const capability = buildScopedCapability(
+    authorityPrivateKey,
+    authorityPublicKey,
+    request,
+    {
+      policyDigest: expectedPolicyDigest,
+      matchedPolicyIds: [bundlePayload.policy_id],
+    }
+  );
+  const commitment = buildSensorCommitment(
+    devicePrivateKey,
+    devicePublicKey,
+    { signed: true, sourceId: deviceId }
+  );
+  const sensorHash = await sensorEvidenceHash(commitment);
+  const receipt = buildReceipt(devicePrivateKey, devicePublicKey, {
+    capabilityId: capability.payload.capability_id,
+    requestDigest: capability.payload.request_digest,
+    evidenceHash: sensorHash,
+    target: request.target,
+  });
+  const chainDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson([receipt]), "utf8"))
+      .digest("hex");
+  const checkpoint = buildCheckpoint(devicePrivateKey, devicePublicKey, {
+    chainDigest,
+  });
+  const attestation = buildAttestation(devicePrivateKey, devicePublicKey, {
+    deviceId,
+  });
+  const packet = {
+    type: "kinegrant:DeviceToPolicyExportPacket",
+    schema_version: "0.1",
+    device_id: deviceId,
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    trusted_policy_issuers: [bundlePayload.issuer],
+    policy_bundle: policyBundle,
+    capability,
+    request,
+    gate_decision: {
+      allowed: true,
+      reason: "allow",
+      checked_at: "2026-08-15T00:30:00Z",
+      capability_id: capability.payload.capability_id,
+      policy_digest: capability.payload.policy_digest,
+    },
+    receipt,
+    sensor_commitment: commitment,
+    receipt_checkpoint: checkpoint,
+    device_attestation: attestation,
+    summary: {
+      artifacts_total: 9,
+      policy_verified: true,
+      capability_verified: true,
+      decision_consistent: true,
+      receipt_bound: true,
+      sensor_bound: true,
+      checkpoint_bound: true,
+      attestation_bound: true,
+      cross_references_ok: true,
+    },
+  };
+  return { packet, bundle: policyBundle };
 }
 
 function buildMptEvidence() {
@@ -1658,6 +1760,69 @@ test("browser verifier validates device-to-policy export packets", async () => {
     verifyDeviceToPolicyExport({
       ...packet,
       summary: { ...packet.summary, cross_references_ok: false },
+    })
+  );
+});
+
+test("browser verifier validates fleet device export packets", async () => {
+  const authority = generateKeyPairSync("ed25519");
+  const device1 = generateKeyPairSync("ed25519");
+  const device2 = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(authority.privateKey, authority.publicKey);
+  const first = await buildDeviceToPolicyPacket(
+    authority.privateKey,
+    authority.publicKey,
+    device1.privateKey,
+    device1.publicKey,
+    { deviceId: "device:a-1", requestId: "req-1", bundle }
+  );
+  const second = await buildDeviceToPolicyPacket(
+    authority.privateKey,
+    authority.publicKey,
+    device2.privateKey,
+    device2.publicKey,
+    { deviceId: "device:a-2", requestId: "req-2", bundle }
+  );
+  const fleet = {
+    type: "kinegrant:FleetDeviceExportPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T02:00:00Z",
+    overall_result: "PASS",
+    trusted_policy_issuers: first.packet.trusted_policy_issuers,
+    policy_bundle: bundle,
+    devices: [first.packet, second.packet],
+    summary: {
+      devices_total: 2,
+      policy_shared: true,
+      devices_verified: 2,
+      device_ids_unique: true,
+      cross_references_ok: true,
+    },
+  };
+  const result = await verifyFleetDeviceExport(fleet);
+  assert.equal(result.policy_id, bundle.payload.policy_id);
+  assert.equal(result.devices_total, 2);
+  assert.deepEqual(result.device_ids, ["device:a-1", "device:a-2"]);
+
+  const duplicate = await buildDeviceToPolicyPacket(
+    authority.privateKey,
+    authority.publicKey,
+    device2.privateKey,
+    device2.publicKey,
+    { deviceId: "device:a-1", requestId: "req-3", bundle }
+  );
+  await assert.rejects(() =>
+    verifyFleetDeviceExport({
+      ...fleet,
+      devices: [first.packet, duplicate.packet],
+      summary: { ...fleet.summary },
+    })
+  );
+
+  await assert.rejects(() =>
+    verifyFleetDeviceExport({
+      ...fleet,
+      summary: { ...fleet.summary, cross_references_ok: false },
     })
   );
 });

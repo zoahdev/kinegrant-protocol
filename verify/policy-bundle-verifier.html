@@ -276,6 +276,13 @@
   <p><button id="verify-device-to-policy">验证设备到策略端到端导出包</button></p>
   <div class="row">
     <div class="col">
+      <label>多设备联合证据导出包 JSON（kinegrant:FleetDeviceExportPacket：同一策略/信任锚下多台设备的设备到策略导出包交叉核验）</label>
+      <textarea id="fleet-device-export" placeholder='{ "type": "kinegrant:FleetDeviceExportPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "trusted_policy_issuers": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "devices": [ { "type": "kinegrant:DeviceToPolicyExportPacket", ... }, ... ], "summary": { "devices_total": 2, "policy_shared": true, "devices_verified": 2, "device_ids_unique": true, "cross_references_ok": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-fleet-device-export">验证多设备联合证据导出包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -366,6 +373,7 @@
       verifyBridgeDemoReport,
       verifyHardwareTrustPacket,
       verifyDeviceToPolicyExport,
+      verifyFleetDeviceExport,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -418,6 +426,7 @@
     const bridgeInput = document.getElementById("bridge");
     const hardwarePacketInput = document.getElementById("hardware-packet");
     const deviceToPolicyInput = document.getElementById("device-to-policy");
+    const fleetDeviceExportInput = document.getElementById("fleet-device-export");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -897,6 +906,19 @@
             `policy=${result.policy_id}, capability=${result.capability_id}, ` +
             `receipt=${result.receipt_id}, boot_counter=${result.boot_counter}, ` +
             `${result.artifacts_total} artifacts)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-fleet-device-export").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(fleetDeviceExportInput.value, "多设备联合证据导出包");
+        const result = await verifyFleetDeviceExport(packet);
+        showOk(
+          `FLEET DEVICE EXPORT VALID (policy=${result.policy_id}, ` +
+            `${result.devices_total} devices: ${result.device_ids.join(", ")})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);
