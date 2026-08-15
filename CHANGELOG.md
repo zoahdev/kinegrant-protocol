@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.23.0 - v2.23 first item (unreleased)
+## 2.23.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.23.0 on the
+  stable 1.0 wire format, adding conformance report verification to the
+  browser verifier.
 
 - Browser verifier re-verifies `kinegrant:ConformanceReport` artifacts
   (`verifyConformanceReport`: type/schema, L1-L4 marks, summary consistency,
