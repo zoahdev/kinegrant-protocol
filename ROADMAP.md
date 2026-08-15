@@ -398,13 +398,13 @@ Exit criterion: a user can validate an obligation list against the known vocabul
 
 Exit criterion: a user can validate agent/target/policy identifiers against the canonical syntax in the browser. Released as v2.18.0 (2026-08-15).
 
-## v2.19 - browser policy analysis verification
+## v2.19 - browser policy analysis verification (complete with v2.19.0)
 
 - browser verifier re-verifies `kinegrant:PolicyBundleAnalysis` reports against the signed bundle (findings recomputed locally, fail-closed on any mismatch) (complete via PR #122);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: an auditor can re-verify a policy analysis report in the browser without trusting the report generator.
+Exit criterion: an auditor can re-verify a policy analysis report in the browser without trusting the report generator. Released as v2.19.0 (2026-08-15).
 
 ## Success metrics
 
