@@ -6,6 +6,20 @@
 | `kinegrant-js` (`implementations/kinegrant-js`) | JavaScript (ESM, Node >= 20) | independent verifier | RFC 8785 JCS subset, Ed25519 envelopes, v0.1 and 0.2/1.0 capability verification, receipt chains |
 | `kinegrant-go` (`implementations/kinegrant-go`) | Go (stdlib only) | independent verifier | JCS subset, Ed25519 envelopes, v0.1 and 0.2/1.0 capability verification, receipt chains |
 
+Quick usage:
+
+```bash
+# JavaScript
+node implementations/kinegrant-js/src/cli.mjs verify-policy-bundle bundle.json authorities.json
+
+# Go
+go run github.com/zoahdev/kinegrant-protocol/implementations/kinegrant-go/cmd/kinegrant-verify \
+  verify-policy-bundle bundle.json authorities.json
+```
+
+See the per-implementation READMEs for details:
+[kinegrant-js](kinegrant-js/README.md) · [kinegrant-go](kinegrant-go/README.md).
+
 ## Interoperability
 
 `tests/test_javascript_interop.py` signs a capability and receipt with the
