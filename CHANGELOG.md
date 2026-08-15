@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 2.38.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.38.0 on the
+  stable 1.0 wire format, adding device-to-policy end-to-end export
+  verification to the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:DeviceToPolicyExportPacket`
+  artifacts (`verifyDeviceToPolicyExport`: policy bundle, capability,
+  gate decision, receipt, sensor commitment, receipt checkpoint, and
+  device attestation each verified and cross-bound; the capability
+  policy digest is recomputed from the exported rules and trust set;
+  receipt evidence is bound to the sensor commitment; the checkpoint
+  is anchored to the exact receipt chain; sensor readings are bound to
+  the attested device; fail-closed on any inconsistency); the HTML page
+  and Node CLI (`device-to-policy` command) expose it, cross-tested
+  against a Python-built export packet.
+
 ## 2.37.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.37.0 on the

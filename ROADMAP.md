@@ -550,6 +550,21 @@ Exit criterion: an auditor can re-verify the full publish -> distribute -> audit
 
 Exit criterion: an auditor can re-verify an evidence export manifest in the browser without trusting the export generator. Released as v2.37.0 (2026-08-15).
 
+## v2.38 - browser device-to-policy end-to-end export verification
+
+- browser verifier re-verifies `kinegrant:DeviceToPolicyExportPacket`
+  (`verifyDeviceToPolicyExport`: policy bundle, capability, gate decision,
+  receipt, sensor commitment, receipt checkpoint, and device attestation
+  each verified and cross-bound; capability policy digest recomputed from
+  exported rules and trust set; receipt evidence bound to sensor
+  commitment; checkpoint anchored to the receipt chain; sensor readings
+  bound to the attested device);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify the full device-to-policy chain
+of a physical action in the browser without trusting the export generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
