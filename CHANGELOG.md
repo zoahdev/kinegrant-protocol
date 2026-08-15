@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.26.0 - v2.26 first item (unreleased)
+## 2.26.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.26.0 on the
+  stable 1.0 wire format, adding ESP32-C3 hardware evidence verification
+  to the browser verifier.
 
 - Browser verifier re-verifies ESP32-C3 hardware-trust evidence
   (`verifyEsp32c3Evidence`: schema fields, HWP-001..011 acceptance profiles,
