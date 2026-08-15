@@ -30,6 +30,7 @@ def bounded_model_check(
     actions: Iterable[str],
     purposes: Iterable[str],
     max_requests: int = 200,
+    include_outcomes: bool = False,
 ) -> dict[str, Any]:
     """Run a bounded model check over the Cartesian request space."""
     if max_requests < 1:
@@ -102,7 +103,7 @@ def bounded_model_check(
             }
         )
 
-    return {
+    result = {
         "type": "kinegrant:BoundedModelCheck",
         "schema_version": "0.1",
         "space_size": len(space),
@@ -114,3 +115,6 @@ def bounded_model_check(
         "shadowed_allows": shadowed,
         "overall_result": "PASS" if exceptions == 0 and not shadowed else "FAIL",
     }
+    if include_outcomes:
+        result["outcomes"] = outcomes
+    return result

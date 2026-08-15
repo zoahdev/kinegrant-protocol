@@ -44,6 +44,24 @@ class BoundedModelCheckTests(unittest.TestCase):
         self.assertEqual(report["allowed"], 1)
         self.assertEqual(report["shadowed_allows"], [])
 
+    def test_include_outcomes_is_additive(self) -> None:
+        report = bounded_model_check(
+            self.engine,
+            agents=["robot-1"],
+            targets=["door-7"],
+            actions=["open", "close"],
+            purposes=["delivery"],
+            include_outcomes=True,
+        )
+        self.assertEqual(len(report["outcomes"]), report["evaluated"])
+        self.assertEqual(report["space_size"], 2)
+        first = report["outcomes"][0]
+        self.assertEqual(first["agent"], "robot-1")
+        self.assertEqual(first["target"], "door-7")
+        self.assertEqual(first["action"], "open")
+        self.assertEqual(first["purpose"], "delivery")
+        self.assertIn("allowed", first)
+
     def test_rules_are_reachable(self) -> None:
         report = bounded_model_check(
             self.engine,

@@ -844,6 +844,20 @@ Exit criterion: an auditor can verify in the browser that an SROS2
 policy mapping is exactly the deterministic projection of the signed
 KineGrant policy bundle.
 
+## v2.61 - browser model check audit verification
+
+- browser verifier re-verifies `kinegrant:ModelCheckAuditPacket`
+  (`verifyModelCheckAudit`: request-space re-enumeration, per-outcome
+  decision/exception validation, per-rule reachability and shadowed
+  allow recomputation; fail-closed on any inconsistency);
+- RFC-0003 acceptance vote closing (community/steering action);
+- integrate the model check audit page into the public site
+  (deployment action).
+
+Exit criterion: an auditor can verify in the browser that a bounded
+model check report is a faithful account of the enumerated request
+space and the policy rules.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
