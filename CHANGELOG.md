@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+## 2.21.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.21.0 on the
+  stable 1.0 wire format, adding forbidden-combination sequence checks to
+  the browser verifier.
+
+- Browser verifier evaluates forbidden combinations and sequence policies
+  end to end (`evaluateSequencePolicy`: journal entries, pattern sets,
+  optional windows and triggers, fail-closed verdicts) and re-verifies
+  `kinegrant:SequenceCheckReport` artifacts (`verifySequenceCheckReport`:
+  request/journal digests bound, verdict re-derived locally); the HTML page
+  and Node CLI (`sequence` / `sequence-eval` commands) expose it,
+  cross-tested against the Python `SequencePolicy`.
+
 ## 2.20.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.20.0 on the

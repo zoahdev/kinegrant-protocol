@@ -414,6 +414,14 @@ Exit criterion: an auditor can re-verify a policy analysis report in the browser
 
 Exit criterion: a gate operator can verify a delegated capability chain in the browser without trusting the chain generator. Released as v2.20.0 (2026-08-15).
 
+## v2.21 - browser forbidden-combination verification (complete with v2.21.0)
+
+- browser verifier evaluates forbidden combinations and sequence policies end to end (`evaluateSequencePolicy`: journal entries, pattern sets, optional windows and triggers, fail-closed verdicts) and re-verifies `kinegrant:SequenceCheckReport` artifacts (`verifySequenceCheckReport`) (complete via PR #126);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: a gate operator can verify a forbidden-combination verdict in the browser without trusting the policy or journal generator. Released as v2.21.0 (2026-08-15).
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
