@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.50.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.50.0 on the
+  stable 1.0 wire format, adding denial explainability verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:DenialExplainabilityPacket`
+  (`verifyDenialExplainability`: every denial must bind the audited
+  policy digest and a valid request digest, carry a non-empty reason and
+  explanation, reference a real policy rule when a rule is cited, and
+  have unique ids; summary counts and flags must be consistent;
+  fail-closed on any inconsistency); the HTML page and Node CLI
+  (`denial-explainability` command) expose it, cross-tested against
+  Python PolicyEngine denials.
+
 ## 2.49.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.49.0 on the

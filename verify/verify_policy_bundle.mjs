@@ -46,6 +46,7 @@ import {
   verifyIdentifierRotation,
   verifyMinimalDisclosure,
   verifyLeastPrivilegeAudit,
+  verifyDenialExplainability,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -449,6 +450,14 @@ try {
         `action=${result.request_action}, purpose=${result.request_purpose}, ` +
         `target=${result.request_target})`
     );
+  } else if (command === "denial-explainability") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyDenialExplainability(packet);
+    console.log(
+      `DENIAL EXPLAINABILITY VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
+        `${result.denials_total} denials, ${result.rules_referenced} rules referenced)`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -547,6 +556,7 @@ try {
       "identifier-rotation <packet.json> | " +
       "minimal-disclosure <packet.json> | " +
       "least-privilege <packet.json> | " +
+      "denial-explainability <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +

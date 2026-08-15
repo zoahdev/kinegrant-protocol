@@ -709,6 +709,17 @@ reveals exactly the minimum necessary fields of a committed document.
 Exit criterion: an auditor can prove in the browser that an authorization
 granted exactly the minimum permission needed for the executed action.
 
+## v2.50 - browser denial explainability verification
+
+- browser verifier re-verifies `kinegrant:DenialExplainabilityPacket`
+  (`verifyDenialExplainability`: denials bound to policy/request digests,
+  non-empty reasons and explanations, cited rules must exist);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can verify in the browser that every denial
+is fully explainable against the audited policy.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

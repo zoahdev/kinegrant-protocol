@@ -353,6 +353,13 @@
   <p><button id="verify-least-privilege">验证能力最小权限审计包</button></p>
   <div class="row">
     <div class="col">
+      <label>拒绝原因可解释性包 JSON（kinegrant:DenialExplainabilityPacket：每条拒绝记录必须引用策略/请求摘要并给出完整解释）</label>
+      <textarea id="denial-explainability" placeholder='{ "type": "kinegrant:DenialExplainabilityPacket", "schema_version": "0.1", "device_id": "...", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "denials": [ { "denial_id": "...", "denied_at": "...", "request_digest": "sha256:...", "policy_digest": "sha256:...", "rule_id": "..." , "reason": "denied", "explanation": "..." } ], "summary": { "artifacts_total": 3, "denials_total": 1, "reasons_explained": 1, "explanations_complete": 1, "rules_referenced": 1, "policy_bound": true, "request_bound": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-denial-explainability">验证拒绝原因可解释性包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -454,6 +461,7 @@
       verifyIdentifierRotation,
       verifyMinimalDisclosure,
       verifyLeastPrivilegeAudit,
+      verifyDenialExplainability,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -517,6 +525,7 @@
     const identifierRotationInput = document.getElementById("identifier-rotation");
     const minimalDisclosureInput = document.getElementById("minimal-disclosure");
     const leastPrivilegeInput = document.getElementById("least-privilege");
+    const denialExplainabilityInput = document.getElementById("denial-explainability");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1147,6 +1156,19 @@
           `LEAST PRIVILEGE AUDIT VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
             `action=${result.request_action}, purpose=${result.request_purpose}, ` +
             `target=${result.request_target})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-denial-explainability").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(denialExplainabilityInput.value, "拒绝原因可解释性包");
+        const result = await verifyDenialExplainability(packet);
+        showOk(
+          `DENIAL EXPLAINABILITY VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
+            `${result.denials_total} denials, ${result.rules_referenced} rules referenced)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

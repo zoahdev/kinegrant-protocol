@@ -54,6 +54,7 @@ import {
   verifyIdentifierRotation,
   verifyMinimalDisclosure,
   verifyLeastPrivilegeAudit,
+  verifyDenialExplainability,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -3168,6 +3169,102 @@ test("browser verifier validates least privilege audits", async () => {
     verifyLeastPrivilegeAudit({
       ...packet,
       summary: { ...packet.summary, scope_minimal: false },
+    })
+  );
+});
+
+test("browser verifier validates denial explainability packets", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  const bundlePayload = bundle.payload;
+  const trusted = [bundlePayload.issuer];
+  const expectedPolicyDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        Buffer.from(
+          canonicalJson({
+            rules: bundlePayload.rules,
+            trusted_policy_issuers: trusted.sort(),
+          }),
+          "utf8"
+        )
+      )
+      .digest("hex");
+  const packet = {
+    type: "kinegrant:DenialExplainabilityPacket",
+    schema_version: "0.1",
+    device_id: "device:esp32c3:paper-barrier:unit-1",
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: trusted,
+    policy_bundle: bundle,
+    denials: [
+      {
+        denial_id: "denial-1",
+        denied_at: "2026-08-15T00:10:00Z",
+        request_digest: "sha256:" + "1".repeat(64),
+        policy_digest: expectedPolicyDigest,
+        rule_id: bundlePayload.rules[0].policy_id,
+        reason: "denied",
+        explanation: "rule matched and denied the request",
+      },
+      {
+        denial_id: "denial-2",
+        denied_at: "2026-08-15T00:11:00Z",
+        request_digest: "sha256:" + "2".repeat(64),
+        policy_digest: expectedPolicyDigest,
+        rule_id: null,
+        reason: "unknown_action",
+        explanation: "the requested action is not in the known action vocabulary",
+      },
+    ],
+    summary: {
+      artifacts_total: 3,
+      denials_total: 2,
+      reasons_explained: 2,
+      explanations_complete: 2,
+      rules_referenced: 1,
+      policy_bound: true,
+      request_bound: true,
+    },
+  };
+  const result = await verifyDenialExplainability(packet);
+  assert.equal(result.denials_total, 2);
+  assert.equal(result.rules_referenced, 1);
+
+  await assert.rejects(() =>
+    verifyDenialExplainability({
+      ...packet,
+      denials: [
+        ...packet.denials,
+        {
+          denial_id: "denial-3",
+          denied_at: "2026-08-15T00:12:00Z",
+          request_digest: "sha256:" + "3".repeat(64),
+          policy_digest: expectedPolicyDigest,
+          rule_id: "urn:policy:not-in-bundle",
+          reason: "denied",
+          explanation: "references an unknown rule",
+        },
+      ],
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyDenialExplainability({
+      ...packet,
+      denials: [
+        { ...packet.denials[0], explanation: "" },
+        packet.denials[1],
+      ],
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyDenialExplainability({
+      ...packet,
+      summary: { ...packet.summary, rules_referenced: 2 },
     })
   );
 });
