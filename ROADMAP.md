@@ -542,13 +542,13 @@ Exit criterion: an auditor can re-verify a camera-consent scenario trace in the 
 
 Exit criterion: an auditor can re-verify the full publish -> distribute -> audit -> revoke lifecycle of a signed bundle in the browser without trusting the report generator. Released as v2.36.0 (2026-08-15).
 
-## v2.37 - browser evidence export verification
+## v2.37 - browser evidence export verification (complete with v2.37.0)
 
 - browser verifier re-verifies `kinegrant:EvidenceExportPacket` (`verifyEvidenceExportPacket`: artifact names/kinds/sha256 manifest, unique names, consistent summary) (complete via PR #160);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: an auditor can re-verify an evidence export manifest in the browser without trusting the export generator.
+Exit criterion: an auditor can re-verify an evidence export manifest in the browser without trusting the export generator. Released as v2.37.0 (2026-08-15).
 
 ## Success metrics
 

@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.37.0 - v2.37 first item (unreleased)
+## 2.37.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.37.0 on the
+  stable 1.0 wire format, adding evidence export packet verification to
+  the browser verifier.
 
 - Browser verifier re-verifies `kinegrant:EvidenceExportPacket` artifacts
   (`verifyEvidenceExportPacket`: export manifest binding artifact names to
