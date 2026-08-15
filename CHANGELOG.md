@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 2.25.0 - v2.25 first item (unreleased)
+
+- Browser verifier re-verifies `kinegrant:SecurityReviewKit` artifacts
+  (`verifySecurityReviewKit`: check statuses, MPT schema binding, benchmark
+  output, checklist/commands/artifacts structure, overall result; fail-closed
+  on any inconsistency); the HTML page and Node CLI (`kit` command) expose it,
+  cross-tested against the Python security review kit generator output shape.
+
 ## 2.24.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.24.0 on the

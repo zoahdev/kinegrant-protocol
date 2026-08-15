@@ -124,6 +124,11 @@ can be re-verified in the browser too (`verifyPolicyAuditSummary`): per-bundle
 verified/failure fields, aggregated counts, findings-by-code, and the overall
 fleet result are recomputed and compared, cross-tested against the Python
 fleet audit output.
+`kinegrant:SecurityReviewKit` artifacts can be re-verified in the browser as
+well (`verifySecurityReviewKit`): check statuses, MPT schema binding,
+benchmark output, checklist/commands/artifacts structure, and the overall
+result are all validated, cross-tested against the Python kit generator
+output shape.
 
 ## Audit aggregation
 

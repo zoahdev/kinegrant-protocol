@@ -1009,6 +1009,83 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(checked.returncode, 0, checked.stderr)
             self.assertIn("POLICY AUDIT SUMMARY VALID (FAIL", checked.stdout)
 
+    def test_browser_verifier_verifies_python_security_review_kit(self) -> None:
+        from kinegrant import __version__
+
+        kit = {
+            "type": "kinegrant:SecurityReviewKit",
+            "schema_version": "0.1",
+            "generated_at": "2026-08-15T01:00:00Z",
+            "reference_implementation": __version__,
+            "source_commit": "0" * 40,
+            "overall_result": "PASS",
+            "checks": {
+                "conformance": {"status": "PASS", "detail": "23/23"},
+                "machine_permission_test": {
+                    "status": "PASS",
+                    "detail": "22/22",
+                    "schema_version": "0.5",
+                },
+                "red_team": {"status": "PASS", "detail": "11/11"},
+                "benchmarks": {
+                    "status": "PASS",
+                    "detail": "machine-readable throughput emitted",
+                    "operations_per_second": 1234.5,
+                },
+                "unit_tests": {"status": "PASS", "detail": "OK (skipped=10)"},
+                "release_packet": {
+                    "status": "SKIP",
+                    "detail": "no release directory supplied",
+                },
+            },
+            "checklist": [
+                {
+                    "id": "default-deny",
+                    "name": "Default deny and deny-overrides",
+                    "evidence": "spec/KGP-001.md",
+                    "status": "PASS",
+                }
+            ],
+            "commands": ["python -m unittest discover -s tests"],
+            "artifacts": {
+                "specification": "spec/KGP-001.md",
+                "threat_model": "spec/THREAT-MODEL.md",
+                "standards_mapping": "spec/STANDARD-MAPPING.md",
+                "reproducing": "REPRODUCING.md",
+                "deployment_cases": "docs/DEPLOYMENT-CASES.md",
+                "releases": [
+                    "https://github.com/zoahdev/kinegrant-protocol/releases/tag/v2.24.0"
+                ],
+            },
+            "limitations": ["not a security audit"],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            kit_path = base / "kit.json"
+            kit_path.write_text(json.dumps(kit), encoding="utf-8")
+            verified = self._run("kit", str(kit_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("SECURITY REVIEW KIT VALID", verified.stdout)
+            tampered = dict(kit)
+            tampered["overall_result"] = "FAIL"
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("kit", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+            failed = dict(kit)
+            failed["overall_result"] = "FAIL"
+            failed["checks"] = dict(kit["checks"])
+            failed["checks"]["unit_tests"] = {
+                "status": "FAIL",
+                "detail": "FAILED (errors=1)",
+            }
+            failed_path = base / "failed.json"
+            failed_path.write_text(json.dumps(failed), encoding="utf-8")
+            checked = self._run("kit", str(failed_path))
+            self.assertEqual(checked.returncode, 0, checked.stderr)
+            self.assertIn("SECURITY REVIEW KIT VALID (FAIL", checked.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
