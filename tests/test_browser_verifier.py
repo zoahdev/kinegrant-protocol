@@ -2663,6 +2663,157 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_compliance_timeline(self) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        issuer = CapabilityIssuer(key)
+        rule = PolicyRule(
+            "timeline-rule-1",
+            key.kid,
+            "urn:space:browser:*",
+            "allow",
+            ("open",),
+            purposes=("delivery",),
+        )
+        bundle = authority.publish(
+            "timeline-rule-1",
+            [rule],
+            ttl_seconds=3600,
+        )
+        request = ActionRequest(
+            "urn:kinegrant:browser:request:timeline",
+            "urn:robot:browser:1",
+            "urn:space:browser:door-1",
+            "open",
+            "delivery",
+        )
+        decision = PolicyEngine(
+            [rule],
+            trusted_policy_issuers={key.kid},
+        ).evaluate(request)
+        capability_a = issuer.issue(request, decision, ttl_seconds=300)
+        cap_id_a = capability_a["payload"]["capability_id"]
+        capability_b = issuer.issue(request, decision, ttl_seconds=300)
+        cap_id_b = capability_b["payload"]["capability_id"]
+        self.assertNotEqual(cap_id_a, cap_id_b)
+        policy_digest = capability_a["payload"]["policy_digest"]
+        started = utc_now()
+        issued_at = isoformat(started - timedelta(minutes=5))
+        allowed_at = isoformat(started - timedelta(minutes=4))
+        receipt_at = isoformat(started)
+        revoked_at = isoformat(started - timedelta(minutes=2))
+        denied_at = isoformat(started - timedelta(minutes=1))
+        reissued_at = isoformat(started + timedelta(minutes=1))
+        gate = ActionGate(
+            trusted_issuers={key.kid},
+            replay_store=InMemoryReplayStore(),
+        )
+        verified = gate.authorize(capability_a, request, now=started)
+        executor = Ed25519KeyPair.generate()
+        log = ReceiptLog(executor)
+        receipt = log.append(
+            verified,
+            result="succeeded",
+            evidence_hash="sha256:" + "a" * 64,
+            started_at=started,
+            finished_at=started + timedelta(seconds=1),
+            request=request,
+        )
+        revocations = RevocationList()
+        revocations.revoke(cap_id_a, reason="operator decision")
+        revoked_gate = ActionGate(
+            trusted_issuers={key.kid},
+            replay_store=InMemoryReplayStore(),
+            revocation_list=revocations,
+        )
+        with self.assertRaises(PermissionError):
+            revoked_gate.authorize(capability_a, request, now=started)
+        events = [
+            {
+                "kind": "capability_issued",
+                "at": issued_at,
+                "capability_id": cap_id_a,
+                "request_digest": capability_a["payload"]["request_digest"],
+                "policy_digest": policy_digest,
+                "actor": "urn:robot:browser:1",
+            },
+            {
+                "kind": "gate_allowed",
+                "at": allowed_at,
+                "capability_id": cap_id_a,
+                "policy_digest": policy_digest,
+                "reason": "allow",
+            },
+            {
+                "kind": "capability_revoked",
+                "at": revoked_at,
+                "capability_id": cap_id_a,
+                "reason": "operator decision",
+            },
+            {
+                "kind": "gate_denied",
+                "at": denied_at,
+                "capability_id": cap_id_a,
+                "policy_digest": policy_digest,
+                "reason": "revoked",
+            },
+            {
+                "kind": "receipt_signed",
+                "at": receipt_at,
+                "capability_id": cap_id_a,
+                "receipt_id": receipt["payload"]["receipt_id"],
+                "evidence_hash": "sha256:" + "a" * 64,
+            },
+            {
+                "kind": "capability_reissued",
+                "at": reissued_at,
+                "old_capability_id": cap_id_a,
+                "new_capability_id": cap_id_b,
+                "policy_digest": policy_digest,
+            },
+        ]
+        packet = {
+            "type": "kinegrant:ComplianceTimelinePacket",
+            "schema_version": "0.1",
+            "device_id": "device:esp32c3:paper-barrier:unit-1",
+            "generated_at": isoformat(started + timedelta(minutes=2)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid],
+            "policy_bundle": bundle,
+            "events": events,
+            "summary": {
+                "events_total": 6,
+                "kinds_unique": 6,
+                "monotonic": True,
+                "policy_bound": True,
+                "device_bound": True,
+                "references_ok": True,
+                "timeline_complete": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "timeline.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("timeline", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("COMPLIANCE TIMELINE VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["events"] = [
+                dict(event) for event in packet["events"]
+            ]
+            tampered["events"][1], tampered["events"][4] = (
+                tampered["events"][4],
+                tampered["events"][1],
+            )
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("timeline", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5027,6 +5027,240 @@ export async function verifyPolicyMigrationAudit(
   };
 }
 
+const TIMELINE_KEYS = [
+  "device_id",
+  "events",
+  "generated_at",
+  "overall_result",
+  "policy_bundle",
+  "schema_version",
+  "summary",
+  "trusted_authorities",
+  "type",
+];
+const TIMELINE_SUMMARY_KEYS = [
+  "device_bound",
+  "events_total",
+  "kinds_unique",
+  "monotonic",
+  "policy_bound",
+  "references_ok",
+  "timeline_complete",
+];
+const TIMELINE_EVENT_KINDS = new Set([
+  "capability_issued",
+  "gate_allowed",
+  "receipt_signed",
+  "capability_revoked",
+  "gate_denied",
+  "capability_reissued",
+]);
+const TIMELINE_EVENT_KEYS = {
+  capability_issued: ["actor", "at", "capability_id", "kind", "policy_digest", "request_digest"],
+  gate_allowed: ["at", "capability_id", "kind", "policy_digest", "reason"],
+  receipt_signed: ["at", "capability_id", "evidence_hash", "kind", "receipt_id"],
+  capability_revoked: ["at", "capability_id", "kind", "reason"],
+  gate_denied: ["at", "capability_id", "kind", "policy_digest", "reason"],
+  capability_reissued: ["at", "kind", "new_capability_id", "old_capability_id", "policy_digest"],
+};
+
+export async function verifyComplianceTimeline(
+  packet,
+  {
+    trustedAuthorities,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("compliance timeline packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== TIMELINE_KEYS.join(",")) {
+    throw new Error("compliance timeline packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:ComplianceTimelinePacket") {
+    throw new Error("wrong compliance timeline packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported compliance timeline packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "compliance timeline packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("compliance timeline packet overall_result must be PASS");
+  }
+  if (typeof packet.device_id !== "string" || packet.device_id.length === 0) {
+    throw new Error("compliance timeline packet device_id must be non-empty");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "compliance timeline packet trusted_authorities must be a non-empty string array"
+    );
+  }
+
+  const policyPayload = await verifyPolicyBundle(
+    packet.policy_bundle,
+    new Set(packet.trusted_authorities),
+    { now }
+  );
+  const expectedPolicyDigest =
+    "sha256:" +
+    (await sha256Hex(
+      new TextEncoder().encode(
+        canonicalJson({
+          rules: policyPayload.rules,
+          trusted_policy_issuers: [...packet.trusted_authorities].sort(),
+        })
+      )
+    ));
+  if (!Array.isArray(packet.events) || packet.events.length === 0) {
+    throw new Error("compliance timeline packet events must be a non-empty array");
+  }
+
+  const issued = new Set();
+  const allowed = new Set();
+  const revoked = new Set();
+  const receiptIds = new Set();
+  let previousAt = -Infinity;
+  for (const event of packet.events) {
+    if (typeof event !== "object" || event === null || Array.isArray(event)) {
+      throw new Error("each timeline event must be an object");
+    }
+    if (typeof event.kind !== "string" || !TIMELINE_EVENT_KINDS.has(event.kind)) {
+      throw new Error("timeline event kind is unknown");
+    }
+    const expectedKeys = TIMELINE_EVENT_KEYS[event.kind];
+    if (Object.keys(event).sort().join(",") !== expectedKeys.join(",")) {
+      throw new Error(`timeline event ${event.kind} fields are invalid`);
+    }
+    if (typeof event.at !== "string" || Number.isNaN(Date.parse(event.at))) {
+      throw new Error("timeline event at is invalid");
+    }
+    const atMs = Date.parse(event.at);
+    if (atMs < previousAt) {
+      throw new Error("timeline events are not monotonically ordered");
+    }
+    previousAt = atMs;
+    if (event.kind === "capability_issued") {
+      if (
+        typeof event.capability_id !== "string" ||
+        event.capability_id.length === 0 ||
+        typeof event.request_digest !== "string" ||
+        event.request_digest.length === 0 ||
+        typeof event.actor !== "string" ||
+        event.actor.length === 0
+      ) {
+        throw new Error("capability_issued event fields are invalid");
+      }
+      if (event.policy_digest !== expectedPolicyDigest) {
+        throw new Error("capability_issued event does not bind the timeline policy");
+      }
+      issued.add(event.capability_id);
+    } else if (event.kind === "gate_allowed") {
+      if (!issued.has(event.capability_id)) {
+        throw new Error("gate_allowed references a capability that was never issued");
+      }
+      if (event.policy_digest !== expectedPolicyDigest) {
+        throw new Error("gate_allowed event does not bind the timeline policy");
+      }
+      if (typeof event.reason !== "string" || event.reason.length === 0) {
+        throw new Error("gate_allowed reason is invalid");
+      }
+      allowed.add(event.capability_id);
+    } else if (event.kind === "receipt_signed") {
+      if (!allowed.has(event.capability_id)) {
+        throw new Error("receipt_signed references a capability that was never allowed");
+      }
+      if (typeof event.receipt_id !== "string" || event.receipt_id.length === 0) {
+        throw new Error("receipt_signed receipt_id is invalid");
+      }
+      if (receiptIds.has(event.receipt_id)) {
+        throw new Error("receipt_signed receipt_id must be unique");
+      }
+      receiptIds.add(event.receipt_id);
+      if (typeof event.evidence_hash !== "string" || !SHA256_RE.test(event.evidence_hash)) {
+        throw new Error("receipt_signed evidence_hash is invalid");
+      }
+    } else if (event.kind === "capability_revoked") {
+      if (!issued.has(event.capability_id)) {
+        throw new Error("capability_revoked references a capability that was never issued");
+      }
+      if (typeof event.reason !== "string" || event.reason.length === 0) {
+        throw new Error("capability_revoked reason is invalid");
+      }
+      revoked.add(event.capability_id);
+    } else if (event.kind === "gate_denied") {
+      if (!issued.has(event.capability_id)) {
+        throw new Error("gate_denied references a capability that was never issued");
+      }
+      if (event.policy_digest !== expectedPolicyDigest) {
+        throw new Error("gate_denied event does not bind the timeline policy");
+      }
+      if (typeof event.reason !== "string" || event.reason.length === 0) {
+        throw new Error("gate_denied reason is invalid");
+      }
+    } else if (event.kind === "capability_reissued") {
+      if (!issued.has(event.old_capability_id)) {
+        throw new Error("capability_reissued references a capability that was never issued");
+      }
+      if (issued.has(event.new_capability_id)) {
+        throw new Error("capability_reissued new capability id was already issued");
+      }
+      if (event.policy_digest !== expectedPolicyDigest) {
+        throw new Error("capability_reissued event does not bind the timeline policy");
+      }
+      issued.add(event.new_capability_id);
+    }
+  }
+  if (revoked.size === 0) {
+    throw new Error("compliance timeline has no revocation event");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("compliance timeline packet summary must be an object");
+  }
+  if (Object.keys(summary).sort().join(",") !== TIMELINE_SUMMARY_KEYS.join(",")) {
+    throw new Error("compliance timeline packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    events_total: packet.events.length,
+    kinds_unique: new Set(packet.events.map((event) => event.kind)).size,
+    monotonic: true,
+    policy_bound: true,
+    device_bound: true,
+    references_ok: true,
+    timeline_complete: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`compliance timeline packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    device_id: packet.device_id,
+    policy_id: policyPayload.policy_id,
+    events_total: packet.events.length,
+    first_at: packet.events[0].at,
+    last_at: packet.events[packet.events.length - 1].at,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -5454,6 +5688,7 @@ if (typeof globalThis !== "undefined") {
     verifyRevocationReissueClosure,
     verifyUnifiedAuditExport,
     verifyPolicyMigrationAudit,
+    verifyComplianceTimeline,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,

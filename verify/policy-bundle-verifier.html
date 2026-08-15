@@ -311,6 +311,13 @@
   <p><button id="verify-migration-audit">验证策略版本迁移审计包</button></p>
   <div class="row">
     <div class="col">
+      <label>合规时间线 JSON（kinegrant:ComplianceTimelinePacket：签发/放行/拒绝/收据/撤销/重签事件流，按时间排序并交叉引用）</label>
+      <textarea id="timeline" placeholder='{ "type": "kinegrant:ComplianceTimelinePacket", "schema_version": "0.1", "device_id": "...", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "events": [ { "kind": "capability_issued", "at": "...", "capability_id": "kinegrant:cap:...", "request_digest": "sha256:...", "policy_digest": "sha256:...", "actor": "..." }, ... ], "summary": { "events_total": 6, "kinds_unique": 6, "monotonic": true, "policy_bound": true, "device_bound": true, "references_ok": true, "timeline_complete": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-timeline">验证合规时间线</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -406,6 +413,7 @@
       verifyRevocationReissueClosure,
       verifyUnifiedAuditExport,
       verifyPolicyMigrationAudit,
+      verifyComplianceTimeline,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -463,6 +471,7 @@
     const revocationReissueInput = document.getElementById("revocation-reissue");
     const unifiedAuditInput = document.getElementById("unified-audit");
     const migrationAuditInput = document.getElementById("migration-audit");
+    const timelineInput = document.getElementById("timeline");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1013,6 +1022,19 @@
             `v${result.old_version} -> v${result.new_version}, ` +
             `old=${result.old_capability_id}, new=${result.new_capability_id}, ` +
             `receipt=${result.receipt_id})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-timeline").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(timelineInput.value, "合规时间线");
+        const result = await verifyComplianceTimeline(packet);
+        showOk(
+          `COMPLIANCE TIMELINE VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
+            `${result.events_total} events, ${result.first_at} -> ${result.last_at})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);
