@@ -3542,6 +3542,107 @@ export function verifyBridgeDemoReport(report) {
   };
 }
 
+const HARDWARE_PACKET_KEYS = [
+  "device_attestation",
+  "device_id",
+  "generated_at",
+  "overall_result",
+  "receipt_checkpoints",
+  "schema_version",
+  "sensor_commitments",
+  "summary",
+  "type",
+];
+
+export async function verifyHardwareTrustPacket(
+  packet,
+  { trustedDevices, trustedSensors, trustedNotaries } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("hardware trust packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== HARDWARE_PACKET_KEYS.join(",")) {
+    throw new Error("hardware trust packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:HardwareTrustPacket") {
+    throw new Error("wrong hardware trust packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported hardware trust packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "hardware trust packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("hardware trust packet overall_result must be PASS");
+  }
+  if (typeof packet.device_id !== "string" || packet.device_id.length === 0) {
+    throw new Error("hardware trust packet device_id must be a non-empty string");
+  }
+  const attestation = packet.device_attestation;
+  if (typeof attestation !== "object" || attestation === null || Array.isArray(attestation)) {
+    throw new Error("hardware trust packet device_attestation must be an object");
+  }
+  const attestationResult = await verifyDeviceAttestation(attestation, {
+    trustedDevices,
+  });
+  if (attestationResult.device_id !== packet.device_id) {
+    throw new Error(
+      "hardware trust packet device_id does not match the device attestation"
+    );
+  }
+  if (
+    !Array.isArray(packet.sensor_commitments) ||
+    packet.sensor_commitments.length === 0
+  ) {
+    throw new Error(
+      "hardware trust packet sensor_commitments must be a non-empty array"
+    );
+  }
+  for (const commitment of packet.sensor_commitments) {
+    await verifySensorCommitment(commitment, { trustedSensors });
+  }
+  if (
+    !Array.isArray(packet.receipt_checkpoints) ||
+    packet.receipt_checkpoints.length === 0
+  ) {
+    throw new Error(
+      "hardware trust packet receipt_checkpoints must be a non-empty array"
+    );
+  }
+  for (const checkpoint of packet.receipt_checkpoints) {
+    await verifyReceiptCheckpoint(checkpoint, { trustedNotaries });
+  }
+  const summary = packet.summary;
+  if (typeof summary !== "object" || summary === null || Array.isArray(summary)) {
+    throw new Error("hardware trust packet summary must be an object");
+  }
+  if (Object.keys(summary).sort().join(",") !== "device_attestations,receipt_checkpoints,sensor_commitments") {
+    throw new Error("hardware trust packet summary fields are invalid");
+  }
+  if (
+    summary.device_attestations !== 1 ||
+    summary.sensor_commitments !== packet.sensor_commitments.length ||
+    summary.receipt_checkpoints !== packet.receipt_checkpoints.length
+  ) {
+    throw new Error("hardware trust packet summary is inconsistent");
+  }
+  return {
+    valid: true,
+    device_id: packet.device_id,
+    firmware_digest: attestationResult.firmware_digest,
+    boot_counter: attestationResult.boot_counter,
+    sensor_commitments: packet.sensor_commitments.length,
+    receipt_checkpoints: packet.receipt_checkpoints.length,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -3577,5 +3678,6 @@ if (typeof globalThis !== "undefined") {
     verifyReceiptCheckpoint,
     verifyDeviceAttestation,
     verifyBridgeDemoReport,
+    verifyHardwareTrustPacket,
   };
 }

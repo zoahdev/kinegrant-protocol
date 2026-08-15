@@ -169,6 +169,11 @@ v0.3 bridge demo reports (`kinegrant:Ros2McpDemoReport` and
 field), expected/allowed/passed consistency, summary counts, bridge flags,
 and the overall result, cross-tested against the Python ROS2 and bridge demo
 runners.
+The combined `kinegrant:HardwareTrustPacket` is re-verified in the browser
+too (`verifyHardwareTrustPacket`): a device attestation, at least one sensor
+commitment, and at least one receipt checkpoint are each re-verified, the
+packet device id is bound to the attestation, and the packet summary is
+checked, cross-tested against the Python v0.4 hardware-trust builders.
 
 ## Audit aggregation
 

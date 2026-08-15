@@ -64,3 +64,7 @@ evidence-hash binding.
 `kinegrant:DeviceAttestation` is re-verified in the browser as well
 (`verifyDeviceAttestation`): device binding, firmware digest, boot counter,
 measured-boot stage digests, and content-addressed attestation id.
+The combined `kinegrant:HardwareTrustPacket` bundles all three and is
+re-verified end to end (`verifyHardwareTrustPacket`): the device attestation,
+every sensor commitment, and every receipt checkpoint are re-verified, the
+packet device id is bound to the attestation, and the summary is checked.

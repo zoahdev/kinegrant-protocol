@@ -41,6 +41,7 @@ import {
   verifyReceiptCheckpoint,
   verifyDeviceAttestation,
   verifyBridgeDemoReport,
+  verifyHardwareTrustPacket,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -1450,4 +1451,35 @@ test("browser verifier validates bridge demo reports", () => {
   delete bridge.receipts_verified;
   result = verifyBridgeDemoReport(bridge);
   assert.equal(result.type, "kinegrant:BridgeDemoReport");
+});
+
+test("browser verifier validates hardware trust packets", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const attestation = buildAttestation(privateKey, publicKey);
+  const commitment = buildSensorCommitment(privateKey, publicKey, { signed: true });
+  const checkpoint = buildCheckpoint(privateKey, publicKey);
+  const packet = {
+    type: "kinegrant:HardwareTrustPacket",
+    schema_version: "0.1",
+    device_id: "device:esp32c3:paper-barrier:unit-1",
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    device_attestation: attestation,
+    sensor_commitments: [commitment],
+    receipt_checkpoints: [checkpoint],
+    summary: {
+      device_attestations: 1,
+      sensor_commitments: 1,
+      receipt_checkpoints: 1,
+    },
+  };
+  const result = await verifyHardwareTrustPacket(packet);
+  assert.equal(result.device_id, "device:esp32c3:paper-barrier:unit-1");
+  assert.equal(result.sensor_commitments, 1);
+  assert.equal(result.receipt_checkpoints, 1);
+  packet.summary.sensor_commitments = 2;
+  await assert.rejects(() => verifyHardwareTrustPacket(packet));
+  packet.summary.sensor_commitments = 1;
+  packet.device_id = "other-device";
+  await assert.rejects(() => verifyHardwareTrustPacket(packet));
 });
