@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.37.0 - v2.37 first item (unreleased)
+
+- Browser verifier re-verifies `kinegrant:EvidenceExportPacket` artifacts
+  (`verifyEvidenceExportPacket`: export manifest binding artifact names to
+  known kinds and sha256 digests, unique names, consistent summary;
+  fail-closed on any inconsistency); the HTML page and Node CLI
+  (`evidence-export` command) expose it, cross-tested against a Python-built
+  export manifest.
+
 ## 2.36.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.36.0 on the

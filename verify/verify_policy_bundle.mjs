@@ -37,6 +37,7 @@ import {
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
+  verifyEvidenceExportPacket,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -364,6 +365,14 @@ try {
       `FULL LIFECYCLE REPORT VALID (PASS: ${result.phases} phases, ` +
         `policy=${result.policy_id}, bundle_version=${result.bundle_version})`
     );
+  } else if (command === "evidence-export") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = verifyEvidenceExportPacket(packet);
+    console.log(
+      `EVIDENCE EXPORT PACKET VALID (${result.artifacts} artifacts, ` +
+        `${result.unique_kinds} kinds, digests verified)`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -410,7 +419,8 @@ try {
       "hardware-packet <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
-      "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json>"
+      "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +
+      "evidence-export <packet.json>"
     );
   }
 } catch (error) {

@@ -188,6 +188,11 @@ well (`verifyFullLifecycleReport`): the signed policy bundle is verified and
 bound, then the policy distribution report, the fleet audit summary, and the
 revocation distribution report are each re-verified against the same bundle,
 cross-tested against the Python lifecycle example components.
+`kinegrant:EvidenceExportPacket` is re-verified in the browser too
+(`verifyEvidenceExportPacket`): the export manifest binds every evidence
+artifact name to a known kind and a sha256 digest, with unique names and
+consistent summary counts, cross-tested against a Python-built export
+manifest.
 
 ## Audit aggregation
 

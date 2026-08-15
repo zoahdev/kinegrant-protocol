@@ -45,6 +45,7 @@ import {
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
+  verifyEvidenceExportPacket,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -1695,4 +1696,37 @@ test("browser verifier validates full lifecycle reports", async () => {
       new Set([policyBundle.kid])
     )
   );
+});
+
+test("browser verifier validates evidence export packets", () => {
+  const packet = {
+    type: "kinegrant:EvidenceExportPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    artifacts: [
+      {
+        kind: "mpt_evidence",
+        name: "machine-permission-test.evidence.json",
+        sha256: "sha256:" + "a".repeat(64),
+      },
+      {
+        kind: "conformance_report",
+        name: "conformance-report.json",
+        sha256: "sha256:" + "b".repeat(64),
+      },
+    ],
+    summary: { artifacts_total: 2, unique_kinds: 2, digest_verified: true },
+  };
+  const result = verifyEvidenceExportPacket(packet);
+  assert.equal(result.artifacts, 2);
+  assert.equal(result.unique_kinds, 2);
+  packet.artifacts[1].name = packet.artifacts[0].name;
+  assert.throws(() => verifyEvidenceExportPacket(packet));
+  packet.artifacts[1].name = "conformance-report.json";
+  packet.summary.artifacts_total = 1;
+  assert.throws(() => verifyEvidenceExportPacket(packet));
+  packet.summary.artifacts_total = 2;
+  packet.artifacts[0].sha256 = "sha256:" + "x".repeat(63);
+  assert.throws(() => verifyEvidenceExportPacket(packet));
 });
