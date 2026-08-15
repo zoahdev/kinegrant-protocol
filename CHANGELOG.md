@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.33.0 - v2.33 first item (unreleased)
+
+- Browser verifier re-verifies combined `kinegrant:HardwareTrustPacket`
+  artifacts (`verifyHardwareTrustPacket`: device attestation, sensor
+  commitments, and receipt checkpoints each re-verified; packet device id
+  bound to the attestation; summary checked; fail-closed on any
+  inconsistency); the HTML page and Node CLI (`hardware-packet` command)
+  expose it, cross-tested against the Python v0.4 hardware-trust builders.
+
 ## 2.32.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.32.0 on the

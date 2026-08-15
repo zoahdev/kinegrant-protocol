@@ -1508,6 +1508,69 @@ class BrowserVerifierInteropTests(unittest.TestCase):
                 self.assertEqual(rejected.returncode, 2)
                 self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_hardware_trust_packet(self) -> None:
+        key = Ed25519KeyPair.generate()
+        attestation = build_device_attestation(
+            device_id="device:esp32c3:paper-barrier:unit-1",
+            firmware_digest="sha256:" + "c" * 64,
+            boot_counter=3,
+            device_key=key,
+            measured_boot=[
+                {"stage": "bootloader", "digest": "sha256:" + "d" * 64}
+            ],
+            issued_at="2026-08-15T00:00:00Z",
+        )
+        reading = SensorReading(
+            kind="force",
+            value={"newtons": 1.5},
+            source_id="sensor-1",
+            confidence=0.9,
+            observed_at="2026-08-15T00:00:00Z",
+        )
+        commitment = build_sensor_commitment(
+            [reading],
+            sensor_kid=key.kid,
+            key_pair=key,
+            committed_at="2026-08-15T00:00:00Z",
+        )
+        checkpoint = build_receipt_checkpoint(
+            "sha256:" + "b" * 64,
+            notary_kid=key.kid,
+            key_pair=key,
+            period="daily",
+            issued_at="2026-08-15T00:00:00Z",
+        )
+        packet = {
+            "type": "kinegrant:HardwareTrustPacket",
+            "schema_version": "0.1",
+            "device_id": "device:esp32c3:paper-barrier:unit-1",
+            "generated_at": "2026-08-15T01:00:00Z",
+            "overall_result": "PASS",
+            "device_attestation": attestation,
+            "sensor_commitments": [commitment],
+            "receipt_checkpoints": [checkpoint],
+            "summary": {
+                "device_attestations": 1,
+                "sensor_commitments": 1,
+                "receipt_checkpoints": 1,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "packet.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("hardware-packet", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("HARDWARE TRUST PACKET VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["summary"] = dict(packet["summary"])
+            tampered["summary"]["sensor_commitments"] = 2
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("hardware-packet", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

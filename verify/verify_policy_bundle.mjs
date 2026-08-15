@@ -33,6 +33,7 @@ import {
   verifyReceiptCheckpoint,
   verifyDeviceAttestation,
   verifyBridgeDemoReport,
+  verifyHardwareTrustPacket,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -316,6 +317,16 @@ try {
       `BRIDGE DEMO REPORT VALID (${result.type}: ${result.overall_result}, ` +
         `${result.summary.passed}/${result.summary.total} outcomes)`
     );
+  } else if (command === "hardware-packet") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyHardwareTrustPacket(packet);
+    console.log(
+      `HARDWARE TRUST PACKET VALID (device=${result.device_id}, ` +
+        `firmware=${result.firmware_digest}, boot_counter=${result.boot_counter}, ` +
+        `${result.sensor_commitments} sensor commitments, ` +
+        `${result.receipt_checkpoints} receipt checkpoints)`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -358,7 +369,8 @@ try {
       "sensor <commitment.json> | " +
       "checkpoint <checkpoint.json> | " +
       "attestation <attestation.json> | " +
-      "bridge <report.json>"
+      "bridge <report.json> | " +
+      "hardware-packet <packet.json>"
     );
   }
 } catch (error) {
