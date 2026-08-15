@@ -136,6 +136,12 @@ profiles, NOT_RUN/PASS/FAIL consistency, trust-check flags, and physical-mode
 artifact/role/digest requirements are all checked locally, cross-tested
 against the Python hardware evidence verifier. File-byte verification of
 artifacts stays in the Python verifier (`--artifact-root`).
+A combined `kinegrant:FleetOperationsReport` can be re-verified in the
+browser as well (`verifyFleetOperationsReport`): the embedded policy
+distribution and revocation distribution reports are each re-verified against
+their signed bundles, then gate sets and fleet totals are joined and checked
+for consistency, cross-tested against Python `PolicyDistributor` +
+`RevocationDistributor` output.
 
 ## Audit aggregation
 

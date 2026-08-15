@@ -25,6 +25,7 @@ import {
   verifyPolicyAuditSummary,
   verifySecurityReviewKit,
   verifyEsp32c3Evidence,
+  verifyFleetOperationsReport,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -233,6 +234,24 @@ try {
       `ESP32-C3 EVIDENCE VALID (${result.overall_result}, ` +
         `mode=${result.evidence_mode}, ${result.cases} cases)`
     );
+  } else if (command === "fleet-ops") {
+    const [reportPath, policyBundlePath, revocationBundlePath, authoritiesPath] = args;
+    const report = load(reportPath);
+    const policyBundle = load(policyBundlePath);
+    const revocationBundle = load(revocationBundlePath);
+    const trustedAuthorities = new Set(load(authoritiesPath));
+    const result = await verifyFleetOperationsReport(
+      report,
+      policyBundle,
+      revocationBundle,
+      trustedAuthorities
+    );
+    console.log(
+      `FLEET OPERATIONS REPORT VALID (${result.overall_result}: ` +
+        `${result.summary.policy_applied}/${result.summary.gates_total} policy applied, ` +
+        `${result.summary.revocation_applied}/${result.summary.gates_total} revocation applied, ` +
+        `${result.gates} gates)`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -268,7 +287,8 @@ try {
       "conformance <report.json> | " +
       "fleet-audit <report.json> | " +
       "kit <kit.json> | " +
-      "esp32 <evidence.json>"
+      "esp32 <evidence.json> | " +
+      "fleet-ops <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json>"
     );
   }
 } catch (error) {

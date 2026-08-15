@@ -33,6 +33,7 @@ import {
   verifyPolicyAuditSummary,
   verifySecurityReviewKit,
   verifyEsp32c3Evidence,
+  verifyFleetOperationsReport,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -1100,4 +1101,90 @@ test("browser verifier validates ESP32-C3 hardware evidence", () => {
   simPass.overall_result = "SIMULATION_PASS";
   simPass.cases[0].passed = false;
   assert.throws(() => verifyEsp32c3Evidence(simPass));
+});
+
+test("browser verifier validates fleet operations reports", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const policyBundle = buildBundle(privateKey, publicKey);
+  const revocationBundle = buildRevocationBundle(privateKey, publicKey);
+  const policyReport = {
+    type: "kinegrant:PolicyDistributionReport",
+    schema_version: "0.1",
+    policy_id: "urn:policy:browser",
+    bundle_id: policyBundle.payload.bundle_id,
+    bundle_version: 1,
+    overall_result: "PASS",
+    summary: { registries: 1, applied_total: 1, already_present_total: 0 },
+    acks: [
+      {
+        gate_id: "gate-a",
+        policy_id: "urn:policy:browser",
+        bundle_id: policyBundle.payload.bundle_id,
+        applied: true,
+        current_before: null,
+        current_after: 1,
+        detail: "policy bundle activated",
+      },
+    ],
+  };
+  const revocationReport = {
+    type: "kinegrant:RevocationDistributionReport",
+    schema_version: "0.1",
+    bundle_id: revocationBundle.payload.bundle_id,
+    bundle_version: 1,
+    overall_result: "PASS",
+    summary: { gates: 1, added_total: 1, already_present_total: 0 },
+    acks: [
+      {
+        gate_id: "gate-a",
+        bundle_id: revocationBundle.payload.bundle_id,
+        applied: true,
+        added_count: 1,
+        already_present: 0,
+        detail: "applied",
+      },
+    ],
+  };
+  const fleet = {
+    type: "kinegrant:FleetOperationsReport",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    summary: {
+      gates_total: 1,
+      policy_applied: 1,
+      policy_failures: 0,
+      revocation_applied: 1,
+      revocation_failures: 0,
+    },
+    policy_distribution: policyReport,
+    revocation_distribution: revocationReport,
+  };
+  const result = await verifyFleetOperationsReport(
+    fleet,
+    policyBundle,
+    revocationBundle,
+    new Set([policyBundle.kid])
+  );
+  assert.equal(result.overall_result, "PASS");
+  assert.equal(result.gates, 1);
+  fleet.summary.policy_applied = 0;
+  await assert.rejects(() =>
+    verifyFleetOperationsReport(
+      fleet,
+      policyBundle,
+      revocationBundle,
+      new Set([policyBundle.kid])
+    )
+  );
+  fleet.summary.policy_applied = 1;
+  fleet.revocation_distribution.acks[0].gate_id = "gate-b";
+  await assert.rejects(() =>
+    verifyFleetOperationsReport(
+      fleet,
+      policyBundle,
+      revocationBundle,
+      new Set([policyBundle.kid])
+    )
+  );
 });
