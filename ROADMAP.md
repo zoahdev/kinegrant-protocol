@@ -817,6 +817,19 @@ Exit criterion: an auditor can verify in the browser that the rule
 coverage reported for a set of requests is exactly the coverage
 computed from the signed policy bundle.
 
+## v2.59 - browser red team report verification
+
+- browser verifier re-verifies `kinegrant:RedTeamReport`
+  (`verifyRedTeamReport`: all RT-001..RT-011 cases present and unique;
+  expected/observed/passed consistency; summary and overall_result
+  consistency; fail-closed on any inconsistency);
+- RFC-0003 acceptance vote closing (community/steering action);
+- integrate the red team report audit page into the public site
+  (deployment action).
+
+Exit criterion: an auditor can verify in the browser that a red team
+report's outcomes and summary are internally consistent and complete.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

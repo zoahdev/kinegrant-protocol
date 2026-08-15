@@ -7918,6 +7918,97 @@ const ROBOT_OUTCOME_KEYS = [
   "stack",
 ];
 
+const RED_TEAM_REQUIRED_CASES = [
+  "RT-001", "RT-002", "RT-003", "RT-004", "RT-005", "RT-006",
+  "RT-007", "RT-008", "RT-009", "RT-010", "RT-011",
+];
+const RED_TEAM_CASE_KEYS = [
+  "category",
+  "detail",
+  "expected",
+  "id",
+  "name",
+  "observed",
+  "passed",
+];
+
+export function verifyRedTeamReport(report) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("red team report must be an object");
+  }
+  if (report.type !== "kinegrant:RedTeamReport") {
+    throw new Error("wrong red team report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported red team report version");
+  }
+  if (!Array.isArray(report.cases) || report.cases.length === 0) {
+    throw new Error("red team report has no cases");
+  }
+  const identifiers = report.cases.map((caseItem) => caseItem.id);
+  if (new Set(identifiers).size !== identifiers.length) {
+    throw new Error("red team case identifiers must be unique");
+  }
+  const missing = RED_TEAM_REQUIRED_CASES.filter(
+    (required) => !identifiers.includes(required)
+  );
+  if (missing.length > 0) {
+    throw new Error("missing required red team cases: " + missing.join(", "));
+  }
+  let passed = 0;
+  for (const caseItem of report.cases) {
+    if (typeof caseItem !== "object" || caseItem === null || Array.isArray(caseItem)) {
+      throw new Error("each red team case must be an object");
+    }
+    if (Object.keys(caseItem).sort().join(",") !== RED_TEAM_CASE_KEYS.join(",")) {
+      throw new Error("red team case fields are invalid");
+    }
+    for (const field of ["id", "category", "name", "detail"]) {
+      if (typeof caseItem[field] !== "string" || caseItem[field].length === 0) {
+        throw new Error(`red team case ${field} must be a non-empty string`);
+      }
+    }
+    if (caseItem.expected !== "DENY") {
+      throw new Error("red team case expected must be DENY");
+    }
+    if (caseItem.observed !== "DENY" && caseItem.observed !== "ALLOW/ERROR") {
+      throw new Error("red team case observed must be DENY or ALLOW/ERROR");
+    }
+    if (typeof caseItem.passed !== "boolean") {
+      throw new Error("red team case passed flag must be a boolean");
+    }
+    const expectedPassed = caseItem.observed === "DENY";
+    if (caseItem.passed !== expectedPassed) {
+      throw new Error("red team case passed flag is inconsistent");
+    }
+    if (caseItem.passed) passed += 1;
+  }
+  const summary = report.summary;
+  if (typeof summary !== "object" || summary === null || Array.isArray(summary)) {
+    throw new Error("red team report summary must be an object");
+  }
+  if (Object.keys(summary).sort().join(",") !== "failed,passed,total") {
+    throw new Error("red team report summary fields are invalid");
+  }
+  if (
+    summary.total !== report.cases.length ||
+    summary.passed !== passed ||
+    summary.failed !== report.cases.length - passed
+  ) {
+    throw new Error("red team report summary is inconsistent");
+  }
+  const expectedResult = passed === report.cases.length ? "PASS" : "FAIL";
+  if (report.overall_result !== expectedResult) {
+    throw new Error("red team report overall_result is inconsistent");
+  }
+  return {
+    valid: true,
+    overall_result: report.overall_result,
+    summary: report.summary,
+    cases: report.cases.length,
+  };
+}
+
 export function verifyRobotDemoReport(report) {
   if (typeof report !== "object" || report === null || Array.isArray(report)) {
     throw new Error("robot demo report must be an object");
@@ -8348,6 +8439,7 @@ if (typeof globalThis !== "undefined") {
     verifyPolicyTemplateAudit,
     verifyObligationBatchAudit,
     verifyRuleCoverageAudit,
+    verifyRedTeamReport,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,

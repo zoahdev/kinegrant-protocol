@@ -63,6 +63,7 @@ import {
   verifyPolicyTemplateAudit,
   verifyObligationBatchAudit,
   verifyRuleCoverageAudit,
+  verifyRedTeamReport,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -450,6 +451,38 @@ function buildRobotOutcomes() {
     obligation_compliant: spec.obligation,
     passed: spec.allowed === (spec.expected === "ALLOW"),
   }));
+}
+
+const RED_TEAM_SPECS = [
+  ["RT-001", "replay", "Consumed capability cannot be replayed"],
+  ["RT-002", "mutation", "Modified request binding is rejected"],
+  ["RT-003", "confused-deputy", "Wrong agent cannot act"],
+  ["RT-004", "conflict", "Deny overrides allow"],
+  ["RT-005", "downgrade", "Unknown capability version is rejected"],
+  ["RT-006", "clock", "Expired capability is rejected"],
+  ["RT-007", "revocation", "Revoked capability is rejected"],
+  ["RT-008", "delegation", "Delegate outside allowlist is rejected"],
+  ["RT-009", "adapter", "Unknown ODRL constraint fails closed"],
+  ["RT-010", "sequence", "Forbidden combination is denied"],
+  ["RT-011", "obligation", "Suppressed receipt obligation is detected"],
+];
+
+function buildRedTeamReport() {
+  return {
+    type: "kinegrant:RedTeamReport",
+    schema_version: "0.1",
+    overall_result: "PASS",
+    summary: { total: 11, passed: 11, failed: 0 },
+    cases: RED_TEAM_SPECS.map(([id, category, name]) => ({
+      id,
+      category,
+      name,
+      expected: "DENY",
+      observed: "DENY",
+      passed: true,
+      detail: "probe behaved as expected",
+    })),
+  };
 }
 
 function buildReceipt(
@@ -4002,6 +4035,26 @@ test("browser verifier validates rule coverage audits", async () => {
       summary: { ...packet.summary, coverage_complete: false },
     })
   );
+});
+
+test("browser verifier validates red team reports", () => {
+  const report = buildRedTeamReport();
+  const result = verifyRedTeamReport(report);
+  assert.equal(result.overall_result, "PASS");
+  assert.equal(result.cases, 11);
+
+  const inconsistent = buildRedTeamReport();
+  inconsistent.summary = { ...inconsistent.summary, passed: 10 };
+  assert.throws(() => verifyRedTeamReport(inconsistent));
+
+  const badFlag = buildRedTeamReport();
+  badFlag.cases[0] = { ...badFlag.cases[0], observed: "ALLOW/ERROR" };
+  assert.throws(() => verifyRedTeamReport(badFlag));
+
+  const missingCase = buildRedTeamReport();
+  missingCase.cases = missingCase.cases.slice(0, 10);
+  missingCase.summary = { ...missingCase.summary, total: 10 };
+  assert.throws(() => verifyRedTeamReport(missingCase));
 });
 
 test("browser verifier validates robot demo reports", () => {
