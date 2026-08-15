@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   createHash,
   createPublicKey,
@@ -25,9 +26,46 @@ import {
   validateIdentitySyntax,
   verifyPolicyAnalysisReport,
   verifyDelegationChain,
+  verifyMldsaEnvelope,
   evaluateSequencePolicy,
   verifySequenceCheckReport,
 } from "../../../verify/policy-bundle-verifier.js";
+
+const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
+const MLDSA_FIXTURE_PATH = new URL(
+  "./fixtures/mldsa65-policy-bundle.json",
+  import.meta.url
+);
+
+function b64urlDecode(value) {
+  const padded = value + "=".repeat((4 - (value.length % 4)) % 4);
+  const base64 = padded.replace(/-/g, "+").replace(/_/g, "/");
+  const binary = atob(base64);
+  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
+}
+
+async function mldsa65Supported() {
+  try {
+    const fixture = JSON.parse(readFileSync(MLDSA_FIXTURE_PATH, "utf8"));
+    const rawKey = b64urlDecode(fixture.kid.slice("kinegrant:key:mldsa65:".length));
+    const header = atob(MLDSA65_SPKI_HEADER_B64);
+    const spki = new Uint8Array(header.length + rawKey.length);
+    for (let index = 0; index < header.length; index += 1) {
+      spki[index] = header.charCodeAt(index);
+    }
+    spki.set(rawKey, header.length);
+    await crypto.subtle.importKey(
+      "spki",
+      spki,
+      { name: "ML-DSA-65" },
+      false,
+      ["verify"]
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const DOMAIN = Buffer.from("KINEGRANT-SIGNED-ENVELOPE-V1\u0000", "utf8");
 
@@ -799,5 +837,25 @@ test("browser verifier evaluates forbidden combinations and verifies reports", a
   report.verdict = { ...denied, allowed: true };
   await assert.rejects(() =>
     verifySequenceCheckReport(report, policy, deniedRequest, journal, { now })
+  );
+});
+
+test("browser verifier accepts ML-DSA-65 signed policy bundles", async (t) => {
+  if (!(await mldsa65Supported())) {
+    return t.skip("ML-DSA-65 WebCrypto is not available");
+  }
+  const fixture = JSON.parse(readFileSync(MLDSA_FIXTURE_PATH, "utf8"));
+  const payload = await verifyPolicyBundle(
+    fixture,
+    new Set([fixture.kid]),
+    { expectedPolicyId: "urn:kinegrant:policy:mldsa:1" }
+  );
+  assert.equal(payload.version, 1);
+  const direct = await verifyMldsaEnvelope(fixture);
+  assert.equal(direct.type, "kinegrant:PolicyBundle");
+  const tampered = JSON.parse(JSON.stringify(fixture));
+  tampered.payload.rules = [];
+  await assert.rejects(() =>
+    verifyPolicyBundle(tampered, new Set([fixture.kid]))
   );
 });

@@ -3,6 +3,7 @@
 // Works offline and can be embedded in a static page.
 
 const DOMAIN = "KINEGRANT-SIGNED-ENVELOPE-V1\u0000";
+const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
 const CAPABILITY_FIELDS = new Set([
   "type", "version", "issuer", "agent", "target", "action", "purpose",
   "request_digest", "policy_digest", "matched_policy_ids", "obligations",
@@ -95,8 +96,21 @@ function globMatch(pattern, value) {
   return new RegExp(`^${escaped}$`).test(value);
 }
 
+function mldsa65Spki(rawKey) {
+  const header = atob(MLDSA65_SPKI_HEADER_B64);
+  const spki = new Uint8Array(header.length + rawKey.length);
+  for (let index = 0; index < header.length; index += 1) {
+    spki[index] = header.charCodeAt(index);
+  }
+  spki.set(rawKey, header.length);
+  return spki;
+}
+
 async function verifyEnvelope(envelope) {
-  if (envelope?.alg !== "EdDSA") throw new Error("unsupported signature algorithm");
+  const alg = envelope?.alg;
+  if (alg !== "EdDSA" && alg !== "ML-DSA-65") {
+    throw new Error("unsupported signature algorithm");
+  }
   const kid = envelope?.kid;
   const payload = envelope?.payload;
   const signature = envelope?.signature;
@@ -108,8 +122,38 @@ async function verifyEnvelope(envelope) {
   ) {
     throw new Error("malformed signed envelope");
   }
-  const canonical = canonicalJson({ alg: "EdDSA", kid, payload });
+  const canonical = canonicalJson({ alg, kid, payload });
   const data = new TextEncoder().encode(DOMAIN + canonical);
+  if (alg === "ML-DSA-65") {
+    const prefix = "kinegrant:key:mldsa65:";
+    if (!kid.startsWith(prefix)) throw new Error("unsupported key identifier");
+    const rawKey = b64urlDecode(kid.slice(prefix.length));
+    if (rawKey.length !== 1952) {
+      throw new Error("invalid ML-DSA-65 public key length");
+    }
+    const rawSignature = b64urlDecode(signature);
+    if (rawSignature.length !== 3309) {
+      throw new Error("invalid ML-DSA-65 signature length");
+    }
+    let key;
+    try {
+      key = await crypto.subtle.importKey(
+        "spki",
+        mldsa65Spki(rawKey),
+        { name: "ML-DSA-65" },
+        false,
+        ["verify"]
+      );
+    } catch (error) {
+      throw new Error(
+        "ML-DSA-65 is not supported by this browser's WebCrypto: " +
+          error.message
+      );
+    }
+    const valid = await crypto.subtle.verify("ML-DSA-65", key, rawSignature, data);
+    if (!valid) throw new Error("invalid signature");
+    return payload;
+  }
   const prefix = "kinegrant:key:ed25519:";
   if (!kid.startsWith(prefix)) throw new Error("unsupported key identifier");
   const rawKey = b64urlDecode(kid.slice(prefix.length));
@@ -1704,6 +1748,14 @@ export async function verifyDelegationChain(
   };
 }
 
+export async function verifyMldsaEnvelope(envelope) {
+  if (envelope?.alg !== "ML-DSA-65") {
+    throw new Error("not an ML-DSA-65 envelope");
+  }
+  const payload = await verifyEnvelope(envelope);
+  return payload;
+}
+
 const SEQUENCE_COMBINATION_FIELDS = new Set([
   "combination_id",
   "patterns",
@@ -1967,6 +2019,7 @@ if (typeof globalThis !== "undefined") {
     validateIdentitySyntax,
     verifyPolicyAnalysisReport,
     verifyDelegationChain,
+    verifyMldsaEnvelope,
     evaluateSequencePolicy,
     verifySequenceCheckReport,
   };
