@@ -115,6 +115,10 @@ the browser verifier verifies both through WebCrypto (SPKI import + native
 verification), cross-tested against Python `cryptography` ML-DSA-65
 signatures. Browsers without ML-DSA WebCrypto fail closed with a clear
 message instead of guessing.
+`kinegrant:ConformanceReport` artifacts can be re-verified in the browser as
+well (`verifyConformanceReport`): mark/summary consistency, L1-L4 levels,
+independent-verification statuses, and the overall result are all checked
+locally, cross-tested against the Python conformance runner output.
 
 ## Audit aggregation
 

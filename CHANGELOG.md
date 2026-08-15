@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 2.23.0 - v2.23 first item (unreleased)
+
+- Browser verifier re-verifies `kinegrant:ConformanceReport` artifacts
+  (`verifyConformanceReport`: type/schema, L1-L4 marks, summary consistency,
+  overall result, independent-verification statuses and result; fail-closed
+  on any inconsistency); the HTML page and Node CLI (`conformance` command)
+  expose it, cross-tested against the Python conformance runner output.
+
 ## 2.22.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.22.0 on the
