@@ -17,7 +17,7 @@
 </head>
 <body>
   <h1>KineGrant 策略包浏览器验证器</h1>
-  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、车队审计汇总、安全审计工具包、ESP32-C3 硬件证据、车队联合运维报告、基准报告、策略生命周期轨迹、传感器证据承诺、收据检查点、设备证明、硬件信任组合证据包、桥接演示报告、网关机器人演示报告、摄像头同意场景、全生命周期联检报告、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
+  <p>本地验证：签名（Ed25519 与后量子 ML-DSA-65）、信任机构、策略 id、时间窗、规则摘要、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、车队审计汇总、安全审计工具包、ESP32-C3 硬件证据、车队联合运维报告、基准报告、策略生命周期轨迹、传感器证据承诺、收据检查点、设备证明、硬件信任组合证据包、桥接演示报告、网关机器人演示报告、摄像头同意场景、全生命周期联检报告、证据导出包、ODRL 映射、动作词汇、义务词汇与身份语法。所有计算都在你的浏览器里完成，不上传任何数据。</p>
 
   <div class="row">
     <div class="col">
@@ -296,6 +296,13 @@
   <p><button id="verify-full-lifecycle">验证全生命周期联检报告</button></p>
   <div class="row">
     <div class="col">
+      <label>证据导出包 JSON（kinegrant:EvidenceExportPacket：各类证据的名称/类别/摘要清单）</label>
+      <textarea id="evidence-export" placeholder='{ "type": "kinegrant:EvidenceExportPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "artifacts": [ { "kind": "mpt_evidence", "name": "machine-permission-test.evidence.json", "sha256": "sha256:..." } ], "summary": { "artifacts_total": 1, "unique_kinds": 1, "digest_verified": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-evidence-export">验证证据导出包</button></p>
+  <div class="row">
+    <div class="col">
       <label>禁止组合报告 JSON（kinegrant:SequenceCheckReport）</label>
       <textarea id="sequence-report" placeholder='{ "type": "kinegrant:SequenceCheckReport", "schema_version": "0.1", "request_digest": "sha256:...", "journal_digest": "sha256:...", "checked_at": "...", "verdict": { "allowed": false, "reason": "forbidden_combination", "matched_combination_ids": ["forbid-1"] } }'></textarea>
     </div>
@@ -354,6 +361,7 @@
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
+      verifyEvidenceExportPacket,
     } from "./policy-bundle-verifier.js";
 
     const bundleInput = document.getElementById("bundle");
@@ -407,6 +415,7 @@
     const fullLifecyclePolicyInput = document.getElementById("full-lifecycle-policy");
     const fullLifecycleRevocationInput = document.getElementById("full-lifecycle-revocation");
     const fullLifecycleAuthoritiesInput = document.getElementById("full-lifecycle-authorities");
+    const evidenceExportInput = document.getElementById("evidence-export");
     const sequenceReportInput = document.getElementById("sequence-report");
     const sequencePolicyInput = document.getElementById("sequence-policy");
     const sequenceRequestInput = document.getElementById("sequence-request");
@@ -913,6 +922,19 @@
         showOk(
           `FULL LIFECYCLE REPORT VALID (PASS: ${result.phases} phases, ` +
             `policy=${result.policy_id}, bundle_version=${result.bundle_version})`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-evidence-export").addEventListener("click", () => {
+      try {
+        const packet = parseJson(evidenceExportInput.value, "证据导出包");
+        const result = verifyEvidenceExportPacket(packet);
+        showOk(
+          `EVIDENCE EXPORT PACKET VALID (${result.artifacts} artifacts, ` +
+            `${result.unique_kinds} kinds, digests verified)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

@@ -3932,6 +3932,102 @@ export async function verifyFullLifecycleReport(
   };
 }
 
+const EVIDENCE_EXPORT_KINDS = new Set([
+  "receipt_evidence_packet",
+  "audit_csv",
+  "mpt_evidence",
+  "conformance_report",
+  "reproduction_report",
+  "policy_analysis",
+  "fleet_audit",
+  "security_review_kit",
+  "sensor_commitment",
+  "receipt_checkpoint",
+  "device_attestation",
+]);
+const EVIDENCE_EXPORT_KEYS = [
+  "artifacts",
+  "generated_at",
+  "overall_result",
+  "schema_version",
+  "summary",
+  "type",
+];
+const EVIDENCE_ARTIFACT_KEYS = ["kind", "name", "sha256"];
+
+export function verifyEvidenceExportPacket(packet) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("evidence export packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== EVIDENCE_EXPORT_KEYS.join(",")) {
+    throw new Error("evidence export packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:EvidenceExportPacket") {
+    throw new Error("wrong evidence export packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported evidence export packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "evidence export packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("evidence export packet overall_result must be PASS");
+  }
+  if (!Array.isArray(packet.artifacts) || packet.artifacts.length === 0) {
+    throw new Error("evidence export packet artifacts must be a non-empty array");
+  }
+  const names = new Set();
+  const kinds = new Set();
+  for (const artifact of packet.artifacts) {
+    if (typeof artifact !== "object" || artifact === null || Array.isArray(artifact)) {
+      throw new Error("each evidence artifact must be an object");
+    }
+    if (Object.keys(artifact).sort().join(",") !== EVIDENCE_ARTIFACT_KEYS.join(",")) {
+      throw new Error("evidence artifact fields are invalid");
+    }
+    if (!EVIDENCE_EXPORT_KINDS.has(artifact.kind)) {
+      throw new Error("evidence artifact kind is invalid");
+    }
+    if (typeof artifact.name !== "string" || artifact.name.length === 0) {
+      throw new Error("evidence artifact name must be a non-empty string");
+    }
+    if (names.has(artifact.name)) {
+      throw new Error("evidence artifact names must be unique");
+    }
+    names.add(artifact.name);
+    kinds.add(artifact.kind);
+    if (typeof artifact.sha256 !== "string" || !SHA256_RE.test(artifact.sha256)) {
+      throw new Error("evidence artifact sha256 must be a sha256 digest");
+    }
+  }
+  const summary = packet.summary;
+  if (typeof summary !== "object" || summary === null || Array.isArray(summary)) {
+    throw new Error("evidence export packet summary must be an object");
+  }
+  if (Object.keys(summary).sort().join(",") !== "artifacts_total,digest_verified,unique_kinds") {
+    throw new Error("evidence export packet summary fields are invalid");
+  }
+  if (
+    summary.artifacts_total !== packet.artifacts.length ||
+    summary.unique_kinds !== kinds.size ||
+    summary.digest_verified !== true
+  ) {
+    throw new Error("evidence export packet summary is inconsistent");
+  }
+  return {
+    valid: true,
+    artifacts: packet.artifacts.length,
+    unique_kinds: kinds.size,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -3971,5 +4067,6 @@ if (typeof globalThis !== "undefined") {
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,
+    verifyEvidenceExportPacket,
   };
 }

@@ -1720,6 +1720,47 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_evidence_export_packet(self) -> None:
+        import hashlib
+
+        def digest_bytes(payload: bytes) -> str:
+            return "sha256:" + hashlib.sha256(payload).hexdigest()
+
+        packet = {
+            "type": "kinegrant:EvidenceExportPacket",
+            "schema_version": "0.1",
+            "generated_at": "2026-08-15T01:00:00Z",
+            "overall_result": "PASS",
+            "artifacts": [
+                {
+                    "kind": "mpt_evidence",
+                    "name": "machine-permission-test.evidence.json",
+                    "sha256": digest_bytes(b"mpt-evidence"),
+                },
+                {
+                    "kind": "conformance_report",
+                    "name": "conformance-report.json",
+                    "sha256": digest_bytes(b"conformance"),
+                },
+            ],
+            "summary": {"artifacts_total": 2, "unique_kinds": 2, "digest_verified": True},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "export.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("evidence-export", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("EVIDENCE EXPORT PACKET VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["artifacts"] = [dict(artifact) for artifact in packet["artifacts"]]
+            tampered["artifacts"][0]["sha256"] = "sha256:" + "0" * 63
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("evidence-export", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
