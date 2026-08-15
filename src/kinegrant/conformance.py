@@ -134,8 +134,11 @@ class ConformanceRunner:
             )
             / "dependencies" / "node" / "bin" / "node.exe"
         )
-        node_available = Path(node).is_file()
-        go_available = shutil.which("go") is not None
+        node_available = Path(node).is_file() and js_cli.is_file()
+        go_available = (
+            shutil.which("go") is not None
+            and (go_dir / "cmd" / "kinegrant-verify").exists()
+        )
 
         rule = PolicyRule(
             "urn:kinegrant:conformance:independent:rule",
