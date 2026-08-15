@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.46.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.46.0 on the
+  stable 1.0 wire format, adding selective disclosure verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:SelectiveDisclosurePacket`
+  (`verifySelectiveDisclosure`: each revealed field's Merkle inclusion
+  proof is recomputed from the field name and value up to the committed
+  root using the protocol's JCS digest rules; field names must be unique;
+  any proof that does not reach the root fails closed; summary counts and
+  flags must be consistent); the HTML page and Node CLI
+  (`selective-disclosure` command) expose it, cross-tested against
+  Python-built Merkle redactions.
+
 ## 2.45.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.45.0 on the

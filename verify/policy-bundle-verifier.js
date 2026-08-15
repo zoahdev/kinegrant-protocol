@@ -5477,6 +5477,149 @@ export async function verifyObligationFulfillment(
   };
 }
 
+const SELECTIVE_DISCLOSURE_KEYS = [
+  "document_id",
+  "generated_at",
+  "overall_result",
+  "root",
+  "schema_version",
+  "summary",
+  "type",
+  "visible",
+];
+const SELECTIVE_DISCLOSURE_SUMMARY_KEYS = [
+  "artifacts_total",
+  "document_bound",
+  "fields_total",
+  "proofs_verified",
+  "root_bound",
+];
+const PROOF_STEP_KEYS = ["hash", "left"];
+
+export async function verifySelectiveDisclosure(packet, { now } = {}) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("selective disclosure packet must be an object");
+  }
+  if (
+    Object.keys(packet).sort().join(",") !==
+    SELECTIVE_DISCLOSURE_KEYS.join(",")
+  ) {
+    throw new Error("selective disclosure packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:SelectiveDisclosurePacket") {
+    throw new Error("wrong selective disclosure packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported selective disclosure packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "selective disclosure packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("selective disclosure packet overall_result must be PASS");
+  }
+  if (typeof packet.document_id !== "string" || packet.document_id.length === 0) {
+    throw new Error("selective disclosure packet document_id must be non-empty");
+  }
+  if (typeof packet.root !== "string" || !SHA256_RE.test(packet.root)) {
+    throw new Error("selective disclosure packet root is invalid");
+  }
+  if (!Array.isArray(packet.visible) || packet.visible.length === 0) {
+    throw new Error("selective disclosure packet visible must be a non-empty array");
+  }
+
+  const fields = new Set();
+  for (const entry of packet.visible) {
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      Array.isArray(entry) ||
+      typeof entry.field !== "string" ||
+      entry.field.length === 0 ||
+      !Object.prototype.hasOwnProperty.call(entry, "value") ||
+      !Array.isArray(entry.proof)
+    ) {
+      throw new Error("each visible entry must have field, value, and proof");
+    }
+    if (fields.has(entry.field)) {
+      throw new Error("visible field names must be unique");
+    }
+    fields.add(entry.field);
+    let current =
+      "sha256:" +
+      (await sha256Hex(
+        new TextEncoder().encode(
+          canonicalJson({ field: entry.field, value: entry.value })
+        )
+      ));
+    for (const step of entry.proof) {
+      if (
+        typeof step !== "object" ||
+        step === null ||
+        Array.isArray(step) ||
+        Object.keys(step).sort().join(",") !== PROOF_STEP_KEYS.join(",") ||
+        typeof step.hash !== "string" ||
+        !SHA256_RE.test(step.hash) ||
+        typeof step.left !== "boolean"
+      ) {
+        throw new Error("proof step is invalid");
+      }
+      const next =
+        "sha256:" +
+        (await sha256Hex(
+          new TextEncoder().encode(
+            step.left
+              ? canonicalJson({ left: step.hash, right: current })
+              : canonicalJson({ left: current, right: step.hash })
+          )
+        ));
+      current = next;
+    }
+    if (current !== packet.root) {
+      throw new Error(`proof for field ${entry.field} does not reach the root`);
+    }
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("selective disclosure packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    SELECTIVE_DISCLOSURE_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("selective disclosure packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 3,
+    fields_total: packet.visible.length,
+    proofs_verified: packet.visible.length,
+    root_bound: true,
+    document_bound: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`selective disclosure packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    document_id: packet.document_id,
+    root: packet.root,
+    fields_total: packet.visible.length,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -5906,6 +6049,7 @@ if (typeof globalThis !== "undefined") {
     verifyPolicyMigrationAudit,
     verifyComplianceTimeline,
     verifyObligationFulfillment,
+    verifySelectiveDisclosure,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,
