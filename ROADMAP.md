@@ -803,6 +803,20 @@ Exit criterion: an auditor can verify in the browser that every
 obligation across a batch of authorizations was fulfilled or explicitly
 failed.
 
+## v2.58 - browser rule coverage audit verification
+
+- browser verifier re-verifies `kinegrant:RuleCoverageAuditPacket`
+  (`verifyRuleCoverageAudit`: per-request rule matching with Python-
+  identical glob semantics; covered/uncovered rule ids and matched
+  request counts must match a signed-bundle recomputation);
+- RFC-0003 acceptance vote closing (community/steering action);
+- integrate the rule coverage audit page into the public site
+  (deployment action).
+
+Exit criterion: an auditor can verify in the browser that the rule
+coverage reported for a set of requests is exactly the coverage
+computed from the signed policy bundle.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

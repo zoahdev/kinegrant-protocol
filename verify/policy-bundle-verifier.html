@@ -409,6 +409,13 @@
   <p><button id="verify-obligation-batch">验证义务批次履行包</button></p>
   <div class="row">
     <div class="col">
+      <label>规则覆盖分析包 JSON（kinegrant:RuleCoverageAuditPacket：策略规则与请求模式的覆盖矩阵一致）</label>
+      <textarea id="rule-coverage" placeholder='{ "type": "kinegrant:RuleCoverageAuditPacket", "schema_version": "0.1", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "requests": [ { "type": "kinegrant:ActionRequest", "version": "0.1", "request_id": "...", "agent": "...", "target": "...", "action": "...", "purpose": "...", "issued_at": "...", "context": {} } ], "coverage": { "covered_rule_ids": [ "rule-1" ], "uncovered_rule_ids": [], "requests_matched": 1 }, "summary": { "artifacts_total": 4, "requests_total": 1, "rules_total": 1, "covered_rules": 1, "uncovered_rules": 0, "requests_matched": 1, "coverage_complete": true, "policy_bound": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-rule-coverage">验证规则覆盖分析包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -518,6 +525,7 @@
       verifyCrossImplementationReport,
       verifyPolicyTemplateAudit,
       verifyObligationBatchAudit,
+      verifyRuleCoverageAudit,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -589,6 +597,7 @@
     const crossImplementationInput = document.getElementById("cross-implementation");
     const policyTemplateInput = document.getElementById("policy-template");
     const obligationBatchInput = document.getElementById("obligation-batch");
+    const ruleCoverageInput = document.getElementById("rule-coverage");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1325,6 +1334,19 @@
         showOk(
           `OBLIGATION BATCH AUDIT VALID (device=${result.device_id}, ` +
             `${result.entries_total} entries, ${result.obligations_covered}/${result.obligations_required} obligations)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-rule-coverage").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(ruleCoverageInput.value, "规则覆盖分析包");
+        const result = await verifyRuleCoverageAudit(packet);
+        showOk(
+          `RULE COVERAGE AUDIT VALID (policy=${result.policy_id}, rules=${result.rules_total}, ` +
+            `covered=${result.covered_rules}, uncovered=${result.uncovered_rules})`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

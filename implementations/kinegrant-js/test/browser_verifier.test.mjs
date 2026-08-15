@@ -62,6 +62,7 @@ import {
   verifyCrossImplementationReport,
   verifyPolicyTemplateAudit,
   verifyObligationBatchAudit,
+  verifyRuleCoverageAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -3906,6 +3907,99 @@ test("browser verifier validates obligation batch audits", async () => {
     verifyObligationBatchAudit({
       ...packet,
       summary: { ...packet.summary, obligations_covered: 1 },
+    })
+  );
+});
+
+test("browser verifier validates rule coverage audits", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const baseBundle = buildBundle(privateKey, publicKey);
+  const issuer = baseBundle.payload.issuer;
+  const bundle = buildBundle(privateKey, publicKey, {
+    extraRules: [
+      {
+        policy_id: "urn:policy:browser:close",
+        issuer,
+        target: "urn:space:door-2",
+        effect: "allow",
+        actions: ["close"],
+        subjects: ["*"],
+        purposes: ["maintenance"],
+        constraints: {},
+        obligations: [],
+        priority: 0,
+        source: {},
+      },
+    ],
+  });
+  const bundlePayload = bundle.payload;
+  const request = (requestId, target, action, purpose) => ({
+    type: "kinegrant:ActionRequest",
+    version: "0.1",
+    request_id: requestId,
+    agent: "robot-1",
+    target,
+    action,
+    purpose,
+    issued_at: new Date().toISOString(),
+    context: {},
+  });
+  const packet = {
+    type: "kinegrant:RuleCoverageAuditPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T02:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: [bundlePayload.issuer],
+    policy_bundle: bundle,
+    requests: [
+      request("r1", "urn:space:door-1", "open", "delivery"),
+      request("r2", "urn:space:door-2", "close", "maintenance"),
+      request("r3", "urn:space:door-3", "open", "delivery"),
+    ],
+    coverage: {
+      covered_rule_ids: ["urn:policy:browser", "urn:policy:browser:close"],
+      uncovered_rule_ids: [],
+      requests_matched: 2,
+    },
+    summary: {
+      artifacts_total: 4,
+      requests_total: 3,
+      rules_total: 2,
+      covered_rules: 2,
+      uncovered_rules: 0,
+      requests_matched: 2,
+      coverage_complete: true,
+      policy_bound: true,
+    },
+  };
+  const result = await verifyRuleCoverageAudit(packet);
+  assert.equal(result.rules_total, 2);
+  assert.equal(result.covered_rules, 2);
+
+  await assert.rejects(() =>
+    verifyRuleCoverageAudit({
+      ...packet,
+      coverage: {
+        ...packet.coverage,
+        uncovered_rule_ids: ["urn:policy:browser"],
+      },
+      summary: { ...packet.summary, uncovered_rules: 1 },
+    })
+  );
+  await assert.rejects(() =>
+    verifyRuleCoverageAudit({
+      ...packet,
+      coverage: {
+        ...packet.coverage,
+        requests_matched: 3,
+      },
+      summary: { ...packet.summary, requests_matched: 3 },
+    })
+  );
+  await assert.rejects(() =>
+    verifyRuleCoverageAudit({
+      ...packet,
+      summary: { ...packet.summary, coverage_complete: false },
     })
   );
 });

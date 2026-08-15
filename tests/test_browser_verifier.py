@@ -3948,6 +3948,107 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_rule_coverage_audit(self) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        open_rule = PolicyRule(
+            "urn:policy:browser",
+            key.kid,
+            "urn:space:browser:door-1",
+            "allow",
+            ("kg.action.open",),
+            purposes=("delivery",),
+        )
+        close_rule = PolicyRule(
+            "urn:policy:browser:close",
+            key.kid,
+            "urn:space:browser:door-2",
+            "allow",
+            ("kg.action.close",),
+            purposes=("maintenance",),
+        )
+        bundle = authority.publish(
+            "urn:policy:browser",
+            [open_rule, close_rule],
+            ttl_seconds=3600,
+        )
+
+        def request(
+            request_id: str,
+            target: str,
+            action: str,
+            purpose: str,
+        ) -> dict[str, object]:
+            return {
+                "type": "kinegrant:ActionRequest",
+                "version": "0.1",
+                "request_id": request_id,
+                "agent": "robot-1",
+                "target": target,
+                "action": action,
+                "purpose": purpose,
+                "issued_at": isoformat(utc_now()),
+                "context": {},
+            }
+
+        packet = {
+            "type": "kinegrant:RuleCoverageAuditPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid],
+            "policy_bundle": bundle,
+            "requests": [
+                request("r1", "urn:space:browser:door-1", "kg.action.open", "delivery"),
+                request("r2", "urn:space:browser:door-2", "kg.action.close", "maintenance"),
+                request("r3", "urn:space:browser:door-3", "kg.action.open", "delivery"),
+            ],
+            "coverage": {
+                "covered_rule_ids": [
+                    "urn:policy:browser",
+                    "urn:policy:browser:close",
+                ],
+                "uncovered_rule_ids": [],
+                "requests_matched": 2,
+            },
+            "summary": {
+                "artifacts_total": 4,
+                "requests_total": 3,
+                "rules_total": 2,
+                "covered_rules": 2,
+                "uncovered_rules": 0,
+                "requests_matched": 2,
+                "coverage_complete": True,
+                "policy_bound": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "rule-coverage.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("rule-coverage", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("RULE COVERAGE AUDIT VALID", verified.stdout)
+
+            tampered = dict(packet)
+            tampered["coverage"] = {
+                "covered_rule_ids": ["urn:policy:browser"],
+                "uncovered_rule_ids": ["urn:policy:browser:close"],
+                "requests_matched": 2,
+            }
+            tampered["summary"] = dict(
+                packet["summary"],
+                covered_rules=1,
+                uncovered_rules=1,
+            )
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("rule-coverage", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
