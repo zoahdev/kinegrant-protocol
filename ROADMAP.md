@@ -510,13 +510,13 @@ Exit criterion: an auditor can re-verify a device attestation in the browser wit
 
 Exit criterion: an engineer can re-verify a ROS2/MCP or adapter bridge demo report in the browser without trusting the report generator. Released as v2.32.0 (2026-08-15).
 
-## v2.33 - browser hardware trust packet verification
+## v2.33 - browser hardware trust packet verification (complete with v2.33.0)
 
 - browser verifier re-verifies combined `kinegrant:HardwareTrustPacket` artifacts (`verifyHardwareTrustPacket`: device attestation + sensor commitments + receipt checkpoints, device binding, summary) (complete via PR #152);
 - RFC-0003 acceptance vote (community/steering action);
 - integrate the verifier page into the public site (deployment action).
 
-Exit criterion: an auditor can re-verify the combined hardware trust evidence of a device in the browser without trusting the packet generator.
+Exit criterion: an auditor can re-verify the combined hardware trust evidence of a device in the browser without trusting the packet generator. Released as v2.33.0 (2026-08-15).
 
 ## Success metrics
 

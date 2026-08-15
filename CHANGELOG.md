@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.33.0 - v2.33 first item (unreleased)
+## 2.33.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.33.0 on the
+  stable 1.0 wire format, adding hardware trust packet verification to
+  the browser verifier.
 
 - Browser verifier re-verifies combined `kinegrant:HardwareTrustPacket`
   artifacts (`verifyHardwareTrustPacket`: device attestation, sensor
