@@ -39,6 +39,7 @@ import {
   verifySensorCommitment,
   sensorEvidenceHash,
   verifyReceiptCheckpoint,
+  verifyDeviceAttestation,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -304,6 +305,28 @@ function buildCheckpoint(privateKey, publicKey) {
   const unsigned = { ...body };
   body.checkpoint_id =
     "kinegrant:receipt-checkpoint:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson(unsigned), "utf8"))
+      .digest("hex");
+  return signEnvelope(privateKey, body);
+}
+
+function buildAttestation(privateKey, publicKey) {
+  const body = {
+    type: "kinegrant:DeviceAttestation",
+    schema_version: "0.1",
+    device_id: "device:esp32c3:paper-barrier:unit-1",
+    firmware_digest: "sha256:" + "c".repeat(64),
+    boot_counter: 3,
+    measured_boot: [
+      { stage: "bootloader", digest: "sha256:" + "d".repeat(64) },
+    ],
+    device: kidOf(publicKey),
+    issued_at: "2026-08-15T00:00:00Z",
+  };
+  const unsigned = { ...body };
+  body.attestation_id =
+    "kinegrant:device-attestation:" +
     createHash("sha256")
       .update(Buffer.from(canonicalJson(unsigned), "utf8"))
       .digest("hex");
@@ -1338,4 +1361,22 @@ test("browser verifier validates sensor commitments and checkpoints", async () =
   const bad = JSON.parse(JSON.stringify(checkpoint));
   bad.payload.period = "hourly";
   await assert.rejects(() => verifyReceiptCheckpoint(bad));
+});
+
+test("browser verifier validates device attestations", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const kid = kidOf(publicKey);
+  const attestation = buildAttestation(privateKey, publicKey);
+  const result = await verifyDeviceAttestation(attestation, {
+    trustedDevices: new Set([kid]),
+  });
+  assert.equal(result.boot_counter, 3);
+  assert.equal(result.stages, 1);
+  assert.equal(result.device_id, "device:esp32c3:paper-barrier:unit-1");
+  await assert.rejects(() =>
+    verifyDeviceAttestation(attestation, { trustedDevices: new Set(["other"]) })
+  );
+  const bad = JSON.parse(JSON.stringify(attestation));
+  bad.payload.boot_counter = -1;
+  await assert.rejects(() => verifyDeviceAttestation(bad));
 });

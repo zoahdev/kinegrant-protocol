@@ -3303,6 +3303,92 @@ export async function verifyReceiptCheckpoint(
   };
 }
 
+const ATTESTATION_KEYS = [
+  "attestation_id",
+  "boot_counter",
+  "device",
+  "device_id",
+  "firmware_digest",
+  "issued_at",
+  "measured_boot",
+  "schema_version",
+  "type",
+];
+const MEASURED_BOOT_KEYS = ["digest", "stage"];
+
+export async function verifyDeviceAttestation(
+  attestation,
+  { trustedDevices } = {}
+) {
+  if (typeof attestation !== "object" || attestation === null || Array.isArray(attestation)) {
+    throw new Error("device attestation must be an object");
+  }
+  const payload = await verifyEnvelope(attestation);
+  if (Object.keys(payload).sort().join(",") !== ATTESTATION_KEYS.join(",")) {
+    throw new Error("device attestation fields are invalid");
+  }
+  if (payload.type !== "kinegrant:DeviceAttestation") {
+    throw new Error("wrong attestation type");
+  }
+  if (payload.schema_version !== "0.1") {
+    throw new Error("unsupported attestation version");
+  }
+  if (payload.device !== attestation.kid) {
+    throw new Error("attestation device does not match signing key");
+  }
+  if (trustedDevices !== undefined && !trustedDevices.has(payload.device)) {
+    throw new Error("untrusted device");
+  }
+  if (typeof payload.device_id !== "string" || payload.device_id.length === 0) {
+    throw new Error("device_id must be a non-empty string");
+  }
+  if (
+    typeof payload.firmware_digest !== "string" ||
+    !SHA256_RE.test(payload.firmware_digest)
+  ) {
+    throw new Error("firmware_digest must be a sha256 digest");
+  }
+  if (
+    !Number.isInteger(payload.boot_counter) ||
+    payload.boot_counter < 0
+  ) {
+    throw new Error("boot_counter must be a non-negative integer");
+  }
+  if (typeof payload.issued_at !== "string" || payload.issued_at.length === 0) {
+    throw new Error("issued_at must be a non-empty string");
+  }
+  if (!Array.isArray(payload.measured_boot)) {
+    throw new Error("measured_boot must be an array");
+  }
+  for (const stage of payload.measured_boot) {
+    if (typeof stage !== "object" || stage === null || Array.isArray(stage)) {
+      throw new Error("measured_boot entries must be objects");
+    }
+    if (Object.keys(stage).sort().join(",") !== MEASURED_BOOT_KEYS.join(",")) {
+      throw new Error("measured_boot entry fields are invalid");
+    }
+    if (typeof stage.stage !== "string" || stage.stage.length === 0) {
+      throw new Error("measured_boot stage must be a non-empty string");
+    }
+    if (typeof stage.digest !== "string" || !SHA256_RE.test(stage.digest)) {
+      throw new Error("measured_boot digest must be a sha256 digest");
+    }
+  }
+  const unsigned = { ...payload };
+  delete unsigned.attestation_id;
+  const expectedId = await contentId("kinegrant:device-attestation", unsigned);
+  if (payload.attestation_id !== expectedId) {
+    throw new Error("attestation identifier is inconsistent");
+  }
+  return {
+    valid: true,
+    device_id: payload.device_id,
+    firmware_digest: payload.firmware_digest,
+    boot_counter: payload.boot_counter,
+    stages: payload.measured_boot.length,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -3336,5 +3422,6 @@ if (typeof globalThis !== "undefined") {
     verifySensorCommitment,
     sensorEvidenceHash,
     verifyReceiptCheckpoint,
+    verifyDeviceAttestation,
   };
 }

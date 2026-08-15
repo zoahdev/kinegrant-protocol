@@ -39,6 +39,7 @@ from kinegrant.revocation import (
 )
 from kinegrant.sensor_evidence import SensorReading, build_sensor_commitment
 from kinegrant.checkpoint import build_receipt_checkpoint
+from kinegrant.attestation import build_device_attestation
 from challenge.reproduce import create_reproduction
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1448,6 +1449,34 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             checkpoint_rejected = self._run("checkpoint", str(bad_path))
             self.assertEqual(checkpoint_rejected.returncode, 2)
             self.assertIn("INVALID", checkpoint_rejected.stderr)
+
+    def test_browser_verifier_verifies_python_device_attestation(self) -> None:
+        key = Ed25519KeyPair.generate()
+        attestation = build_device_attestation(
+            device_id="device:esp32c3:paper-barrier:unit-1",
+            firmware_digest="sha256:" + "c" * 64,
+            boot_counter=3,
+            device_key=key,
+            measured_boot=[
+                {"stage": "bootloader", "digest": "sha256:" + "d" * 64}
+            ],
+            issued_at="2026-08-15T00:00:00Z",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            attestation_path = base / "attestation.json"
+            attestation_path.write_text(json.dumps(attestation), encoding="utf-8")
+            verified = self._run("attestation", str(attestation_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("DEVICE ATTESTATION VALID", verified.stdout)
+            tampered = dict(attestation)
+            tampered["payload"] = dict(attestation["payload"])
+            tampered["payload"]["boot_counter"] = -1
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("attestation", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
 
 
 if __name__ == "__main__":

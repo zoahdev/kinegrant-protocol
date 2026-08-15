@@ -158,6 +158,11 @@ re-verified in the browser too (`verifySensorCommitment` /
 digests, commitment and checkpoint content ids, optional sensor/notary
 signatures, and the evidence hash binding are all checked locally,
 cross-tested against the Python v0.4 sensor-evidence and checkpoint builders.
+`kinegrant:DeviceAttestation` is re-verified in the browser too
+(`verifyDeviceAttestation`): device binding, firmware digest, boot counter,
+ordered measured-boot stages, content-addressed attestation id, and optional
+trusted-device checks, cross-tested against the Python v0.4 device
+attestation builder.
 
 ## Audit aggregation
 
