@@ -2976,6 +2976,59 @@ export async function verifyFleetOperationsReport(
   };
 }
 
+const BENCHMARK_OPERATIONS = [
+  "policy_evaluate",
+  "cached_policy_evaluate",
+  "capability_issue",
+  "gate_authorize",
+  "receipt_append",
+  "obligation_compliance",
+  "gatekeeper_execute",
+  "audit_summary",
+  "revocation_distribute",
+  "jcs_digest",
+];
+
+export function verifyBenchmarkReport(report) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("benchmark report must be an object");
+  }
+  if (report.type !== "kinegrant:BenchmarkReport") {
+    throw new Error("wrong benchmark report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported benchmark report version");
+  }
+  if (!Number.isInteger(report.iterations) || report.iterations < 1) {
+    throw new Error("benchmark report iterations must be a positive integer");
+  }
+  const operations = report.operations_per_second;
+  if (
+    typeof operations !== "object" ||
+    operations === null ||
+    Array.isArray(operations)
+  ) {
+    throw new Error("benchmark report operations_per_second must be an object");
+  }
+  if (
+    Object.keys(operations).sort().join(",") !==
+    [...BENCHMARK_OPERATIONS].sort().join(",")
+  ) {
+    throw new Error("benchmark report operations_per_second keys are invalid");
+  }
+  for (const name of BENCHMARK_OPERATIONS) {
+    const value = operations[name];
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+      throw new Error(`benchmark report ${name} must be a positive number`);
+    }
+  }
+  return {
+    valid: true,
+    iterations: report.iterations,
+    operations: BENCHMARK_OPERATIONS.length,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -3004,5 +3057,6 @@ if (typeof globalThis !== "undefined") {
     verifySecurityReviewKit,
     verifyEsp32c3Evidence,
     verifyFleetOperationsReport,
+    verifyBenchmarkReport,
   };
 }

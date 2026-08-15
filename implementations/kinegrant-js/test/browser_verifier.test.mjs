@@ -34,6 +34,7 @@ import {
   verifySecurityReviewKit,
   verifyEsp32c3Evidence,
   verifyFleetOperationsReport,
+  verifyBenchmarkReport,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -1187,4 +1188,32 @@ test("browser verifier validates fleet operations reports", async () => {
       new Set([policyBundle.kid])
     )
   );
+});
+
+test("browser verifier validates benchmark reports", () => {
+  const report = {
+    type: "kinegrant:BenchmarkReport",
+    schema_version: "0.1",
+    iterations: 2000,
+    operations_per_second: {
+      policy_evaluate: 1000,
+      cached_policy_evaluate: 2000,
+      capability_issue: 1500,
+      gate_authorize: 800,
+      receipt_append: 600,
+      obligation_compliance: 400,
+      gatekeeper_execute: 300,
+      audit_summary: 500,
+      revocation_distribute: 200,
+      jcs_digest: 5000,
+    },
+  };
+  const result = verifyBenchmarkReport(report);
+  assert.equal(result.operations, 10);
+  assert.equal(result.iterations, 2000);
+  report.iterations = 0;
+  assert.throws(() => verifyBenchmarkReport(report));
+  report.iterations = 2000;
+  delete report.operations_per_second.jcs_digest;
+  assert.throws(() => verifyBenchmarkReport(report));
 });
