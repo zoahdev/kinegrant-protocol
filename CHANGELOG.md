@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.45.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.45.0 on the
+  stable 1.0 wire format, adding obligation fulfillment verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:ObligationFulfillmentPacket`
+  (`verifyObligationFulfillment`: every obligation carried by the
+  capability must be covered by receipt obligation results with status
+  satisfied or explicitly failed with a reason; pending obligations
+  fail closed; receipts must be 1.0, bind the capability and request
+  digest, and form a valid chain; summary counts and flags must be
+  consistent); the HTML page and Node CLI (`obligation-fulfillment`
+  command) expose it, cross-tested against a Python-built packet.
+
 ## 2.44.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.44.0 on the

@@ -41,6 +41,7 @@ import {
   verifyUnifiedAuditExport,
   verifyPolicyMigrationAudit,
   verifyComplianceTimeline,
+  verifyObligationFulfillment,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -402,6 +403,15 @@ try {
       `COMPLIANCE TIMELINE VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
         `${result.events_total} events, ${result.first_at} -> ${result.last_at})`
     );
+  } else if (command === "obligation-fulfillment") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyObligationFulfillment(packet);
+    console.log(
+      `OBLIGATION FULFILLMENT VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
+        `${result.obligations_covered}/${result.obligations_required} obligations, ` +
+        `${result.receipts_total} receipts)`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -495,6 +505,7 @@ try {
       "unified-audit <packet.json> | " +
       "migration-audit <packet.json> | " +
       "timeline <packet.json> | " +
+      "obligation-fulfillment <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +
