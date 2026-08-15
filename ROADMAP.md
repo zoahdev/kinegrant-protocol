@@ -672,6 +672,19 @@ without trusting the export generator.
 Exit criterion: an auditor can verify that a disclosed subset belongs to
 a committed document in the browser without seeing the full document.
 
+## v2.47 - browser identifier rotation verification
+
+- browser verifier re-verifies `kinegrant:IdentifierRotationPacket`
+  (`verifyIdentifierRotation`: ephemeral id grammar, strictly increasing
+  issue order, unique ids, exactly one active identifier which must be
+  the latest entry, revoked_at after issued_at);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify the rotation and revocation
+state of a privacy-preserving identifier in the browser without trusting
+the export generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

@@ -2951,6 +2951,72 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_identifier_rotation(self) -> None:
+        from datetime import timedelta
+
+        from kinegrant.privacy import RotatingIdentifierRegistry
+
+        started = utc_now()
+        registry = RotatingIdentifierRegistry(lifetime_seconds=300)
+        first = registry.issue(
+            "robot-a",
+            "robot-1",
+            now=started - timedelta(minutes=5),
+        )
+        second = registry.rotate(
+            "robot-a",
+            "robot-1",
+            now=started - timedelta(minutes=4),
+        )
+        packet = {
+            "type": "kinegrant:IdentifierRotationPacket",
+            "schema_version": "0.1",
+            "namespace": "robot-a",
+            "static_id": "robot-1",
+            "generated_at": isoformat(started),
+            "overall_result": "PASS",
+            "rotations": [
+                {
+                    "ephemeral_id": first,
+                    "issued_at": isoformat(started - timedelta(minutes=5)),
+                    "status": "revoked",
+                    "revoked_at": isoformat(started - timedelta(minutes=4)),
+                },
+                {
+                    "ephemeral_id": second,
+                    "issued_at": isoformat(started - timedelta(minutes=4)),
+                    "status": "active",
+                    "revoked_at": None,
+                },
+            ],
+            "summary": {
+                "artifacts_total": 3,
+                "rotations_total": 2,
+                "active_total": 1,
+                "revoked_total": 1,
+                "statuses_ok": True,
+                "chain_complete": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "rotation.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("identifier-rotation", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("IDENTIFIER ROTATION VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["rotations"] = [
+                dict(entry) for entry in packet["rotations"]
+            ]
+            tampered["rotations"][0]["status"] = "active"
+            tampered["rotations"][0]["revoked_at"] = None
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("identifier-rotation", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

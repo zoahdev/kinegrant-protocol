@@ -43,6 +43,7 @@ import {
   verifyComplianceTimeline,
   verifyObligationFulfillment,
   verifySelectiveDisclosure,
+  verifyIdentifierRotation,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -421,6 +422,14 @@ try {
       `SELECTIVE DISCLOSURE VALID (document=${result.document_id}, root=${result.root}, ` +
         `${result.fields_total} fields verified)`
     );
+  } else if (command === "identifier-rotation") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyIdentifierRotation(packet);
+    console.log(
+      `IDENTIFIER ROTATION VALID (namespace=${result.namespace}, static=${result.static_id}, ` +
+        `${result.rotations_total} rotations, ${result.active_total} active)`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -516,6 +525,7 @@ try {
       "timeline <packet.json> | " +
       "obligation-fulfillment <packet.json> | " +
       "selective-disclosure <packet.json> | " +
+      "identifier-rotation <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +

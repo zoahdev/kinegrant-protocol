@@ -332,6 +332,13 @@
   <p><button id="verify-selective-disclosure">验证选择性披露证明</button></p>
   <div class="row">
     <div class="col">
+      <label>轮换标识与吊销 JSON（kinegrant:IdentifierRotationPacket：短时标识轮换链、吊销状态、签发顺序）</label>
+      <textarea id="identifier-rotation" placeholder='{ "type": "kinegrant:IdentifierRotationPacket", "schema_version": "0.1", "namespace": "robot-a", "static_id": "robot-1", "generated_at": "...", "overall_result": "PASS", "rotations": [ { "ephemeral_id": "urn:kinegrant:ephemeral:robot-a:000000000000000000000001", "issued_at": "...", "status": "revoked", "revoked_at": "..." }, { "ephemeral_id": "urn:kinegrant:ephemeral:robot-a:000000000000000000000002", "issued_at": "...", "status": "active", "revoked_at": null } ], "summary": { "artifacts_total": 3, "rotations_total": 2, "active_total": 1, "revoked_total": 1, "statuses_ok": true, "chain_complete": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-identifier-rotation">验证轮换标识与吊销</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -430,6 +437,7 @@
       verifyComplianceTimeline,
       verifyObligationFulfillment,
       verifySelectiveDisclosure,
+      verifyIdentifierRotation,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -490,6 +498,7 @@
     const timelineInput = document.getElementById("timeline");
     const obligationFulfillmentInput = document.getElementById("obligation-fulfillment");
     const selectiveDisclosureInput = document.getElementById("selective-disclosure");
+    const identifierRotationInput = document.getElementById("identifier-rotation");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1080,6 +1089,19 @@
         showOk(
           `SELECTIVE DISCLOSURE VALID (document=${result.document_id}, root=${result.root}, ` +
             `${result.fields_total} fields verified)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-identifier-rotation").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(identifierRotationInput.value, "轮换标识与吊销");
+        const result = await verifyIdentifierRotation(packet);
+        showOk(
+          `IDENTIFIER ROTATION VALID (namespace=${result.namespace}, static=${result.static_id}, ` +
+            `${result.rotations_total} rotations, ${result.active_total} active)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

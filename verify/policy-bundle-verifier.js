@@ -5620,6 +5620,162 @@ export async function verifySelectiveDisclosure(packet, { now } = {}) {
   };
 }
 
+const IDENTIFIER_ROTATION_KEYS = [
+  "generated_at",
+  "namespace",
+  "overall_result",
+  "rotations",
+  "schema_version",
+  "static_id",
+  "summary",
+  "type",
+];
+const IDENTIFIER_ROTATION_SUMMARY_KEYS = [
+  "active_total",
+  "artifacts_total",
+  "chain_complete",
+  "revoked_total",
+  "rotations_total",
+  "statuses_ok",
+];
+const ROTATION_ENTRY_KEYS = ["ephemeral_id", "issued_at", "revoked_at", "status"];
+
+export async function verifyIdentifierRotation(packet, { now } = {}) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("identifier rotation packet must be an object");
+  }
+  if (
+    Object.keys(packet).sort().join(",") !==
+    IDENTIFIER_ROTATION_KEYS.join(",")
+  ) {
+    throw new Error("identifier rotation packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:IdentifierRotationPacket") {
+    throw new Error("wrong identifier rotation packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported identifier rotation packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "identifier rotation packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("identifier rotation packet overall_result must be PASS");
+  }
+  if (
+    typeof packet.namespace !== "string" ||
+    !/^[a-z0-9.-]{1,63}$/.test(packet.namespace)
+  ) {
+    throw new Error("identifier rotation packet namespace is invalid");
+  }
+  if (typeof packet.static_id !== "string" || packet.static_id.length === 0) {
+    throw new Error("identifier rotation packet static_id must be non-empty");
+  }
+  if (!Array.isArray(packet.rotations) || packet.rotations.length === 0) {
+    throw new Error("identifier rotation packet rotations must be a non-empty array");
+  }
+
+  const ephemeralPrefix = `urn:kinegrant:ephemeral:${packet.namespace}:`;
+  const ids = new Set();
+  let previousIssuedAt = -Infinity;
+  let activeTotal = 0;
+  let revokedTotal = 0;
+  for (const entry of packet.rotations) {
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      Array.isArray(entry) ||
+      Object.keys(entry).sort().join(",") !== ROTATION_ENTRY_KEYS.join(",")
+    ) {
+      throw new Error("rotation entry fields are invalid");
+    }
+    if (
+      typeof entry.ephemeral_id !== "string" ||
+      !entry.ephemeral_id.startsWith(ephemeralPrefix) ||
+      !/^[0-9a-f]{24}$/.test(entry.ephemeral_id.slice(ephemeralPrefix.length))
+    ) {
+      throw new Error("rotation ephemeral id is invalid for this namespace");
+    }
+    if (ids.has(entry.ephemeral_id)) {
+      throw new Error("rotation ephemeral ids must be unique");
+    }
+    ids.add(entry.ephemeral_id);
+    if (typeof entry.issued_at !== "string" || Number.isNaN(Date.parse(entry.issued_at))) {
+      throw new Error("rotation issued_at is invalid");
+    }
+    const issuedAtMs = Date.parse(entry.issued_at);
+    if (issuedAtMs <= previousIssuedAt) {
+      throw new Error("rotation issued_at values must be strictly increasing");
+    }
+    previousIssuedAt = issuedAtMs;
+    if (entry.status !== "active" && entry.status !== "revoked") {
+      throw new Error("rotation status must be active or revoked");
+    }
+    if (entry.status === "active") {
+      activeTotal += 1;
+      if (entry.revoked_at !== null) {
+        throw new Error("active rotation must not have revoked_at");
+      }
+    } else {
+      revokedTotal += 1;
+      if (typeof entry.revoked_at !== "string" || Number.isNaN(Date.parse(entry.revoked_at))) {
+        throw new Error("revoked rotation requires a valid revoked_at");
+      }
+      if (Date.parse(entry.revoked_at) <= issuedAtMs) {
+        throw new Error("revoked_at must follow issued_at");
+      }
+    }
+  }
+  if (activeTotal !== 1) {
+    throw new Error("a rotation chain must have exactly one active identifier");
+  }
+  const lastEntry = packet.rotations[packet.rotations.length - 1];
+  if (lastEntry.status !== "active") {
+    throw new Error("the latest rotation must be the active identifier");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("identifier rotation packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    IDENTIFIER_ROTATION_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("identifier rotation packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 3,
+    rotations_total: packet.rotations.length,
+    active_total: activeTotal,
+    revoked_total: revokedTotal,
+    statuses_ok: true,
+    chain_complete: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`identifier rotation packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    namespace: packet.namespace,
+    static_id: packet.static_id,
+    rotations_total: packet.rotations.length,
+    active_total: activeTotal,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -6050,6 +6206,7 @@ if (typeof globalThis !== "undefined") {
     verifyComplianceTimeline,
     verifyObligationFulfillment,
     verifySelectiveDisclosure,
+    verifyIdentifierRotation,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,
