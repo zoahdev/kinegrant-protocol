@@ -858,6 +858,16 @@ Exit criterion: an auditor can verify in the browser that a bounded
 model check report is a faithful account of the enumerated request
 space and the policy rules.
 
+## v2.62 - distribution and contributor packaging
+
+- PyPI package, Docker image, npm-ready JavaScript verifier, and
+  security.txt/quickstart documentation;
+- RFC-0003 acceptance vote closing (community/steering action);
+- community outreach and pilot intake (external action).
+
+Exit criterion: a new user can install and run a live authorization
+demo from pip or Docker without cloning the repository.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

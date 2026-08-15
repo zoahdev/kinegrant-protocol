@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 2.62.0 2026-08-16
+
+- Milestone release: reference implementation version 2.62.0, adding
+  distribution and contributor-facing packaging.
+
+- `kinegrant-protocol` is published to PyPI; `pip install
+  kinegrant-protocol` followed by `kinegrant-demo` is the documented
+  30-second quickstart.
+- Docker image published to GitHub Container Registry on every release
+  (`docker run --rm ghcr.io/zoahdev/kinegrant-protocol`).
+- `kinegrant-js` is prepared for npm publication with a CLI bin and a
+  release-triggered publish workflow (activates once NPM_TOKEN is set).
+- Added `.well-known/security.txt` and README quickstart blocks in
+  English and Chinese.
+
 ## 2.61.0 2026-08-15
 
 - Milestone release: reference implementation version 2.61.0 on the
