@@ -174,6 +174,10 @@ too (`verifyHardwareTrustPacket`): a device attestation, at least one sensor
 commitment, and at least one receipt checkpoint are each re-verified, the
 packet device id is bound to the attestation, and the packet summary is
 checked, cross-tested against the Python v0.4 hardware-trust builders.
+`kinegrant:RobotDemoReport` is re-verified in the browser as well
+(`verifyRobotDemoReport`): outcome structure, expected/allowed/passed
+consistency, actuator-call counts, summary, obligation compliance, and the
+overall result, cross-tested against the Python robot demo runner.
 
 ## Audit aggregation
 

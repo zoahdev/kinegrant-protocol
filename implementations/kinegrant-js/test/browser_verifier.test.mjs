@@ -42,6 +42,7 @@ import {
   verifyDeviceAttestation,
   verifyBridgeDemoReport,
   verifyHardwareTrustPacket,
+  verifyRobotDemoReport,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -368,6 +369,40 @@ function buildBridgeOutcomes(includePurpose = true) {
     if (includePurpose) outcome.purpose = "delivery";
     return outcome;
   });
+}
+
+function buildRobotOutcomes() {
+  const specs = [
+    {
+      scenario: "allow-open",
+      stack: "ros2",
+      action: "open",
+      allowed: true,
+      expected: "ALLOW",
+      obligation: true,
+      actuatorCalls: 1,
+    },
+    {
+      scenario: "deny-violation",
+      stack: "matter",
+      action: "open",
+      allowed: false,
+      expected: "DENY",
+      obligation: null,
+      actuatorCalls: 0,
+    },
+  ];
+  return specs.map((spec) => ({
+    scenario: spec.scenario,
+    stack: spec.stack,
+    action: spec.action,
+    allowed: spec.allowed,
+    reason: spec.allowed ? "allow" : "denied",
+    actuator_calls: spec.actuatorCalls,
+    expected: spec.expected,
+    obligation_compliant: spec.obligation,
+    passed: spec.allowed === (spec.expected === "ALLOW"),
+  }));
 }
 
 function buildReceipt(privateKey, publicKey, { capabilityId, previous = null } = {}) {
@@ -1482,4 +1517,29 @@ test("browser verifier validates hardware trust packets", async () => {
   packet.summary.sensor_commitments = 1;
   packet.device_id = "other-device";
   await assert.rejects(() => verifyHardwareTrustPacket(packet));
+});
+
+test("browser verifier validates robot demo reports", () => {
+  const report = {
+    type: "kinegrant:RobotDemoReport",
+    schema_version: "0.1",
+    overall_result: "PASS",
+    summary: { total: 2, passed: 2, failed: 0 },
+    actuator_calls: { ros2: 1, matter: 0 },
+    obligation_compliance_ok: true,
+    outcomes: buildRobotOutcomes(),
+    limitations: ["software simulation only"],
+  };
+  const result = verifyRobotDemoReport(report);
+  assert.equal(result.overall_result, "PASS");
+  assert.equal(result.actuator_calls, 2);
+  report.summary.passed = 1;
+  assert.throws(() => verifyRobotDemoReport(report));
+  report.summary.passed = 2;
+  report.obligation_compliance_ok = false;
+  report.overall_result = "PASS";
+  assert.throws(() => verifyRobotDemoReport(report));
+  report.obligation_compliance_ok = true;
+  report.outcomes[0].actuator_calls = -1;
+  assert.throws(() => verifyRobotDemoReport(report));
 });

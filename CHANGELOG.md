@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.34.0 - v2.34 first item (unreleased)
+
+- Browser verifier re-verifies gateway `kinegrant:RobotDemoReport` artifacts
+  (`verifyRobotDemoReport`: outcome structure, expected/allowed/passed
+  consistency, actuator-call counts, summary, obligation compliance, overall
+  result; fail-closed on any inconsistency); the HTML page and Node CLI
+  (`robot-demo` command) expose it, cross-tested against the Python robot
+  demo runner.
+
 ## 2.33.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.33.0 on the

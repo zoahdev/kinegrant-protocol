@@ -3643,6 +3643,121 @@ export async function verifyHardwareTrustPacket(
   };
 }
 
+const ROBOT_OUTCOME_KEYS = [
+  "action",
+  "actuator_calls",
+  "allowed",
+  "expected",
+  "obligation_compliant",
+  "passed",
+  "reason",
+  "scenario",
+  "stack",
+];
+
+export function verifyRobotDemoReport(report) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("robot demo report must be an object");
+  }
+  if (report.type !== "kinegrant:RobotDemoReport") {
+    throw new Error("wrong robot demo report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported robot demo report version");
+  }
+  if (!Array.isArray(report.outcomes) || report.outcomes.length === 0) {
+    throw new Error("robot demo report outcomes must be a non-empty array");
+  }
+  let passed = 0;
+  for (const outcome of report.outcomes) {
+    if (typeof outcome !== "object" || outcome === null || Array.isArray(outcome)) {
+      throw new Error("each robot demo outcome must be an object");
+    }
+    if (Object.keys(outcome).sort().join(",") !== ROBOT_OUTCOME_KEYS.join(",")) {
+      throw new Error("robot demo outcome fields are invalid");
+    }
+    for (const field of ["scenario", "stack", "action", "reason"]) {
+      if (typeof outcome[field] !== "string" || outcome[field].length === 0) {
+        throw new Error(`robot demo outcome ${field} must be a non-empty string`);
+      }
+    }
+    if (!Number.isInteger(outcome.actuator_calls) || outcome.actuator_calls < 0) {
+      throw new Error("robot demo outcome actuator_calls must be a non-negative integer");
+    }
+    if (outcome.expected !== "ALLOW" && outcome.expected !== "DENY") {
+      throw new Error("robot demo outcome expected must be ALLOW or DENY");
+    }
+    if (typeof outcome.allowed !== "boolean" || typeof outcome.passed !== "boolean") {
+      throw new Error("robot demo outcome allowed and passed must be booleans");
+    }
+    if (
+      outcome.obligation_compliant !== null &&
+      typeof outcome.obligation_compliant !== "boolean"
+    ) {
+      throw new Error("robot demo outcome obligation_compliant must be null or a boolean");
+    }
+    if (outcome.allowed && outcome.obligation_compliant === null) {
+      throw new Error("allowed robot demo outcomes require an obligation_compliant flag");
+    }
+    const expectedPassed = outcome.allowed === (outcome.expected === "ALLOW");
+    if (outcome.passed !== expectedPassed) {
+      throw new Error("robot demo outcome passed flag is inconsistent");
+    }
+    if (outcome.passed) passed += 1;
+  }
+  const summary = report.summary;
+  if (typeof summary !== "object" || summary === null || Array.isArray(summary)) {
+    throw new Error("robot demo report summary must be an object");
+  }
+  if (Object.keys(summary).sort().join(",") !== "failed,passed,total") {
+    throw new Error("robot demo report summary fields are invalid");
+  }
+  if (
+    summary.total !== report.outcomes.length ||
+    summary.passed !== passed ||
+    summary.failed !== report.outcomes.length - passed
+  ) {
+    throw new Error("robot demo report summary is inconsistent");
+  }
+  const actuatorCalls = report.actuator_calls;
+  if (
+    typeof actuatorCalls !== "object" ||
+    actuatorCalls === null ||
+    Array.isArray(actuatorCalls) ||
+    Object.keys(actuatorCalls).length === 0
+  ) {
+    throw new Error("robot demo report actuator_calls must be a non-empty object");
+  }
+  for (const [stack, calls] of Object.entries(actuatorCalls)) {
+    if (stack.length === 0 || !Number.isInteger(calls) || calls < 0) {
+      throw new Error("robot demo report actuator_calls values must be non-negative integers");
+    }
+  }
+  if (typeof report.obligation_compliance_ok !== "boolean") {
+    throw new Error("robot demo report obligation_compliance_ok must be a boolean");
+  }
+  const expectedResult =
+    passed === report.outcomes.length && report.obligation_compliance_ok
+      ? "PASS"
+      : "FAIL";
+  if (report.overall_result !== expectedResult) {
+    throw new Error("robot demo report overall_result is inconsistent");
+  }
+  if (!Array.isArray(report.limitations)) {
+    throw new Error("robot demo report limitations must be an array");
+  }
+  if (report.limitations.some((item) => typeof item !== "string")) {
+    throw new Error("robot demo report limitations must be strings");
+  }
+  return {
+    valid: true,
+    overall_result: report.overall_result,
+    summary: report.summary,
+    outcomes: report.outcomes.length,
+    actuator_calls: Object.keys(actuatorCalls).length,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -3679,5 +3794,6 @@ if (typeof globalThis !== "undefined") {
     verifyDeviceAttestation,
     verifyBridgeDemoReport,
     verifyHardwareTrustPacket,
+    verifyRobotDemoReport,
   };
 }
