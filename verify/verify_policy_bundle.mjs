@@ -42,6 +42,7 @@ import {
   verifyPolicyMigrationAudit,
   verifyComplianceTimeline,
   verifyObligationFulfillment,
+  verifySelectiveDisclosure,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -412,6 +413,14 @@ try {
         `${result.obligations_covered}/${result.obligations_required} obligations, ` +
         `${result.receipts_total} receipts)`
     );
+  } else if (command === "selective-disclosure") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifySelectiveDisclosure(packet);
+    console.log(
+      `SELECTIVE DISCLOSURE VALID (document=${result.document_id}, root=${result.root}, ` +
+        `${result.fields_total} fields verified)`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -506,6 +515,7 @@ try {
       "migration-audit <packet.json> | " +
       "timeline <packet.json> | " +
       "obligation-fulfillment <packet.json> | " +
+      "selective-disclosure <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +

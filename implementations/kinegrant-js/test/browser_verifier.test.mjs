@@ -50,6 +50,7 @@ import {
   verifyPolicyMigrationAudit,
   verifyComplianceTimeline,
   verifyObligationFulfillment,
+  verifySelectiveDisclosure,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -2835,6 +2836,88 @@ test("browser verifier validates obligation fulfillment packets", async () => {
     verifyObligationFulfillment({
       ...packet,
       summary: { ...packet.summary, obligations_covered: 1 },
+    })
+  );
+});
+
+test("browser verifier validates selective disclosure proofs", async () => {
+  const merkleLeaf = (field, value) =>
+    "sha256:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson({ field, value }), "utf8"))
+      .digest("hex");
+  const merkleNode = (left, right) =>
+    "sha256:" +
+    createHash("sha256")
+      .update(Buffer.from(canonicalJson({ left, right }), "utf8"))
+      .digest("hex");
+  const document = {
+    action: "open",
+    agent: "robot-1",
+    purpose: "delivery",
+    target: "door-7",
+  };
+  const fields = Object.keys(document).sort();
+  const leaves = fields.map((field) => merkleLeaf(field, document[field]));
+  const layer1 = [merkleNode(leaves[0], leaves[1]), merkleNode(leaves[2], leaves[3])];
+  const root = merkleNode(layer1[0], layer1[1]);
+  const proofFor = (field) => {
+    const index = fields.indexOf(field);
+    const pair = index >> 1;
+    return [
+      { hash: leaves[index ^ 1], left: index % 2 === 1 },
+      { hash: pair === 0 ? layer1[1] : layer1[0], left: pair === 1 },
+    ];
+  };
+  const packet = {
+    type: "kinegrant:SelectiveDisclosurePacket",
+    schema_version: "0.1",
+    document_id: "receipt-1",
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    root,
+    visible: [
+      { field: "action", value: "open", proof: proofFor("action") },
+      { field: "purpose", value: "delivery", proof: proofFor("purpose") },
+    ],
+    summary: {
+      artifacts_total: 3,
+      fields_total: 2,
+      proofs_verified: 2,
+      root_bound: true,
+      document_bound: true,
+    },
+  };
+  const result = await verifySelectiveDisclosure(packet);
+  assert.equal(result.fields_total, 2);
+  assert.equal(result.document_id, "receipt-1");
+
+  await assert.rejects(() =>
+    verifySelectiveDisclosure({
+      ...packet,
+      visible: [
+        { field: "action", value: "open", proof: proofFor("action") },
+        { field: "purpose", value: "deliver", proof: proofFor("purpose") },
+      ],
+    })
+  );
+  await assert.rejects(() =>
+    verifySelectiveDisclosure({
+      ...packet,
+      visible: [
+        {
+          field: "action",
+          value: "open",
+          proof: [{ hash: "sha256:" + "0".repeat(64), left: false }, ...proofFor("action").slice(1)],
+        },
+        { field: "purpose", value: "delivery", proof: proofFor("purpose") },
+      ],
+    })
+  );
+  await assert.rejects(() =>
+    verifySelectiveDisclosure({
+      ...packet,
+      summary: { ...packet.summary, proofs_verified: 1 },
     })
   );
 });

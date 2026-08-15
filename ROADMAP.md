@@ -660,6 +660,18 @@ Exit criterion: an auditor can re-verify that every obligation attached
 to an authorization was fulfilled or explicitly failed in the browser
 without trusting the export generator.
 
+## v2.46 - browser selective disclosure verification
+
+- browser verifier re-verifies `kinegrant:SelectiveDisclosurePacket`
+  (`verifySelectiveDisclosure`: Merkle inclusion proofs recomputed per
+  revealed field against the committed root; unique field names;
+  fail-closed on any non-matching proof);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can verify that a disclosed subset belongs to
+a committed document in the browser without seeing the full document.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
