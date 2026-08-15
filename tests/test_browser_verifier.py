@@ -1284,6 +1284,28 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(gate_rejected.returncode, 2)
             self.assertIn("INVALID", gate_rejected.stderr)
 
+    def test_browser_verifier_verifies_python_benchmark_report(self) -> None:
+        import benchmarks.bench as bench_module
+
+        report = bench_module.run(iterations=30)
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            report_path = base / "bench.json"
+            report_path.write_text(json.dumps(report), encoding="utf-8")
+            verified = self._run("bench", str(report_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("BENCHMARK REPORT VALID", verified.stdout)
+            tampered = dict(report)
+            tampered["operations_per_second"] = dict(
+                report["operations_per_second"]
+            )
+            del tampered["operations_per_second"]["jcs_digest"]
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("bench", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

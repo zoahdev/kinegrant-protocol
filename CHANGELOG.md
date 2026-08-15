@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 2.28.0 - v2.28 first item (unreleased)
+
+- Browser verifier re-verifies `kinegrant:BenchmarkReport` artifacts
+  (`verifyBenchmarkReport`: iteration counts and the full ten-operation
+  operations-per-second surface, fail-closed on any missing or non-positive
+  value); the HTML page and Node CLI (`bench` command) expose it,
+  cross-tested against the Python benchmark runner output.
+
 ## 2.27.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.27.0 on the

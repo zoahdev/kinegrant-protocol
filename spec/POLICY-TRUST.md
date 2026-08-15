@@ -142,6 +142,10 @@ distribution and revocation distribution reports are each re-verified against
 their signed bundles, then gate sets and fleet totals are joined and checked
 for consistency, cross-tested against Python `PolicyDistributor` +
 `RevocationDistributor` output.
+`kinegrant:BenchmarkReport` artifacts are re-verified in the browser as well
+(`verifyBenchmarkReport`): iteration counts and the full ten-operation
+operations-per-second surface are checked for structure and positivity,
+cross-tested against the Python benchmark runner output.
 
 ## Audit aggregation
 

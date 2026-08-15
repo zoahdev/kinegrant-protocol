@@ -26,6 +26,7 @@ import {
   verifySecurityReviewKit,
   verifyEsp32c3Evidence,
   verifyFleetOperationsReport,
+  verifyBenchmarkReport,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -252,6 +253,14 @@ try {
         `${result.summary.revocation_applied}/${result.summary.gates_total} revocation applied, ` +
         `${result.gates} gates)`
     );
+  } else if (command === "bench") {
+    const [reportPath] = args;
+    const report = load(reportPath);
+    const result = verifyBenchmarkReport(report);
+    console.log(
+      `BENCHMARK REPORT VALID (${result.operations} operations, ` +
+        `iterations=${result.iterations})`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -288,7 +297,8 @@ try {
       "fleet-audit <report.json> | " +
       "kit <kit.json> | " +
       "esp32 <evidence.json> | " +
-      "fleet-ops <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json>"
+      "fleet-ops <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +
+      "bench <report.json>"
     );
   }
 } catch (error) {
