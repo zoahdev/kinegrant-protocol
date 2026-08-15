@@ -18,6 +18,8 @@ import {
   validateIdentitySyntax,
   verifyPolicyAnalysisReport,
   verifyDelegationChain,
+  evaluateSequencePolicy,
+  verifySequenceCheckReport,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -164,6 +166,32 @@ try {
     console.log(
       `DELEGATION CHAIN VALID (depth=${result.depth}, terminal=${result.terminal_capability_id})`
     );
+  } else if (command === "sequence") {
+    const [reportPath, policyPath, requestPath, journalPath] = args;
+    const report = load(reportPath);
+    const policy = load(policyPath);
+    const request = load(requestPath);
+    const journal = load(journalPath);
+    const result = await verifySequenceCheckReport(
+      report,
+      policy,
+      request,
+      journal
+    );
+    console.log(
+      `SEQUENCE CHECK VALID (allowed=${result.allowed}, reason=${result.reason}, ` +
+        `matched=${result.matched_combination_ids.join(",") || "-"})`
+    );
+  } else if (command === "sequence-eval") {
+    const [policyPath, requestPath, journalPath] = args;
+    const policy = load(policyPath);
+    const request = load(requestPath);
+    const journal = load(journalPath);
+    const verdict = evaluateSequencePolicy(policy, request, journal);
+    console.log(
+      `SEQUENCE EVAL (allowed=${verdict.allowed}, reason=${verdict.reason}, ` +
+        `matched=${verdict.matched_combination_ids.join(",") || "-"})`
+    );
   } else {
     throw new Error(
       "usage: verify_policy_bundle.mjs verify <bundle.json> <authorities.json> [policy-id] | " +
@@ -182,7 +210,9 @@ try {
       "obligations <obligations.json> | " +
       "identities <identifiers.json> | " +
       "analysis <report.json> <bundle.json> <authorities.json> | " +
-      "delegation <chain.json> <request.json> <issuers.json>"
+      "delegation <chain.json> <request.json> <issuers.json> | " +
+      "sequence <report.json> <policy.json> <request.json> <journal.json> | " +
+      "sequence-eval <policy.json> <request.json> <journal.json>"
     );
   }
 } catch (error) {
