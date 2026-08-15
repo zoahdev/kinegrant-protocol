@@ -402,6 +402,13 @@
   <p><button id="verify-policy-template">验证策略模板一致性包</button></p>
   <div class="row">
     <div class="col">
+      <label>义务批次履行包 JSON（kinegrant:ObligationBatchAuditPacket：批量能力-收据的义务覆盖交叉一致）</label>
+      <textarea id="obligation-batch" placeholder='{ "type": "kinegrant:ObligationBatchAuditPacket", "schema_version": "0.1", "device_id": "...", "generated_at": "...", "overall_result": "PASS", "trusted_authorities": [ "kinegrant:key:ed25519:..." ], "policy_bundle": { ... }, "entries": [ { "entry_id": "e1", "request": { ... }, "capability": { ... }, "receipt": { ... } } ], "summary": { "artifacts_total": 4, "entries_total": 2, "receipts_verified": 2, "obligations_required": 2, "obligations_covered": 2, "capabilities_bound": true, "batch_complete": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-obligation-batch">验证义务批次履行包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -510,6 +517,7 @@
       verifyAuditQuery,
       verifyCrossImplementationReport,
       verifyPolicyTemplateAudit,
+      verifyObligationBatchAudit,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -580,6 +588,7 @@
     const auditQueryInput = document.getElementById("audit-query");
     const crossImplementationInput = document.getElementById("cross-implementation");
     const policyTemplateInput = document.getElementById("policy-template");
+    const obligationBatchInput = document.getElementById("obligation-batch");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1303,6 +1312,19 @@
         showOk(
           `POLICY TEMPLATE AUDIT VALID (policy=${result.policy_id}, template=${result.template_id}, ` +
             `${result.rules_total} rules)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-obligation-batch").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(obligationBatchInput.value, "义务批次履行包");
+        const result = await verifyObligationBatchAudit(packet);
+        showOk(
+          `OBLIGATION BATCH AUDIT VALID (device=${result.device_id}, ` +
+            `${result.entries_total} entries, ${result.obligations_covered}/${result.obligations_required} obligations)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

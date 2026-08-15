@@ -791,6 +791,18 @@ implementations agree on the same evidence.
 Exit criterion: an auditor can verify in the browser that every rule of
 a bundle conforms to a declared policy template.
 
+## v2.57 - browser obligation batch audit verification
+
+- browser verifier re-verifies `kinegrant:ObligationBatchAuditPacket`
+  (`verifyObligationBatchAudit`: per-entry capability/receipt binding and
+  obligation coverage; union coverage across the batch);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can verify in the browser that every
+obligation across a batch of authorizations was fulfilled or explicitly
+failed.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

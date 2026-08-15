@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+## 2.57.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.57.0 on the
+  stable 1.0 wire format, adding obligation batch audit verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:ObligationBatchAuditPacket`
+  (`verifyObligationBatchAudit`: every entry's capability is bound to the
+  batch policy and request; every receipt is a verified 1.0 chain bound
+  to its capability; each entry must cover all of its own obligations
+  with satisfied or explicitly failed results (pending fails closed);
+  the union of covered obligations must equal the union of required
+  obligations across the batch; summary counts and flags must be
+  consistent; fail-closed on any inconsistency); the HTML page and Node
+  CLI (`obligation-batch` command) expose it, cross-tested against
+  Python-built receipt batches.
+
 ## 2.56.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.56.0 on the
