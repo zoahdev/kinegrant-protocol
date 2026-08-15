@@ -152,6 +152,12 @@ policy bundle (policy id, bundle id, version), follow the canonical
 publish → enforce → odrl → distribute → audit → revoke order, and keep
 per-phase statuses, summary, and overall result consistent; fail-closed on
 any deviation, cross-tested against a Python-generated lifecycle trace.
+`kinegrant:SensorEvidenceCommitment` and `kinegrant:ReceiptCheckpoint` are
+re-verified in the browser too (`verifySensorCommitment` /
+`sensorEvidenceHash` / `verifyReceiptCheckpoint`): reading structure and
+digests, commitment and checkpoint content ids, optional sensor/notary
+signatures, and the evidence hash binding are all checked locally,
+cross-tested against the Python v0.4 sensor-evidence and checkpoint builders.
 
 ## Audit aggregation
 

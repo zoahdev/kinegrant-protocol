@@ -28,6 +28,9 @@ import {
   verifyFleetOperationsReport,
   verifyBenchmarkReport,
   verifyPolicyLifecycleTrace,
+  verifySensorCommitment,
+  sensorEvidenceHash,
+  verifyReceiptCheckpoint,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -277,6 +280,23 @@ try {
         `${result.summary.passed}/${result.summary.phases_total} phases, ` +
         `${result.summary.failed} failed, policy=${result.policy_id})`
     );
+  } else if (command === "sensor") {
+    const [commitmentPath] = args;
+    const commitment = load(commitmentPath);
+    const payload = await verifySensorCommitment(commitment);
+    const evidenceHash = await sensorEvidenceHash(commitment);
+    console.log(
+      `SENSOR COMMITMENT VALID (${payload.readings.length} readings, ` +
+        `evidence_hash=${evidenceHash})`
+    );
+  } else if (command === "checkpoint") {
+    const [checkpointPath] = args;
+    const checkpoint = load(checkpointPath);
+    const result = await verifyReceiptCheckpoint(checkpoint);
+    console.log(
+      `RECEIPT CHECKPOINT VALID (chain_digest=${result.chain_digest}, ` +
+        `notary=${result.notary}, period=${result.period})`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -315,7 +335,9 @@ try {
       "esp32 <evidence.json> | " +
       "fleet-ops <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +
       "bench <report.json> | " +
-      "lifecycle <trace.json> <bundle.json> <authorities.json>"
+      "lifecycle <trace.json> <bundle.json> <authorities.json> | " +
+      "sensor <commitment.json> | " +
+      "checkpoint <checkpoint.json>"
     );
   }
 } catch (error) {
