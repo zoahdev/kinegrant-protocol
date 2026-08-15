@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.18.0 - v2.18 first item (unreleased)
+## 2.18.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.18.0 on the
+  stable 1.0 wire format, adding identity syntax validation to the
+  browser verifier.
 
 - Browser verifier validates canonical KineGrant identifier syntax
   (`validateIdentitySyntax`: `urn:kinegrant:<agent|target|policy>:<namespace>:<local-id>`,
