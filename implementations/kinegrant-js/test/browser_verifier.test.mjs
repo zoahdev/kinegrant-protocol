@@ -48,6 +48,7 @@ import {
   verifyRevocationReissueClosure,
   verifyUnifiedAuditExport,
   verifyPolicyMigrationAudit,
+  verifyComplianceTimeline,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -2580,6 +2581,148 @@ test("browser verifier validates policy migration audit packets", async () => {
     verifyPolicyMigrationAudit({
       ...packet,
       summary: { ...packet.summary, version_chain: false },
+    })
+  );
+});
+
+test("browser verifier validates compliance timelines", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  const bundlePayload = bundle.payload;
+  const trusted = [bundlePayload.issuer];
+  const request = {
+    type: "kinegrant:ActionRequest",
+    version: "0.1",
+    request_id: "req-1",
+    agent: "robot-1",
+    target: "urn:space:door-1",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const expectedPolicyDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        Buffer.from(
+          canonicalJson({
+            rules: bundlePayload.rules,
+            trusted_policy_issuers: trusted.sort(),
+          }),
+          "utf8"
+        )
+      )
+      .digest("hex");
+  const capabilityA = buildScopedCapability(privateKey, publicKey, request, {
+    policyDigest: expectedPolicyDigest,
+    matchedPolicyIds: [bundlePayload.policy_id],
+    nonce: "timeline-a-nonce-00000000000000",
+  });
+  const capabilityB = buildScopedCapability(privateKey, publicKey, request, {
+    policyDigest: expectedPolicyDigest,
+    matchedPolicyIds: [bundlePayload.policy_id],
+    nonce: "timeline-b-nonce-00000000000000",
+  });
+  const capIdA = capabilityA.payload.capability_id;
+  const capIdB = capabilityB.payload.capability_id;
+  const events = [
+    {
+      kind: "capability_issued",
+      at: "2026-08-15T00:10:00Z",
+      capability_id: capIdA,
+      request_digest: capabilityA.payload.request_digest,
+      policy_digest: expectedPolicyDigest,
+      actor: "robot-1",
+    },
+    {
+      kind: "gate_allowed",
+      at: "2026-08-15T00:11:00Z",
+      capability_id: capIdA,
+      policy_digest: expectedPolicyDigest,
+      reason: "allow",
+    },
+    {
+      kind: "receipt_signed",
+      at: "2026-08-15T00:12:00Z",
+      capability_id: capIdA,
+      receipt_id: "kinegrant:receipt:" + "a".repeat(64),
+      evidence_hash: "sha256:" + "b".repeat(64),
+    },
+    {
+      kind: "capability_revoked",
+      at: "2026-08-15T00:13:00Z",
+      capability_id: capIdA,
+      reason: "operator decision",
+    },
+    {
+      kind: "gate_denied",
+      at: "2026-08-15T00:14:00Z",
+      capability_id: capIdA,
+      policy_digest: expectedPolicyDigest,
+      reason: "revoked",
+    },
+    {
+      kind: "capability_reissued",
+      at: "2026-08-15T00:15:00Z",
+      old_capability_id: capIdA,
+      new_capability_id: capIdB,
+      policy_digest: expectedPolicyDigest,
+    },
+  ];
+  const packet = {
+    type: "kinegrant:ComplianceTimelinePacket",
+    schema_version: "0.1",
+    device_id: "device:esp32c3:paper-barrier:unit-1",
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: trusted,
+    policy_bundle: bundle,
+    events,
+    summary: {
+      events_total: 6,
+      kinds_unique: 6,
+      monotonic: true,
+      policy_bound: true,
+      device_bound: true,
+      references_ok: true,
+      timeline_complete: true,
+    },
+  };
+  const result = await verifyComplianceTimeline(packet);
+  assert.equal(result.events_total, 6);
+  assert.equal(result.device_id, "device:esp32c3:paper-barrier:unit-1");
+
+  const outOfOrder = events.map((event) => ({ ...event }));
+  [outOfOrder[1], outOfOrder[4]] = [outOfOrder[4], outOfOrder[1]];
+  await assert.rejects(() =>
+    verifyComplianceTimeline({
+      ...packet,
+      events: outOfOrder,
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyComplianceTimeline({
+      ...packet,
+      events: [
+        ...events.slice(0, 2),
+        {
+          kind: "gate_allowed",
+          at: "2026-08-15T00:09:00Z",
+          capability_id: "kinegrant:cap:" + "c".repeat(64),
+          policy_digest: expectedPolicyDigest,
+          reason: "allow",
+        },
+        ...events.slice(2),
+      ],
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyComplianceTimeline({
+      ...packet,
+      summary: { ...packet.summary, timeline_complete: false },
     })
   );
 });

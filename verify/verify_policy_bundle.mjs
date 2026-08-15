@@ -40,6 +40,7 @@ import {
   verifyRevocationReissueClosure,
   verifyUnifiedAuditExport,
   verifyPolicyMigrationAudit,
+  verifyComplianceTimeline,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -393,6 +394,14 @@ try {
         `old=${result.old_capability_id}, new=${result.new_capability_id}, ` +
         `receipt=${result.receipt_id})`
     );
+  } else if (command === "timeline") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyComplianceTimeline(packet);
+    console.log(
+      `COMPLIANCE TIMELINE VALID (device=${result.device_id}, policy=${result.policy_id}, ` +
+        `${result.events_total} events, ${result.first_at} -> ${result.last_at})`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -485,6 +494,7 @@ try {
       "revocation-reissue <packet.json> | " +
       "unified-audit <packet.json> | " +
       "migration-audit <packet.json> | " +
+      "timeline <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +

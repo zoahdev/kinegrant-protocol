@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 2.44.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.44.0 on the
+  stable 1.0 wire format, adding compliance timeline verification to
+  the browser verifier.
+
+- Browser verifier re-verifies `kinegrant:ComplianceTimelinePacket`
+  (`verifyComplianceTimeline`: capability issue, gate allow, receipt,
+  revocation, gate deny, and reissue events must be chronologically
+  monotonic, bound to the timeline policy, and cross-referenced so that
+  every allow/receipt/revocation/denial/reissue references a previously
+  issued capability and receipts are unique; at least one revocation must
+  be present; summary counts and flags must be consistent; fail-closed on
+  any inconsistency); the HTML page and Node CLI (`timeline` command)
+  expose it, cross-tested against a Python-built timeline.
+
 ## 2.43.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.43.0 on the

@@ -634,6 +634,19 @@ Exit criterion: an auditor can re-verify a policy version migration
 (rules change -> distribution -> reissue -> receipt) in the browser
 without trusting the export generator.
 
+## v2.44 - browser compliance timeline verification
+
+- browser verifier re-verifies `kinegrant:ComplianceTimelinePacket`
+  (`verifyComplianceTimeline`: issue/allow/receipt/revoke/deny/reissue
+  events chronologically monotonic, policy-bound, and cross-referenced;
+  unique receipts; at least one revocation);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify the chronological event stream
+of a device's authorization lifecycle in the browser without trusting
+the export generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
