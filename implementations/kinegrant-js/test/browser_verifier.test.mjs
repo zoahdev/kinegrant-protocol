@@ -59,6 +59,7 @@ import {
   verifyPolicyImpactAudit,
   verifyCrossDomainAudit,
   verifyAuditQuery,
+  verifyCrossImplementationReport,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -3647,6 +3648,85 @@ test("browser verifier validates audit query packets", async () => {
     verifyAuditQuery({
       ...packet,
       summary: { ...packet.summary, matches_total: 5 },
+    })
+  );
+});
+
+test("browser verifier validates cross implementation reports", async () => {
+  const packet = {
+    type: "kinegrant:CrossImplementationReportPacket",
+    schema_version: "0.1",
+    evidence_id: "evidence-1",
+    evidence_type: "kinegrant:PolicyBundle",
+    generated_at: "2026-08-15T02:00:00Z",
+    overall_result: "PASS",
+    checks: [
+      {
+        check_id: "c1",
+        tool: "kinegrant-python",
+        check: "policy_bundle",
+        result: "PASS",
+        detail: "verified by python",
+        verified: true,
+      },
+      {
+        check_id: "c2",
+        tool: "kinegrant-js",
+        check: "policy_bundle",
+        result: "PASS",
+        detail: "verified by js",
+        verified: true,
+      },
+      {
+        check_id: "c3",
+        tool: "kinegrant-go",
+        check: "policy_bundle",
+        result: "PASS",
+        detail: "verified by go",
+        verified: true,
+      },
+    ],
+    summary: {
+      artifacts_total: 3,
+      checks_total: 3,
+      checks_verified: 3,
+      tools_total: 3,
+      tools_unique: 3,
+      agreement: true,
+      consistent: true,
+    },
+  };
+  const result = await verifyCrossImplementationReport(packet);
+  assert.equal(result.tools_unique, 3);
+  assert.equal(result.agreement, true);
+
+  await assert.rejects(() =>
+    verifyCrossImplementationReport({
+      ...packet,
+      checks: [
+        ...packet.checks.slice(0, 2),
+        {
+          ...packet.checks[2],
+          result: "FAIL",
+        },
+      ],
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyCrossImplementationReport({
+      ...packet,
+      checks: [
+        { ...packet.checks[0], tool: "kinegrant-unknown" },
+        ...packet.checks.slice(1),
+      ],
+      summary: { ...packet.summary },
+    })
+  );
+  await assert.rejects(() =>
+    verifyCrossImplementationReport({
+      ...packet,
+      summary: { ...packet.summary, agreement: false },
     })
   );
 });

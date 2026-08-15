@@ -388,6 +388,13 @@
   <p><button id="verify-audit-query">验证审计查询包</button></p>
   <div class="row">
     <div class="col">
+      <label>跨实现一致性报告 JSON（kinegrant:CrossImplementationReportPacket：Python/JS/Go 三方对同一证据的结论比对）</label>
+      <textarea id="cross-implementation" placeholder='{ "type": "kinegrant:CrossImplementationReportPacket", "schema_version": "0.1", "evidence_id": "...", "evidence_type": "kinegrant:PolicyBundle", "generated_at": "...", "overall_result": "PASS", "checks": [ { "check_id": "c1", "tool": "kinegrant-python", "check": "policy_bundle", "result": "PASS", "detail": "...", "verified": true }, { "check_id": "c2", "tool": "kinegrant-js", "check": "policy_bundle", "result": "PASS", "detail": "...", "verified": true } ], "summary": { "artifacts_total": 3, "checks_total": 2, "checks_verified": 2, "tools_total": 2, "tools_unique": 2, "agreement": true, "consistent": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-cross-implementation">验证跨实现一致性报告</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -494,6 +501,7 @@
       verifyPolicyImpactAudit,
       verifyCrossDomainAudit,
       verifyAuditQuery,
+      verifyCrossImplementationReport,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -562,6 +570,7 @@
     const policyImpactInput = document.getElementById("policy-impact");
     const crossDomainInput = document.getElementById("cross-domain");
     const auditQueryInput = document.getElementById("audit-query");
+    const crossImplementationInput = document.getElementById("cross-implementation");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1259,6 +1268,19 @@
           `AUDIT QUERY VALID (query=${result.query_id}, device=${result.device_id}, ` +
             `${result.conditions_total} conditions, ${result.records_total} records, ` +
             `${result.matches_total} matches)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-cross-implementation").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(crossImplementationInput.value, "跨实现一致性报告");
+        const result = await verifyCrossImplementationReport(packet);
+        showOk(
+          `CROSS IMPLEMENTATION VALID (evidence=${result.evidence_id}, ` +
+            `${result.checks_total} checks, ${result.tools_unique} tools, agreement=true)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);
