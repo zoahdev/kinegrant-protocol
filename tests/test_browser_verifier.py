@@ -1597,6 +1597,31 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_camera_consent_trace(self) -> None:
+        proc = subprocess.run(
+            [sys.executable, "examples/camera-consent/camera_consent.py"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr[:1000])
+        trace = json.loads(proc.stdout)
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            trace_path = base / "camera.json"
+            trace_path.write_text(json.dumps(trace), encoding="utf-8")
+            verified = self._run("camera-consent", str(trace_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("CAMERA CONSENT TRACE VALID", verified.stdout)
+            tampered = dict(trace)
+            tampered["passed"] = not trace["passed"]
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("camera-consent", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

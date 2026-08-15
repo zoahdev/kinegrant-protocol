@@ -178,6 +178,11 @@ checked, cross-tested against the Python v0.4 hardware-trust builders.
 (`verifyRobotDemoReport`): outcome structure, expected/allowed/passed
 consistency, actuator-call counts, summary, obligation compliance, and the
 overall result, cross-tested against the Python robot demo runner.
+The camera-consent scenario trace is re-verified in the browser too
+(`verifyCameraConsentTrace`): the record-allowed, record-consumed,
+train-policy-denied, train-sequence-denied, and obligation-compliant flags
+must be mutually consistent with the passed result, cross-tested against the
+Python camera-consent example.
 
 ## Audit aggregation
 

@@ -43,6 +43,7 @@ import {
   verifyBridgeDemoReport,
   verifyHardwareTrustPacket,
   verifyRobotDemoReport,
+  verifyCameraConsentTrace,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -1542,4 +1543,26 @@ test("browser verifier validates robot demo reports", () => {
   report.obligation_compliance_ok = true;
   report.outcomes[0].actuator_calls = -1;
   assert.throws(() => verifyRobotDemoReport(report));
+});
+
+test("browser verifier validates camera consent traces", () => {
+  const trace = {
+    scenario: "camera-consent",
+    record_allowed: true,
+    record_consumed: true,
+    train_policy_denied: true,
+    train_sequence_denied: true,
+    obligation_compliant: true,
+    passed: true,
+  };
+  const result = verifyCameraConsentTrace(trace);
+  assert.equal(result.passed, true);
+  trace.passed = false;
+  assert.throws(() => verifyCameraConsentTrace(trace));
+  trace.passed = true;
+  trace.record_allowed = false;
+  assert.throws(() => verifyCameraConsentTrace(trace));
+  trace.record_allowed = true;
+  trace.scenario = "other";
+  assert.throws(() => verifyCameraConsentTrace(trace));
 });
