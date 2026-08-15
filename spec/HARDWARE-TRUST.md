@@ -47,3 +47,12 @@ software state; secure-boot enforcement is deployment hardware work.
 Hardware-specific pieces (secure-element key storage, measured boot, signed
 gate firmware) remain deployment work and are intentionally not simulated as
 software claims of hardware security.
+
+## Browser evidence verification
+
+The browser verifier can re-verify
+`kinegrant:ESP32C3PaperBarrierProofEvidence` locally
+(`verifyEsp32c3Evidence`): schema fields, HWP-001..011 acceptance profiles,
+NOT_RUN/PASS/FAIL consistency, trust-check flags, and physical-mode artifact,
+role, and digest requirements; file-byte verification of artifacts remains in
+the Python verifier with `--artifact-root`.

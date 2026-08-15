@@ -129,6 +129,13 @@ well (`verifySecurityReviewKit`): check statuses, MPT schema binding,
 benchmark output, checklist/commands/artifacts structure, and the overall
 result are all validated, cross-tested against the Python kit generator
 output shape.
+ESP32-C3 hardware-trust evidence
+(`kinegrant:ESP32C3PaperBarrierProofEvidence`) can be re-verified in the
+browser too (`verifyEsp32c3Evidence`): schema fields, HWP-001..011 acceptance
+profiles, NOT_RUN/PASS/FAIL consistency, trust-check flags, and physical-mode
+artifact/role/digest requirements are all checked locally, cross-tested
+against the Python hardware evidence verifier. File-byte verification of
+artifacts stays in the Python verifier (`--artifact-root`).
 
 ## Audit aggregation
 

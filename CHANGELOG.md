@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.26.0 - v2.26 first item (unreleased)
+
+- Browser verifier re-verifies ESP32-C3 hardware-trust evidence
+  (`verifyEsp32c3Evidence`: schema fields, HWP-001..011 acceptance profiles,
+  NOT_RUN/PASS/FAIL consistency, trust-check flags, physical-mode artifact,
+  role, and digest requirements; fail-closed on any inconsistency); the HTML
+  page and Node CLI (`esp32` command) expose it, cross-tested against the
+  Python hardware evidence verifier and the repository template.
+
 ## 2.25.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.25.0 on the

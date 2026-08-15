@@ -454,6 +454,14 @@ Exit criterion: a fleet operator can re-verify a policy audit summary in the bro
 
 Exit criterion: an auditor can re-verify a security review kit in the browser without trusting the kit generator. Released as v2.25.0 (2026-08-15).
 
+## v2.26 - browser hardware evidence verification
+
+- browser verifier re-verifies `kinegrant:ESP32C3PaperBarrierProofEvidence` (`verifyEsp32c3Evidence`: HWP-001..011 acceptance profiles, NOT_RUN/PASS/FAIL consistency, trust-check flags, physical-mode artifact/role/digest requirements) (complete via PR #137);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify ESP32-C3 hardware evidence in the browser without installing anything.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

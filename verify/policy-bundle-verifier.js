@@ -2454,6 +2454,413 @@ export function verifySecurityReviewKit(report) {
   };
 }
 
+const ESP32_EXPECTED_CASES = {
+  "HWP-001": [20, 0, 0, 20],
+  "HWP-002": [20, 20, 20, 0],
+  "HWP-003": [20, 0, 0, 20],
+  "HWP-004": [3, 0, 0, 3],
+  "HWP-005": [1, 0, 0, 1],
+  "HWP-006": [2, 0, 0, 2],
+  "HWP-007": [64, 1, 1, 63],
+  "HWP-008": [1, 0, 0, 1],
+  "HWP-009": [2, 0, 0, 2],
+  "HWP-010": [4, 0, 0, 0],
+  "HWP-011": [100, 100, 100, 0],
+};
+const ESP32_REQUIRED_PHYSICAL_ROLES = new Set([
+  "firmware",
+  "pinout_record",
+  "wiring_photo",
+  "serial_log",
+  "host_log",
+  "video",
+  "receipts",
+  "device_acks",
+]);
+const ESP32_ARTIFACT_ROLES = new Set([
+  ...ESP32_REQUIRED_PHYSICAL_ROLES,
+  "other",
+]);
+const ESP32_VERIFICATION_FIELDS = new Set([
+  "allow_receipts_verified",
+  "deny_receipts_verified",
+  "tampered_receipts_rejected",
+  "untrusted_executor_rejected",
+  "device_acks_verified",
+]);
+const ESP32_MEASUREMENT_FIELDS = new Set([
+  "actuator_calls",
+  "observed_movements",
+  "denials",
+  "abnormal_resets",
+  "overheat_events",
+]);
+const ESP32_DIGEST_RE = /^sha256:[0-9a-f]{64}$/;
+
+function requireDigest(value, label) {
+  if (typeof value !== "string" || !ESP32_DIGEST_RE.test(value)) {
+    throw new Error(`${label} must be a sha256 digest or null`);
+  }
+}
+
+function requireIsoTime(value, label, allowNull) {
+  if (value === null && allowNull) return;
+  if (typeof value !== "string" || !/Z$|[+-]\d{2}:\d{2}$/.test(value)) {
+    throw new Error(`${label} must be a timezone-aware ISO timestamp or null`);
+  }
+  parseTime(value);
+}
+
+export function verifyEsp32c3Evidence(evidence) {
+  if (typeof evidence !== "object" || evidence === null || Array.isArray(evidence)) {
+    throw new Error("ESP32-C3 evidence must be an object");
+  }
+  if (evidence.schema_version !== "0.1") {
+    throw new Error("unsupported ESP32-C3 evidence version");
+  }
+  if (evidence.evidence_type !== "kinegrant:ESP32C3PaperBarrierProofEvidence") {
+    throw new Error("wrong ESP32-C3 evidence type");
+  }
+  if (evidence.evidence_mode !== "simulation" && evidence.evidence_mode !== "physical") {
+    throw new Error("ESP32-C3 evidence_mode must be simulation or physical");
+  }
+  if (
+    !/^urn:kinegrant:esp32c3-proof:run:[0-9a-f-]{36}$/.test(evidence.run_id)
+  ) {
+    throw new Error("ESP32-C3 run_id is invalid");
+  }
+  requireIsoTime(evidence.generated_at, "generated_at", false);
+  requireIsoTime(evidence.started_at, "started_at", true);
+  requireIsoTime(evidence.finished_at, "finished_at", true);
+  if (evidence.protocol !== "KGP-001 Experimental Open Draft 0.1") {
+    throw new Error("ESP32-C3 evidence protocol is invalid");
+  }
+  if (evidence.reference_implementation !== "0.1.1") {
+    throw new Error("ESP32-C3 evidence reference_implementation is invalid");
+  }
+  if (
+    evidence.source_commit !== null &&
+    (typeof evidence.source_commit !== "string" ||
+      !/^[0-9a-f]{40,64}$/.test(evidence.source_commit))
+  ) {
+    throw new Error("ESP32-C3 source_commit must be null or a hex commit");
+  }
+  const allowedResults =
+    evidence.evidence_mode === "simulation"
+      ? new Set(["NOT_RUN", "SIMULATION_PASS", "FAIL"])
+      : new Set(["NOT_RUN", "PHYSICAL_PASS", "FAIL"]);
+  if (!allowedResults.has(evidence.overall_result)) {
+    throw new Error("ESP32-C3 overall_result is invalid for this mode");
+  }
+  const device = evidence.device;
+  if (typeof device !== "object" || device === null || Array.isArray(device)) {
+    throw new Error("ESP32-C3 device must be an object");
+  }
+  for (const field of ["board_model", "device_id", "firmware_version"]) {
+    if (typeof device[field] !== "string" || device[field].length === 0) {
+      throw new Error(`ESP32-C3 device ${field} must be a non-empty string`);
+    }
+  }
+  if (
+    device.device_key !== null &&
+    (typeof device.device_key !== "string" ||
+      !/^kinegrant:key:ed25519:[A-Za-z0-9_-]{43}$/.test(device.device_key))
+  ) {
+    throw new Error("ESP32-C3 device_key is invalid");
+  }
+  if (device.firmware_digest !== null) {
+    requireDigest(device.firmware_digest, "device firmware_digest");
+  }
+  if (device.pinout_record_digest !== null) {
+    requireDigest(device.pinout_record_digest, "device pinout_record_digest");
+  }
+  const environment = evidence.environment;
+  if (
+    typeof environment !== "object" ||
+    environment === null ||
+    Array.isArray(environment)
+  ) {
+    throw new Error("ESP32-C3 environment must be an object");
+  }
+  for (const field of ["host_platform", "servo_model"]) {
+    if (typeof environment[field] !== "string" || environment[field].length === 0) {
+      throw new Error(`ESP32-C3 environment ${field} must be a non-empty string`);
+    }
+  }
+  if (environment.load !== "lightweight-paper-barrier") {
+    throw new Error("ESP32-C3 environment load is invalid");
+  }
+  if (
+    environment.servo_supply_voltage !== null &&
+    (typeof environment.servo_supply_voltage !== "number" ||
+      environment.servo_supply_voltage < 4.5 ||
+      environment.servo_supply_voltage > 5.5)
+  ) {
+    throw new Error("ESP32-C3 servo_supply_voltage must be null or between 4.5 and 5.5");
+  }
+  if (typeof environment.power_plan_reviewed !== "boolean") {
+    throw new Error("ESP32-C3 power_plan_reviewed must be a boolean");
+  }
+  const verification = evidence.verification;
+  if (
+    typeof verification !== "object" ||
+    verification === null ||
+    Array.isArray(verification) ||
+    Object.keys(verification).length !== ESP32_VERIFICATION_FIELDS.size ||
+    Object.keys(verification).some((key) => !ESP32_VERIFICATION_FIELDS.has(key)) ||
+    Object.values(verification).some((value) => typeof value !== "boolean")
+  ) {
+    throw new Error("ESP32-C3 verification fields are invalid");
+  }
+  if (!Array.isArray(evidence.artifacts)) {
+    throw new Error("ESP32-C3 artifacts must be an array");
+  }
+  const artifactDigests = [];
+  for (const artifact of evidence.artifacts) {
+    if (typeof artifact !== "object" || artifact === null || Array.isArray(artifact)) {
+      throw new Error("each ESP32-C3 artifact must be an object");
+    }
+    const keys = Object.keys(artifact).sort().join(",");
+    if (keys !== "bytes,media_type,path,role,sha256") {
+      throw new Error("ESP32-C3 artifact fields are invalid");
+    }
+    if (!ESP32_ARTIFACT_ROLES.has(artifact.role)) {
+      throw new Error("ESP32-C3 artifact role is invalid");
+    }
+    if (
+      typeof artifact.path !== "string" ||
+      artifact.path.length === 0 ||
+      typeof artifact.media_type !== "string" ||
+      artifact.media_type.length === 0 ||
+      !Number.isInteger(artifact.bytes) ||
+      artifact.bytes < 1
+    ) {
+      throw new Error("ESP32-C3 artifact path/media_type/bytes are invalid");
+    }
+    requireDigest(artifact.sha256, "artifact sha256");
+    artifactDigests.push(artifact.sha256);
+  }
+  if (new Set(artifactDigests).size !== artifactDigests.length) {
+    throw new Error("ESP32-C3 artifact digests must be unique");
+  }
+  if (!Array.isArray(evidence.cases) || evidence.cases.length !== 11) {
+    throw new Error("ESP32-C3 cases must contain exactly 11 cases");
+  }
+  const caseIds = [];
+  for (const caseItem of evidence.cases) {
+    if (typeof caseItem !== "object" || caseItem === null || Array.isArray(caseItem)) {
+      throw new Error("each ESP32-C3 case must be an object");
+    }
+    const keys = Object.keys(caseItem).sort().join(",");
+    if (keys !== "artifact_digests,attempts,id,measurements,name,notes,passed") {
+      throw new Error("ESP32-C3 case fields are invalid");
+    }
+    if (!/^HWP-[0-9]{3}$/.test(caseItem.id)) {
+      throw new Error("ESP32-C3 case id is invalid");
+    }
+    caseIds.push(caseItem.id);
+    if (typeof caseItem.name !== "string" || caseItem.name.length === 0) {
+      throw new Error("ESP32-C3 case name must be a non-empty string");
+    }
+    if (!Number.isInteger(caseItem.attempts) || caseItem.attempts < 0) {
+      throw new Error("ESP32-C3 case attempts must be a non-negative integer");
+    }
+    if (typeof caseItem.passed !== "boolean") {
+      throw new Error("ESP32-C3 case passed must be a boolean");
+    }
+    if (typeof caseItem.notes !== "string") {
+      throw new Error("ESP32-C3 case notes must be a string");
+    }
+    const measurements = caseItem.measurements;
+    if (
+      typeof measurements !== "object" ||
+      measurements === null ||
+      Array.isArray(measurements) ||
+      Object.keys(measurements).length !== ESP32_MEASUREMENT_FIELDS.size ||
+      Object.keys(measurements).some((key) => !ESP32_MEASUREMENT_FIELDS.has(key)) ||
+      Object.values(measurements).some(
+        (value) => !Number.isInteger(value) || value < 0
+      )
+    ) {
+      throw new Error("ESP32-C3 case measurements are invalid");
+    }
+    if (!Array.isArray(caseItem.artifact_digests)) {
+      throw new Error("ESP32-C3 case artifact_digests must be an array");
+    }
+    if (
+      new Set(caseItem.artifact_digests).size !== caseItem.artifact_digests.length
+    ) {
+      throw new Error("ESP32-C3 case artifact_digests must be unique");
+    }
+    for (const digest of caseItem.artifact_digests) {
+      requireDigest(digest, "case artifact_digests entry");
+      if (!artifactDigests.includes(digest)) {
+        throw new Error(
+          `${caseItem.id} references an unknown artifact digest`
+        );
+      }
+    }
+  }
+  if (new Set(caseIds).size !== 11) {
+    throw new Error("ESP32-C3 case identifiers must be unique");
+  }
+  for (const expected of Object.keys(ESP32_EXPECTED_CASES)) {
+    if (!caseIds.includes(expected)) {
+      throw new Error("ESP32-C3 case set is missing " + expected);
+    }
+  }
+  for (const id of caseIds) {
+    if (!Object.prototype.hasOwnProperty.call(ESP32_EXPECTED_CASES, id)) {
+      throw new Error("ESP32-C3 case set has an unexpected case: " + id);
+    }
+  }
+  if (!Array.isArray(evidence.limitations) || evidence.limitations.length === 0) {
+    throw new Error("ESP32-C3 limitations must be a non-empty array");
+  }
+  if (
+    evidence.limitations.some(
+      (item) => typeof item !== "string" || item.length === 0
+    )
+  ) {
+    throw new Error("ESP32-C3 limitations must be non-empty strings");
+  }
+
+  const result = evidence.overall_result;
+  if (result === "NOT_RUN") {
+    if (evidence.cases.some((caseItem) => caseItem.attempts || caseItem.passed)) {
+      throw new Error("NOT_RUN evidence cannot contain attempted or passed cases");
+    }
+    if (evidence.started_at !== null || evidence.finished_at !== null) {
+      throw new Error("NOT_RUN evidence cannot contain run timestamps");
+    }
+    if (Object.values(verification).some(Boolean)) {
+      throw new Error("NOT_RUN evidence cannot contain successful trust checks");
+    }
+    return {
+      valid: true,
+      overall_result: result,
+      evidence_mode: evidence.evidence_mode,
+      cases: evidence.cases.length,
+    };
+  }
+
+  if (evidence.started_at === null || evidence.finished_at === null) {
+    throw new Error("completed evidence requires start and finish timestamps");
+  }
+  const startedAt = parseTime(evidence.started_at);
+  const finishedAt = parseTime(evidence.finished_at);
+  const generatedAt = parseTime(evidence.generated_at);
+  if (finishedAt < startedAt) {
+    throw new Error("finished_at cannot precede started_at");
+  }
+  if (generatedAt < finishedAt) {
+    throw new Error("generated_at cannot precede finished_at");
+  }
+  const allCasesPassed = evidence.cases.every((caseItem) => caseItem.passed);
+  const allTrustChecksPassed = Object.values(verification).every(Boolean);
+  const expectedResult =
+    allCasesPassed && allTrustChecksPassed
+      ? evidence.evidence_mode === "physical"
+        ? "PHYSICAL_PASS"
+        : "SIMULATION_PASS"
+      : "FAIL";
+  if (result !== expectedResult) {
+    throw new Error("overall_result is inconsistent with cases and trust checks");
+  }
+  if (result === "PHYSICAL_PASS" || result === "SIMULATION_PASS") {
+    for (const caseItem of evidence.cases) {
+      const expected = ESP32_EXPECTED_CASES[caseItem.id];
+      const observed = [
+        caseItem.attempts,
+        caseItem.measurements.actuator_calls,
+        caseItem.measurements.observed_movements,
+        caseItem.measurements.denials,
+      ];
+      if (observed.join(",") !== expected.join(",")) {
+        throw new Error(
+          `${caseItem.id} measurements differ from the acceptance profile`
+        );
+      }
+    }
+    const endurance = evidence.cases.find((caseItem) => caseItem.id === "HWP-011");
+    if (endurance.measurements.abnormal_resets !== 0) {
+      throw new Error("HWP-011 recorded an abnormal reset");
+    }
+    if (endurance.measurements.overheat_events !== 0) {
+      throw new Error("HWP-011 recorded an overheat event");
+    }
+  }
+  if (evidence.evidence_mode !== "physical" || result !== "PHYSICAL_PASS") {
+    return {
+      valid: true,
+      overall_result: result,
+      evidence_mode: evidence.evidence_mode,
+      cases: evidence.cases.length,
+    };
+  }
+  if (evidence.source_commit === null) {
+    throw new Error("physical evidence requires an exact source commit");
+  }
+  if (evidence.run_id.endsWith("00000000-0000-0000-0000-000000000000")) {
+    throw new Error("physical evidence cannot use the template run identifier");
+  }
+  for (const field of ["device_key", "firmware_digest", "pinout_record_digest"]) {
+    if (device[field] === null) {
+      throw new Error(`physical evidence requires device.${field}`);
+    }
+  }
+  for (const field of ["board_model", "device_id", "firmware_version"]) {
+    if (device[field].startsWith("UN") || device[field].startsWith("NOT_")) {
+      throw new Error(`physical evidence contains placeholder device.${field}`);
+    }
+  }
+  if (environment.servo_supply_voltage === null) {
+    throw new Error("physical evidence requires measured servo supply voltage");
+  }
+  if (!environment.power_plan_reviewed) {
+    throw new Error("physical evidence requires power-plan review");
+  }
+  const roles = new Set(evidence.artifacts.map((artifact) => artifact.role));
+  const missingRoles = [...ESP32_REQUIRED_PHYSICAL_ROLES].filter(
+    (role) => !roles.has(role)
+  );
+  if (missingRoles.length > 0) {
+    throw new Error(
+      "physical evidence is missing artifact roles: " + missingRoles.sort().join(", ")
+    );
+  }
+  if (evidence.cases.some((caseItem) => caseItem.artifact_digests.length === 0)) {
+    throw new Error("every physical case must reference at least one artifact");
+  }
+  const referenced = new Set();
+  for (const caseItem of evidence.cases) {
+    for (const digest of caseItem.artifact_digests) referenced.add(digest);
+  }
+  for (const digest of artifactDigests) {
+    if (!referenced.has(digest)) {
+      throw new Error("every physical artifact must be referenced by a case");
+    }
+  }
+  const firmwareDigests = evidence.artifacts
+    .filter((artifact) => artifact.role === "firmware")
+    .map((artifact) => artifact.sha256);
+  if (!firmwareDigests.includes(device.firmware_digest)) {
+    throw new Error("device firmware_digest does not match a firmware artifact");
+  }
+  const pinoutDigests = evidence.artifacts
+    .filter((artifact) => artifact.role === "pinout_record")
+    .map((artifact) => artifact.sha256);
+  if (!pinoutDigests.includes(device.pinout_record_digest)) {
+    throw new Error("device pinout_record_digest does not match a pinout artifact");
+  }
+  return {
+    valid: true,
+    overall_result: result,
+    evidence_mode: evidence.evidence_mode,
+    cases: evidence.cases.length,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -2480,5 +2887,6 @@ if (typeof globalThis !== "undefined") {
     verifyConformanceReport,
     verifyPolicyAuditSummary,
     verifySecurityReviewKit,
+    verifyEsp32c3Evidence,
   };
 }

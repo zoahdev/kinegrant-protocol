@@ -32,6 +32,7 @@ import {
   verifyConformanceReport,
   verifyPolicyAuditSummary,
   verifySecurityReviewKit,
+  verifyEsp32c3Evidence,
 } from "../../../verify/policy-bundle-verifier.js";
 
 const MLDSA65_SPKI_HEADER_B64 = "MIIHsjALBglghkgBZQMEAxIDggehAA==";
@@ -39,6 +40,39 @@ const MLDSA_FIXTURE_PATH = new URL(
   "./fixtures/mldsa65-policy-bundle.json",
   import.meta.url
 );
+const ESP32_CASE_PROFILE = {
+  "HWP-001": [20, 0, 0, 20],
+  "HWP-002": [20, 20, 20, 0],
+  "HWP-003": [20, 0, 0, 20],
+  "HWP-004": [3, 0, 0, 3],
+  "HWP-005": [1, 0, 0, 1],
+  "HWP-006": [2, 0, 0, 2],
+  "HWP-007": [64, 1, 1, 63],
+  "HWP-008": [1, 0, 0, 1],
+  "HWP-009": [2, 0, 0, 2],
+  "HWP-010": [4, 0, 0, 0],
+  "HWP-011": [100, 100, 100, 0],
+};
+
+function buildEsp32Cases(passed, useProfileAttempts) {
+  return Object.entries(ESP32_CASE_PROFILE).map(
+    ([id, [attempts, calls, movements, denials]]) => ({
+      id,
+      name: "case " + id,
+      attempts: useProfileAttempts ? attempts : 0,
+      passed,
+      measurements: {
+        actuator_calls: useProfileAttempts ? calls : 0,
+        observed_movements: useProfileAttempts ? movements : 0,
+        denials: useProfileAttempts ? denials : 0,
+        abnormal_resets: 0,
+        overheat_events: 0,
+      },
+      artifact_digests: [],
+      notes: passed ? "ok" : "NOT RUN",
+    })
+  );
+}
 
 function b64urlDecode(value) {
   const padded = value + "=".repeat((4 - (value.length % 4)) % 4);
@@ -999,4 +1033,71 @@ test("browser verifier validates security review kits", () => {
   kit.checks.unit_tests.status = "PASS";
   kit.checks.unit_tests.status = "SKIP";
   assert.throws(() => verifySecurityReviewKit(kit));
+});
+
+test("browser verifier validates ESP32-C3 hardware evidence", () => {
+  const base = {
+    schema_version: "0.1",
+    evidence_type: "kinegrant:ESP32C3PaperBarrierProofEvidence",
+    evidence_mode: "simulation",
+    run_id: "urn:kinegrant:esp32c3-proof:run:" + "a".repeat(36),
+    generated_at: "2026-08-15T01:00:00Z",
+    started_at: null,
+    finished_at: null,
+    protocol: "KGP-001 Experimental Open Draft 0.1",
+    reference_implementation: "0.1.1",
+    source_commit: null,
+    device: {
+      board_model: "UNSELECTED",
+      device_id: "device:esp32c3:paper-barrier:UNPROVISIONED",
+      device_key: null,
+      firmware_version: "NOT_BUILT",
+      firmware_digest: null,
+      pinout_record_digest: null,
+    },
+    environment: {
+      host_platform: "NOT_RECORDED",
+      servo_model: "NOT_PURCHASED",
+      load: "lightweight-paper-barrier",
+      servo_supply_voltage: null,
+      power_plan_reviewed: false,
+    },
+    verification: {
+      allow_receipts_verified: false,
+      deny_receipts_verified: false,
+      tampered_receipts_rejected: false,
+      untrusted_executor_rejected: false,
+      device_acks_verified: false,
+    },
+    artifacts: [],
+    limitations: ["template"],
+  };
+  const notRun = {
+    ...base,
+    overall_result: "NOT_RUN",
+    cases: buildEsp32Cases(false, false),
+  };
+  const result = verifyEsp32c3Evidence(notRun);
+  assert.equal(result.overall_result, "NOT_RUN");
+  assert.equal(result.cases, 11);
+  const simPass = {
+    ...base,
+    overall_result: "SIMULATION_PASS",
+    started_at: "2026-08-15T00:00:00Z",
+    finished_at: "2026-08-15T00:30:00Z",
+    verification: {
+      allow_receipts_verified: true,
+      deny_receipts_verified: true,
+      tampered_receipts_rejected: true,
+      untrusted_executor_rejected: true,
+      device_acks_verified: true,
+    },
+    cases: buildEsp32Cases(true, true),
+  };
+  assert.equal(verifyEsp32c3Evidence(simPass).overall_result, "SIMULATION_PASS");
+  simPass.overall_result = "FAIL";
+  assert.throws(() => verifyEsp32c3Evidence(simPass));
+  simPass.overall_result = "SIMULATION_PASS";
+  simPass.cases[0].passed = false;
+  assert.throws(() => verifyEsp32c3Evidence(simPass));
 });

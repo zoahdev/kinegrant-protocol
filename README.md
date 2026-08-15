@@ -284,8 +284,8 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
   and forbidden-combination sequence checks, and it verifies both Ed25519 and
   post-quantum ML-DSA-65 signed envelopes, plus conformance report
   re-verification, fleet policy audit summaries, and security review kit
-  re-verification (zero dependencies; host `verify/` anywhere and link the
-  page).
+  re-verification, plus ESP32-C3 hardware evidence re-verification (zero
+  dependencies; host `verify/` anywhere and link the page).
 - Stable wire format: the reference implementation issues and verifies `1.0`
   capabilities (frozen scoped shape), with `capability-1.0` schema and
   KGP-RFC-0001 accepted, and the JavaScript and Go verifiers accept `0.2`/`1.0`
