@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.27.0 - v2.27 first item (unreleased)
+## 2.27.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.27.0 on the
+  stable 1.0 wire format, adding fleet operations report verification to
+  the browser verifier.
 
 - Browser verifier re-verifies combined `kinegrant:FleetOperationsReport`
   artifacts (`verifyFleetOperationsReport`: embedded policy distribution and
