@@ -757,6 +757,18 @@ Exit criterion: an auditor can verify in the browser that a set of
 policy domains and their cross references are consistent with the signed
 bundles.
 
+## v2.54 - browser audit query verification
+
+- browser verifier re-verifies `kinegrant:AuditQueryPacket`
+  (`verifyAuditQuery`: query conditions translated into executable
+  matchers; match counts recomputed over provided records and matched
+  exactly);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can verify in the browser that the answer to
+an audit query exactly matches the provided evidence records.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

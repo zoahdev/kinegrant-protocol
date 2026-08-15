@@ -3588,6 +3588,122 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_audit_query(self) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        issuer = CapabilityIssuer(key)
+        rule = PolicyRule(
+            "audit-query-rule",
+            key.kid,
+            "urn:space:browser:*",
+            "allow",
+            ("kg.action.open",),
+            purposes=("delivery",),
+        )
+        bundle = authority.publish(
+            "audit-query-rule",
+            [rule],
+            ttl_seconds=3600,
+        )
+        records = []
+        for index in range(2):
+            request = ActionRequest(
+                f"urn:kinegrant:browser:request:query-{index}",
+                "urn:robot:browser:1",
+                f"urn:space:browser:door-{index + 1}",
+                "kg.action.open",
+                "delivery",
+            )
+            decision = PolicyEngine(
+                [rule],
+                trusted_policy_issuers={key.kid},
+            ).evaluate(request)
+            capability = issuer.issue(request, decision, ttl_seconds=300)
+            now = utc_now()
+            gate = ActionGate(
+                trusted_issuers={key.kid},
+                replay_store=InMemoryReplayStore(),
+            )
+            verified = gate.authorize(capability, request, now=now)
+            executor = Ed25519KeyPair.generate()
+            log = ReceiptLog(executor)
+            receipt = log.append(
+                verified,
+                result="succeeded",
+                evidence_hash="sha256:" + f"{index + 1}".zfill(2) * 32,
+                started_at=now,
+                finished_at=now + timedelta(seconds=1),
+                request=request,
+            )
+            records.append(receipt["payload"])
+        query_base = utc_now() - timedelta(minutes=10)
+        packet = {
+            "type": "kinegrant:AuditQueryPacket",
+            "schema_version": "0.1",
+            "device_id": "device:esp32c3:paper-barrier:unit-1",
+            "query_id": "query-1",
+            "query_text": "which open actions succeeded",
+            "generated_at": isoformat(utc_now() + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "conditions": [
+                {
+                    "condition_id": "c1",
+                    "kind": "action_equals",
+                    "value": "kg.action.open",
+                    "matches": 2,
+                    "verified": True,
+                },
+                {
+                    "condition_id": "c2",
+                    "kind": "purpose_equals",
+                    "value": "delivery",
+                    "matches": 2,
+                    "verified": True,
+                },
+                {
+                    "condition_id": "c3",
+                    "kind": "result_equals",
+                    "value": "succeeded",
+                    "matches": 2,
+                    "verified": True,
+                },
+                {
+                    "condition_id": "c4",
+                    "kind": "time_after",
+                    "value": isoformat(query_base),
+                    "matches": 2,
+                    "verified": True,
+                },
+            ],
+            "records": records,
+            "summary": {
+                "artifacts_total": 5,
+                "conditions_total": 4,
+                "conditions_verified": 4,
+                "records_total": 2,
+                "matches_total": 8,
+                "query_bound": True,
+                "references_ok": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "audit-query.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("audit-query", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("AUDIT QUERY VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["summary"] = dict(packet["summary"])
+            tampered["summary"]["matches_total"] = 7
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("audit-query", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 2.54.0 于 2026-08-15
+
+- Milestone release: reference implementation version 2.54.0 on the
+  stable 1.0 wire format, adding audit query verification to the browser
+  verifier.
+
+- Browser verifier re-verifies `kinegrant:AuditQueryPacket`
+  (`verifyAuditQuery`: each query condition is translated into an
+  executable matcher (action/purpose/target/result/evidence hash/time
+  windows) and its match count is recomputed over the provided records;
+  every reported match count must match exactly and conditions must be
+  marked verified; summary counts and flags must be consistent;
+  fail-closed on any inconsistency); the HTML page and Node CLI
+  (`audit-query` command) expose it, cross-tested against Python-built
+  receipt records.
+
 ## 2.53.0 于 2026-08-15
 
 - Milestone release: reference implementation version 2.53.0 on the

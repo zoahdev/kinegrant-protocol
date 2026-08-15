@@ -58,6 +58,7 @@ import {
   verifyPolicyDiffAudit,
   verifyPolicyImpactAudit,
   verifyCrossDomainAudit,
+  verifyAuditQuery,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -3541,6 +3542,111 @@ test("browser verifier validates cross domain audits", async () => {
     verifyCrossDomainAudit({
       ...packet,
       summary: { ...packet.summary, references_verified: 0 },
+    })
+  );
+});
+
+test("browser verifier validates audit query packets", async () => {
+  const records = [
+    {
+      action: "open",
+      purpose: "delivery",
+      target: "urn:space:door-1",
+      result: "succeeded",
+      started_at: "2026-08-15T00:10:00Z",
+      evidence_hash: "sha256:" + "a".repeat(64),
+    },
+    {
+      action: "open",
+      purpose: "delivery",
+      target: "urn:space:door-2",
+      result: "succeeded",
+      started_at: "2026-08-15T00:20:00Z",
+      evidence_hash: "sha256:" + "b".repeat(64),
+    },
+  ];
+  const packet = {
+    type: "kinegrant:AuditQueryPacket",
+    schema_version: "0.1",
+    device_id: "device:esp32c3:paper-barrier:unit-1",
+    query_id: "query-1",
+    query_text: "which open actions succeeded",
+    generated_at: "2026-08-15T01:00:00Z",
+    overall_result: "PASS",
+    conditions: [
+      {
+        condition_id: "c1",
+        kind: "action_equals",
+        value: "open",
+        matches: 2,
+        verified: true,
+      },
+      {
+        condition_id: "c2",
+        kind: "result_equals",
+        value: "succeeded",
+        matches: 2,
+        verified: true,
+      },
+      {
+        condition_id: "c3",
+        kind: "time_after",
+        value: "2026-08-15T00:00:00Z",
+        matches: 2,
+        verified: true,
+      },
+    ],
+    records,
+    summary: {
+      artifacts_total: 5,
+      conditions_total: 3,
+      conditions_verified: 3,
+      records_total: 2,
+      matches_total: 6,
+      query_bound: true,
+      references_ok: true,
+    },
+  };
+  const result = await verifyAuditQuery(packet);
+  assert.equal(result.query_id, "query-1");
+  assert.equal(result.matches_total, 6);
+
+  await assert.rejects(() =>
+    verifyAuditQuery({
+      ...packet,
+      conditions: [
+        ...packet.conditions.slice(0, 2),
+        { ...packet.conditions[2], matches: 1 },
+      ],
+      summary: { ...packet.summary, matches_total: 5 },
+    })
+  );
+  await assert.rejects(() =>
+    verifyAuditQuery({
+      ...packet,
+      records: [
+        ...records,
+        {
+          action: "close",
+          purpose: "maintenance",
+          target: "urn:space:door-2",
+          result: "succeeded",
+          started_at: "2026-08-15T00:30:00Z",
+          evidence_hash: "sha256:" + "c".repeat(64),
+        },
+      ],
+      summary: {
+        ...packet.summary,
+        records_total: 3,
+        conditions_total: 3,
+        matches_total: 7,
+      },
+    })
+  );
+  await assert.rejects(() =>
+    verifyAuditQuery({
+      ...packet,
+      summary: { ...packet.summary, matches_total: 5 },
     })
   );
 });

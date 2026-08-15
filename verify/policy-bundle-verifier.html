@@ -381,6 +381,13 @@
   <p><button id="verify-cross-domain">验证跨策略域联合审计包</button></p>
   <div class="row">
     <div class="col">
+      <label>审计查询包 JSON（kinegrant:AuditQueryPacket：把查询翻译为条件并对记录逐条重算匹配数）</label>
+      <textarea id="audit-query" placeholder='{ "type": "kinegrant:AuditQueryPacket", "schema_version": "0.1", "device_id": "...", "query_id": "...", "query_text": "哪些动作被执行过", "generated_at": "...", "overall_result": "PASS", "conditions": [ { "condition_id": "c1", "kind": "action_equals", "value": "open", "matches": 2, "verified": true } ], "records": [ { "action": "open", "purpose": "delivery", "target": "urn:space:door-1", "result": "succeeded", "started_at": "...", "evidence_hash": "sha256:..." } ], "summary": { "artifacts_total": 5, "conditions_total": 1, "conditions_verified": 1, "records_total": 2, "matches_total": 2, "query_bound": true, "references_ok": true } }'></textarea>
+    </div>
+  </div>
+  <p><button id="verify-audit-query">验证审计查询包</button></p>
+  <div class="row">
+    <div class="col">
       <label>网关机器人演示报告 JSON（kinegrant:RobotDemoReport，kinegrant-robot-demo 输出）</label>
       <textarea id="robot-demo" placeholder='{ "type": "kinegrant:RobotDemoReport", "schema_version": "0.1", "overall_result": "PASS", "summary": { "total": 1, "passed": 1, "failed": 0 }, "actuator_calls": { "ros2": 1 }, "obligation_compliance_ok": true, "outcomes": [ { "scenario": "...", "stack": "ros2", "action": "open", "allowed": true, "reason": "allow", "actuator_calls": 1, "expected": "ALLOW", "obligation_compliant": true, "passed": true } ], "limitations": [] }'></textarea>
     </div>
@@ -486,6 +493,7 @@
       verifyPolicyDiffAudit,
       verifyPolicyImpactAudit,
       verifyCrossDomainAudit,
+      verifyAuditQuery,
       verifyRobotDemoReport,
       verifyCameraConsentTrace,
       verifyFullLifecycleReport,
@@ -553,6 +561,7 @@
     const policyDiffInput = document.getElementById("policy-diff");
     const policyImpactInput = document.getElementById("policy-impact");
     const crossDomainInput = document.getElementById("cross-domain");
+    const auditQueryInput = document.getElementById("audit-query");
     const robotDemoInput = document.getElementById("robot-demo");
     const cameraConsentInput = document.getElementById("camera-consent");
     const fullLifecycleInput = document.getElementById("full-lifecycle");
@@ -1236,6 +1245,20 @@
         showOk(
           `CROSS DOMAIN AUDIT VALID (${result.domains_total} domains, ` +
             `${result.references_total} references verified)`
+        );
+      } catch (error) {
+        showErr("INVALID: " + error.message);
+      }
+    });
+
+    document.getElementById("verify-audit-query").addEventListener("click", async () => {
+      try {
+        const packet = parseJson(auditQueryInput.value, "审计查询包");
+        const result = await verifyAuditQuery(packet);
+        showOk(
+          `AUDIT QUERY VALID (query=${result.query_id}, device=${result.device_id}, ` +
+            `${result.conditions_total} conditions, ${result.records_total} records, ` +
+            `${result.matches_total} matches)`
         );
       } catch (error) {
         showErr("INVALID: " + error.message);

@@ -6896,6 +6896,197 @@ export async function verifyCrossDomainAudit(packet, { now } = {}) {
   };
 }
 
+const AUDIT_QUERY_KEYS = [
+  "conditions",
+  "device_id",
+  "generated_at",
+  "overall_result",
+  "query_id",
+  "query_text",
+  "records",
+  "schema_version",
+  "summary",
+  "type",
+];
+const AUDIT_QUERY_SUMMARY_KEYS = [
+  "artifacts_total",
+  "conditions_total",
+  "conditions_verified",
+  "matches_total",
+  "query_bound",
+  "records_total",
+  "references_ok",
+];
+const AUDIT_QUERY_CONDITION_KEYS = [
+  "condition_id",
+  "kind",
+  "matches",
+  "value",
+  "verified",
+];
+const AUDIT_QUERY_KINDS = new Set([
+  "action_equals",
+  "purpose_equals",
+  "target_matches",
+  "result_equals",
+  "evidence_hash",
+  "time_after",
+  "time_before",
+]);
+
+export async function verifyAuditQuery(packet, { now } = {}) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("audit query packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== AUDIT_QUERY_KEYS.join(",")) {
+    throw new Error("audit query packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:AuditQueryPacket") {
+    throw new Error("wrong audit query packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported audit query packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "audit query packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("audit query packet overall_result must be PASS");
+  }
+  if (typeof packet.device_id !== "string" || packet.device_id.length === 0) {
+    throw new Error("audit query packet device_id must be non-empty");
+  }
+  if (typeof packet.query_id !== "string" || packet.query_id.length === 0) {
+    throw new Error("audit query packet query_id must be non-empty");
+  }
+  if (typeof packet.query_text !== "string" || packet.query_text.length === 0) {
+    throw new Error("audit query packet query_text must be non-empty");
+  }
+  if (!Array.isArray(packet.records) || packet.records.length === 0) {
+    throw new Error("audit query packet records must be a non-empty array");
+  }
+  if (!Array.isArray(packet.conditions) || packet.conditions.length === 0) {
+    throw new Error("audit query packet conditions must be a non-empty array");
+  }
+
+  const conditionIds = new Set();
+  let matchesTotal = 0;
+  for (const condition of packet.conditions) {
+    if (
+      typeof condition !== "object" ||
+      condition === null ||
+      Array.isArray(condition) ||
+      Object.keys(condition).sort().join(",") !==
+        AUDIT_QUERY_CONDITION_KEYS.join(",")
+    ) {
+      throw new Error("audit query condition fields are invalid");
+    }
+    if (
+      typeof condition.condition_id !== "string" ||
+      condition.condition_id.length === 0
+    ) {
+      throw new Error("condition_id must be non-empty");
+    }
+    if (conditionIds.has(condition.condition_id)) {
+      throw new Error("condition ids must be unique");
+    }
+    conditionIds.add(condition.condition_id);
+    if (!AUDIT_QUERY_KINDS.has(condition.kind)) {
+      throw new Error("audit query condition kind is unknown");
+    }
+    if (typeof condition.value !== "string" || condition.value.length === 0) {
+      throw new Error("audit query condition value must be non-empty");
+    }
+    if (
+      !Number.isInteger(condition.matches) ||
+      condition.matches < 0
+    ) {
+      throw new Error("audit query condition matches must be a non-negative integer");
+    }
+    if (condition.verified !== true) {
+      throw new Error("audit query condition verified must be true");
+    }
+    let matches = 0;
+    for (const record of packet.records) {
+      if (
+        typeof record !== "object" ||
+        record === null ||
+        Array.isArray(record)
+      ) {
+        throw new Error("audit query record must be an object");
+      }
+      const recordMatches =
+        condition.kind === "action_equals"
+          ? record.action === condition.value
+          : condition.kind === "purpose_equals"
+            ? record.purpose === condition.value
+            : condition.kind === "target_matches"
+              ? globMatch(condition.value, record.target ?? "")
+              : condition.kind === "result_equals"
+                ? record.result === condition.value
+                : condition.kind === "evidence_hash"
+                  ? record.evidence_hash === condition.value
+                  : condition.kind === "time_after"
+                    ? Date.parse(record.started_at) > Date.parse(condition.value)
+                    : condition.kind === "time_before"
+                      ? Date.parse(record.started_at) < Date.parse(condition.value)
+                      : false;
+      if (recordMatches) {
+        matches += 1;
+      }
+    }
+    if (matches !== condition.matches) {
+      throw new Error(
+        `audit query condition ${condition.condition_id} matches do not match the records`
+      );
+    }
+    matchesTotal += matches;
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("audit query packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !==
+    AUDIT_QUERY_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("audit query packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 5,
+    conditions_total: packet.conditions.length,
+    conditions_verified: packet.conditions.length,
+    records_total: packet.records.length,
+    matches_total: matchesTotal,
+    query_bound: true,
+    references_ok: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`audit query packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    device_id: packet.device_id,
+    query_id: packet.query_id,
+    conditions_total: packet.conditions.length,
+    records_total: packet.records.length,
+    matches_total: matchesTotal,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -7333,6 +7524,7 @@ if (typeof globalThis !== "undefined") {
     verifyPolicyDiffAudit,
     verifyPolicyImpactAudit,
     verifyCrossDomainAudit,
+    verifyAuditQuery,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,
