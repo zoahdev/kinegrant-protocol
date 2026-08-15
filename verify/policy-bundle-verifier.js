@@ -3807,6 +3807,131 @@ export function verifyCameraConsentTrace(trace) {
   };
 }
 
+const FULL_LIFECYCLE_KEYS = [
+  "audit_summary",
+  "bundle_id",
+  "bundle_version",
+  "generated_at",
+  "overall_result",
+  "policy_distribution",
+  "policy_id",
+  "revocation_distribution",
+  "schema_version",
+  "summary",
+  "type",
+];
+
+export async function verifyFullLifecycleReport(
+  report,
+  policyBundle,
+  revocationBundle,
+  trustedAuthorities,
+  { now } = {}
+) {
+  if (typeof report !== "object" || report === null || Array.isArray(report)) {
+    throw new Error("full lifecycle report must be an object");
+  }
+  if (Object.keys(report).sort().join(",") !== FULL_LIFECYCLE_KEYS.join(",")) {
+    throw new Error("full lifecycle report fields are invalid");
+  }
+  if (report.type !== "kinegrant:FullLifecycleReport") {
+    throw new Error("wrong full lifecycle report type");
+  }
+  if (report.schema_version !== "0.1") {
+    throw new Error("unsupported full lifecycle report version");
+  }
+  if (
+    typeof report.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(report.generated_at)
+  ) {
+    throw new Error(
+      "full lifecycle report generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(report.generated_at);
+  if (report.overall_result !== "PASS") {
+    throw new Error("full lifecycle report overall_result must be PASS");
+  }
+  const payload = await verifyPolicyBundle(policyBundle, trustedAuthorities, {
+    now,
+  });
+  if (
+    report.policy_id !== payload.policy_id ||
+    report.bundle_id !== payload.bundle_id ||
+    report.bundle_version !== payload.version
+  ) {
+    throw new Error("full lifecycle report does not bind to the signed policy bundle");
+  }
+  const distribution = report.policy_distribution;
+  if (typeof distribution !== "object" || distribution === null || Array.isArray(distribution)) {
+    throw new Error("full lifecycle report policy_distribution must be an object");
+  }
+  await verifyPolicyDistributionReport(
+    distribution,
+    policyBundle,
+    trustedAuthorities,
+    { now }
+  );
+  if (
+    distribution.policy_id !== report.policy_id ||
+    distribution.bundle_id !== report.bundle_id ||
+    distribution.bundle_version !== report.bundle_version
+  ) {
+    throw new Error("full lifecycle report policy distribution does not match the bundle");
+  }
+  const audit = report.audit_summary;
+  if (typeof audit !== "object" || audit === null || Array.isArray(audit)) {
+    throw new Error("full lifecycle report audit_summary must be an object");
+  }
+  verifyPolicyAuditSummary(audit);
+  if (audit.overall_result !== "PASS") {
+    throw new Error("full lifecycle report audit_summary must be PASS");
+  }
+  const matchingEntry = audit.bundles.find(
+    (entry) =>
+      entry.verified === true &&
+      entry.policy_id === report.policy_id &&
+      entry.bundle_version === report.bundle_version
+  );
+  if (matchingEntry === undefined) {
+    throw new Error(
+      "full lifecycle report audit_summary has no verified entry for this bundle"
+    );
+  }
+  const revocation = report.revocation_distribution;
+  if (typeof revocation !== "object" || revocation === null || Array.isArray(revocation)) {
+    throw new Error("full lifecycle report revocation_distribution must be an object");
+  }
+  await verifyRevocationDistributionReport(
+    revocation,
+    revocationBundle,
+    trustedAuthorities
+  );
+  if (revocation.overall_result !== "PASS") {
+    throw new Error("full lifecycle report revocation_distribution must be PASS");
+  }
+  const summary = report.summary;
+  if (typeof summary !== "object" || summary === null || Array.isArray(summary)) {
+    throw new Error("full lifecycle report summary must be an object");
+  }
+  if (Object.keys(summary).sort().join(",") !== "failed,passed,phases_total") {
+    throw new Error("full lifecycle report summary fields are invalid");
+  }
+  if (
+    summary.phases_total !== 4 ||
+    summary.passed !== 4 ||
+    summary.failed !== 0
+  ) {
+    throw new Error("full lifecycle report summary is inconsistent");
+  }
+  return {
+    valid: true,
+    policy_id: report.policy_id,
+    bundle_version: report.bundle_version,
+    phases: summary.phases_total,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -3845,5 +3970,6 @@ if (typeof globalThis !== "undefined") {
     verifyHardwareTrustPacket,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
+    verifyFullLifecycleReport,
   };
 }

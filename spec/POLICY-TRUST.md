@@ -183,6 +183,11 @@ The camera-consent scenario trace is re-verified in the browser too
 train-policy-denied, train-sequence-denied, and obligation-compliant flags
 must be mutually consistent with the passed result, cross-tested against the
 Python camera-consent example.
+The one-stop `kinegrant:FullLifecycleReport` is re-verified in the browser as
+well (`verifyFullLifecycleReport`): the signed policy bundle is verified and
+bound, then the policy distribution report, the fleet audit summary, and the
+revocation distribution report are each re-verified against the same bundle,
+cross-tested against the Python lifecycle example components.
 
 ## Audit aggregation
 

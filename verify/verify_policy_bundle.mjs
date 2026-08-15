@@ -36,6 +36,7 @@ import {
   verifyHardwareTrustPacket,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
+  verifyFullLifecycleReport,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -347,6 +348,22 @@ try {
         `record_allowed=${result.record_allowed}, ` +
         `train_sequence_denied=${result.train_sequence_denied})`
     );
+  } else if (command === "full-lifecycle") {
+    const [reportPath, policyBundlePath, revocationBundlePath, authoritiesPath] = args;
+    const report = load(reportPath);
+    const policyBundle = load(policyBundlePath);
+    const revocationBundle = load(revocationBundlePath);
+    const trustedAuthorities = new Set(load(authoritiesPath));
+    const result = await verifyFullLifecycleReport(
+      report,
+      policyBundle,
+      revocationBundle,
+      trustedAuthorities
+    );
+    console.log(
+      `FULL LIFECYCLE REPORT VALID (PASS: ${result.phases} phases, ` +
+        `policy=${result.policy_id}, bundle_version=${result.bundle_version})`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -392,7 +409,8 @@ try {
       "bridge <report.json> | " +
       "hardware-packet <packet.json> | " +
       "robot-demo <report.json> | " +
-      "camera-consent <trace.json>"
+      "camera-consent <trace.json> | " +
+      "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json>"
     );
   }
 } catch (error) {
