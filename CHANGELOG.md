@@ -2,7 +2,11 @@
 
 ## Unreleased
 
-## 2.24.0 - v2.24 first item (unreleased)
+## 2.24.0 бк 2026-08-15
+
+- Milestone release: reference implementation version 2.24.0 on the
+  stable 1.0 wire format, adding fleet audit summary verification to the
+  browser verifier.
 
 - Browser verifier re-verifies fleet-level `kinegrant:PolicyAuditSummary`
   reports (`verifyPolicyAuditSummary`: per-bundle verified/failure fields,
