@@ -2528,6 +2528,141 @@ class BrowserVerifierInteropTests(unittest.TestCase):
             self.assertEqual(rejected.returncode, 2)
             self.assertIn("INVALID", rejected.stderr)
 
+    def test_browser_verifier_verifies_python_policy_migration_audit_packet(
+        self,
+    ) -> None:
+        from datetime import timedelta
+
+        key = Ed25519KeyPair.generate()
+        authority = PolicyAuthority(key)
+        issuer = CapabilityIssuer(key)
+        policy_id = "urn:kinegrant:policy:migration:1"
+        old_rule = PolicyRule(
+            "migration-rule-1",
+            key.kid,
+            "urn:space:browser:*",
+            "allow",
+            ("open",),
+            purposes=("delivery",),
+        )
+        deny_rule = PolicyRule(
+            "migration-rule-2",
+            key.kid,
+            "urn:space:browser:door-2",
+            "deny",
+            ("close",),
+            purposes=("maintenance",),
+        )
+        old_bundle = authority.publish(policy_id, [old_rule], ttl_seconds=3600)
+        new_bundle = authority.publish(
+            policy_id,
+            [old_rule, deny_rule],
+            ttl_seconds=3600,
+        )
+        request = ActionRequest(
+            "urn:kinegrant:browser:request:migration",
+            "urn:robot:browser:1",
+            "urn:space:browser:door-1",
+            "open",
+            "delivery",
+        )
+        old_decision = PolicyEngine(
+            [old_rule],
+            trusted_policy_issuers={key.kid},
+        ).evaluate(request)
+        new_decision = PolicyEngine(
+            [old_rule, deny_rule],
+            trusted_policy_issuers={key.kid},
+        ).evaluate(request)
+        old_capability = issuer.issue(request, old_decision, ttl_seconds=300)
+        old_id = old_capability["payload"]["capability_id"]
+        new_capability = issuer.issue(request, new_decision, ttl_seconds=300)
+        new_id = new_capability["payload"]["capability_id"]
+        self.assertNotEqual(old_id, new_id)
+        registry = PolicyRegistry(trusted_authorities={key.kid})
+        distribution = PolicyDistributor(
+            trusted_authorities={key.kid}
+        ).distribute(new_bundle, {"gate-a": registry})
+        started = utc_now()
+        denied_at = isoformat(started - timedelta(minutes=5))
+        allowed_at = isoformat(started - timedelta(minutes=4))
+        gate = ActionGate(
+            trusted_issuers={key.kid},
+            replay_store=InMemoryReplayStore(),
+        )
+        verified = gate.authorize(new_capability, request, now=started)
+        executor = Ed25519KeyPair.generate()
+        log = ReceiptLog(executor)
+        receipt = log.append(
+            verified,
+            result="succeeded",
+            evidence_hash="sha256:" + "a" * 64,
+            started_at=started,
+            finished_at=started + timedelta(seconds=1),
+            request=request,
+        )
+        old_payload = old_capability["payload"]
+        new_payload = new_capability["payload"]
+        packet = {
+            "type": "kinegrant:PolicyMigrationAuditPacket",
+            "schema_version": "0.1",
+            "generated_at": isoformat(started + timedelta(minutes=1)),
+            "overall_result": "PASS",
+            "trusted_authorities": [key.kid],
+            "old_policy_bundle": old_bundle,
+            "new_policy_bundle": new_bundle,
+            "distribution_report": distribution,
+            "old_capability_id": old_id,
+            "request": request.to_dict(),
+            "old_capability": old_capability,
+            "new_capability": new_capability,
+            "migration": {
+                "gate_log": {
+                    "old_denied": {
+                        "allowed": False,
+                        "reason": "policy_migrated",
+                        "checked_at": denied_at,
+                        "capability_id": old_id,
+                        "policy_digest": old_payload["policy_digest"],
+                    },
+                    "new_allowed": {
+                        "allowed": True,
+                        "reason": "allow",
+                        "checked_at": allowed_at,
+                        "capability_id": new_id,
+                        "policy_digest": new_payload["policy_digest"],
+                    },
+                }
+            },
+            "receipt": receipt,
+            "summary": {
+                "artifacts_total": 10,
+                "old_policy_verified": True,
+                "new_policy_verified": True,
+                "version_chain": True,
+                "distribution_verified": True,
+                "migration_verified": True,
+                "gate_order_ok": True,
+                "receipt_bound": True,
+                "closure_complete": True,
+            },
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            packet_path = base / "migration-audit.json"
+            packet_path.write_text(json.dumps(packet), encoding="utf-8")
+            verified = self._run("migration-audit", str(packet_path))
+            self.assertEqual(verified.returncode, 0, verified.stderr)
+            self.assertIn("POLICY MIGRATION AUDIT VALID", verified.stdout)
+            tampered = dict(packet)
+            tampered["summary"] = dict(packet["summary"])
+            tampered["summary"]["version_chain"] = False
+            tampered_path = base / "tampered.json"
+            tampered_path.write_text(json.dumps(tampered), encoding="utf-8")
+            rejected = self._run("migration-audit", str(tampered_path))
+            self.assertEqual(rejected.returncode, 2)
+            self.assertIn("INVALID", rejected.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

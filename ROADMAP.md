@@ -619,6 +619,21 @@ Exit criterion: an auditor can re-verify governance lifecycle, multi-device
 execution evidence, and revocation-reissue closure in one browser export
 without trusting the export generator.
 
+## v2.43 - browser policy migration audit verification
+
+- browser verifier re-verifies `kinegrant:PolicyMigrationAuditPacket`
+  (`verifyPolicyMigrationAudit`: new bundle exactly one version ahead and
+  chained to the old digest; distribution bound to the new bundle; old
+  capability bound to the old policy digest and new capability to the new
+  policy digest; gate log old denial before new allow; receipt binds the
+  new capability);
+- RFC-0003 acceptance vote (community/steering action);
+- integrate the verifier page into the public site (deployment action).
+
+Exit criterion: an auditor can re-verify a policy version migration
+(rules change -> distribution -> reissue -> receipt) in the browser
+without trusting the export generator.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:

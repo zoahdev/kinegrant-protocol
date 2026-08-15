@@ -47,6 +47,7 @@ import {
   verifyEndToEndAuditExport,
   verifyRevocationReissueClosure,
   verifyUnifiedAuditExport,
+  verifyPolicyMigrationAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -145,7 +146,18 @@ function signEnvelope(privateKey, payload) {
   return { alg: "EdDSA", kid, payload, signature: b64url(signature) };
 }
 
-function buildBundle(privateKey, publicKey, { version = 1, purposes = ["delivery"], constraints = {}, obligations = [], extraRules = [] } = {}) {
+function buildBundle(
+  privateKey,
+  publicKey,
+  {
+    version = 1,
+    purposes = ["delivery"],
+    constraints = {},
+    obligations = [],
+    extraRules = [],
+    previousVersionDigest = null,
+  } = {}
+) {
   const now = Date.now();
   const kid = kidOf(publicKey);
   const policyId = "urn:policy:browser";
@@ -155,7 +167,7 @@ function buildBundle(privateKey, publicKey, { version = 1, purposes = ["delivery
     policy_id: policyId,
     issuer: kid,
     version,
-    previous_version_digest: null,
+    previous_version_digest: previousVersionDigest,
     issued_at: new Date(now).toISOString(),
     not_before: new Date(now).toISOString(),
     not_after: new Date(now + 3600 * 1000).toISOString(),
@@ -2401,6 +2413,173 @@ test("browser verifier validates unified audit export packets", async () => {
     verifyUnifiedAuditExport({
       ...packet,
       summary: { ...packet.summary, closure_verified: false },
+    })
+  );
+});
+
+test("browser verifier validates policy migration audit packets", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const oldBundle = buildBundle(privateKey, publicKey, { version: 1 });
+  const oldPayload = oldBundle.payload;
+  const newBundle = buildBundle(privateKey, publicKey, {
+    version: 2,
+    previousVersionDigest: oldPayload.policy_digest,
+    extraRules: [
+      {
+        policy_id: "urn:policy:browser",
+        issuer: oldPayload.issuer,
+        target: "urn:space:door-2",
+        effect: "deny",
+        actions: ["close"],
+        subjects: ["*"],
+        purposes: ["maintenance"],
+        constraints: {},
+        obligations: [],
+        priority: 1,
+        source: {},
+      },
+    ],
+  });
+  const newPayload = newBundle.payload;
+  const trusted = [oldPayload.issuer];
+  const request = {
+    type: "kinegrant:ActionRequest",
+    version: "0.1",
+    request_id: "req-1",
+    agent: "robot-1",
+    target: "urn:space:door-1",
+    action: "open",
+    purpose: "delivery",
+    issued_at: new Date().toISOString(),
+    context: {},
+  };
+  const expectedOldPolicyDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        Buffer.from(
+          canonicalJson({
+            rules: oldPayload.rules,
+            trusted_policy_issuers: trusted.sort(),
+          }),
+          "utf8"
+        )
+      )
+      .digest("hex");
+  const expectedNewPolicyDigest =
+    "sha256:" +
+    createHash("sha256")
+      .update(
+        Buffer.from(
+          canonicalJson({
+            rules: newPayload.rules,
+            trusted_policy_issuers: trusted.sort(),
+          }),
+          "utf8"
+        )
+      )
+      .digest("hex");
+  const oldCapability = buildScopedCapability(privateKey, publicKey, request, {
+    policyDigest: expectedOldPolicyDigest,
+    matchedPolicyIds: [oldPayload.policy_id],
+    nonce: "old-migration-nonce-000000000000",
+  });
+  const newCapability = buildScopedCapability(privateKey, publicKey, request, {
+    policyDigest: expectedNewPolicyDigest,
+    matchedPolicyIds: [newPayload.policy_id],
+    nonce: "new-migration-nonce-000000000000",
+  });
+  const oldId = oldCapability.payload.capability_id;
+  const distribution = {
+    type: "kinegrant:PolicyDistributionReport",
+    schema_version: "0.1",
+    policy_id: newPayload.policy_id,
+    bundle_id: newPayload.bundle_id,
+    bundle_version: 2,
+    overall_result: "PASS",
+    summary: { registries: 1, applied_total: 1, already_present_total: 0 },
+    acks: [
+      {
+        gate_id: "gate-a",
+        policy_id: newPayload.policy_id,
+        bundle_id: newPayload.bundle_id,
+        applied: true,
+        current_before: 1,
+        current_after: 2,
+        detail: "policy bundle activated",
+      },
+    ],
+  };
+  const receipt = buildReceipt(privateKey, publicKey, {
+    capabilityId: newCapability.payload.capability_id,
+    requestDigest: newCapability.payload.request_digest,
+    evidenceHash: "sha256:" + "a".repeat(64),
+    target: request.target,
+  });
+  const packet = {
+    type: "kinegrant:PolicyMigrationAuditPacket",
+    schema_version: "0.1",
+    generated_at: "2026-08-15T04:00:00Z",
+    overall_result: "PASS",
+    trusted_authorities: trusted,
+    old_policy_bundle: oldBundle,
+    new_policy_bundle: newBundle,
+    distribution_report: distribution,
+    old_capability_id: oldId,
+    request,
+    old_capability: oldCapability,
+    new_capability: newCapability,
+    migration: {
+      gate_log: {
+        old_denied: {
+          allowed: false,
+          reason: "policy_migrated",
+          checked_at: "2026-08-15T00:20:00Z",
+          capability_id: oldId,
+          policy_digest: expectedOldPolicyDigest,
+        },
+        new_allowed: {
+          allowed: true,
+          reason: "allow",
+          checked_at: "2026-08-15T00:30:00Z",
+          capability_id: newCapability.payload.capability_id,
+          policy_digest: expectedNewPolicyDigest,
+        },
+      },
+    },
+    receipt,
+    summary: {
+      artifacts_total: 10,
+      old_policy_verified: true,
+      new_policy_verified: true,
+      version_chain: true,
+      distribution_verified: true,
+      migration_verified: true,
+      gate_order_ok: true,
+      receipt_bound: true,
+      closure_complete: true,
+    },
+  };
+  const result = await verifyPolicyMigrationAudit(packet);
+  assert.equal(result.policy_id, "urn:policy:browser");
+  assert.equal(result.old_version, 1);
+  assert.equal(result.new_version, 2);
+  assert.equal(result.old_capability_id, oldId);
+
+  const unlinkedBundle = buildBundle(privateKey, publicKey, {
+    version: 2,
+    previousVersionDigest: "sha256:" + "0".repeat(64),
+  });
+  await assert.rejects(() =>
+    verifyPolicyMigrationAudit({
+      ...packet,
+      new_policy_bundle: unlinkedBundle,
+    })
+  );
+  await assert.rejects(() =>
+    verifyPolicyMigrationAudit({
+      ...packet,
+      summary: { ...packet.summary, version_chain: false },
     })
   );
 });

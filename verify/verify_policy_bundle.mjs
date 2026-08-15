@@ -39,6 +39,7 @@ import {
   verifyEndToEndAuditExport,
   verifyRevocationReissueClosure,
   verifyUnifiedAuditExport,
+  verifyPolicyMigrationAudit,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -382,6 +383,16 @@ try {
         `revoked=${result.closure_revoked}, reissued=${result.closure_reissued}, ` +
         `${result.artifacts_total} artifacts)`
     );
+  } else if (command === "migration-audit") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyPolicyMigrationAudit(packet);
+    console.log(
+      `POLICY MIGRATION AUDIT VALID (policy=${result.policy_id}, ` +
+        `v${result.old_version} -> v${result.new_version}, ` +
+        `old=${result.old_capability_id}, new=${result.new_capability_id}, ` +
+        `receipt=${result.receipt_id})`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -473,6 +484,7 @@ try {
       "end-to-end-audit <packet.json> | " +
       "revocation-reissue <packet.json> | " +
       "unified-audit <packet.json> | " +
+      "migration-audit <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +

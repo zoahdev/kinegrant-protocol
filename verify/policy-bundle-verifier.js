@@ -4712,6 +4712,321 @@ export async function verifyUnifiedAuditExport(
   };
 }
 
+const MIGRATION_AUDIT_KEYS = [
+  "distribution_report",
+  "generated_at",
+  "migration",
+  "new_capability",
+  "new_policy_bundle",
+  "old_capability",
+  "old_capability_id",
+  "old_policy_bundle",
+  "overall_result",
+  "receipt",
+  "request",
+  "schema_version",
+  "summary",
+  "trusted_authorities",
+  "type",
+];
+const MIGRATION_GATE_LOG_KEYS = ["new_allowed", "old_denied"];
+const MIGRATION_GATE_ENTRY_KEYS = [
+  "allowed",
+  "capability_id",
+  "checked_at",
+  "policy_digest",
+  "reason",
+];
+const MIGRATION_SUMMARY_KEYS = [
+  "artifacts_total",
+  "closure_complete",
+  "distribution_verified",
+  "gate_order_ok",
+  "migration_verified",
+  "new_policy_verified",
+  "old_policy_verified",
+  "receipt_bound",
+  "version_chain",
+];
+
+export async function verifyPolicyMigrationAudit(
+  packet,
+  {
+    trustedAuthorities,
+    trustedIssuers,
+    trustedExecutors,
+    now,
+  } = {}
+) {
+  if (typeof packet !== "object" || packet === null || Array.isArray(packet)) {
+    throw new Error("policy migration audit packet must be an object");
+  }
+  if (Object.keys(packet).sort().join(",") !== MIGRATION_AUDIT_KEYS.join(",")) {
+    throw new Error("policy migration audit packet fields are invalid");
+  }
+  if (packet.type !== "kinegrant:PolicyMigrationAuditPacket") {
+    throw new Error("wrong policy migration audit packet type");
+  }
+  if (packet.schema_version !== "0.1") {
+    throw new Error("unsupported policy migration audit packet version");
+  }
+  if (
+    typeof packet.generated_at !== "string" ||
+    !/Z$|[+-]\d{2}:\d{2}$/.test(packet.generated_at)
+  ) {
+    throw new Error(
+      "policy migration audit packet generated_at must be a timezone-aware ISO timestamp"
+    );
+  }
+  parseTime(packet.generated_at);
+  if (packet.overall_result !== "PASS") {
+    throw new Error("policy migration audit packet overall_result must be PASS");
+  }
+  if (
+    !Array.isArray(packet.trusted_authorities) ||
+    packet.trusted_authorities.length === 0 ||
+    packet.trusted_authorities.some((item) => typeof item !== "string" || item.length === 0)
+  ) {
+    throw new Error(
+      "policy migration audit packet trusted_authorities must be a non-empty string array"
+    );
+  }
+  if (
+    typeof packet.old_capability_id !== "string" ||
+    packet.old_capability_id.length === 0
+  ) {
+    throw new Error("policy migration audit packet old_capability_id must be non-empty");
+  }
+  const trustedAuthoritiesSet = new Set(packet.trusted_authorities);
+  const oldPayload = await verifyPolicyBundle(
+    packet.old_policy_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+  const newPayload = await verifyPolicyBundle(
+    packet.new_policy_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+  if (oldPayload.policy_id !== newPayload.policy_id) {
+    throw new Error("policy id changed during migration");
+  }
+  if (newPayload.version !== oldPayload.version + 1) {
+    throw new Error("new policy version must be exactly old version + 1");
+  }
+  if (newPayload.previous_version_digest !== oldPayload.policy_digest) {
+    throw new Error("policy version chain is broken");
+  }
+  await verifyPolicyDistributionReport(
+    packet.distribution_report,
+    packet.new_policy_bundle,
+    trustedAuthoritiesSet,
+    { now }
+  );
+
+  const request = packet.request;
+  if (
+    typeof request !== "object" ||
+    request === null ||
+    Array.isArray(request)
+  ) {
+    throw new Error("policy migration audit packet request must be an object");
+  }
+  if (request.type !== "kinegrant:ActionRequest" || request.version !== "0.1") {
+    throw new Error(
+      "policy migration audit packet request must be a v0.1 action request"
+    );
+  }
+  const requestDigest = await digestOfObject(request);
+  const expectedOldPolicyDigest =
+    "sha256:" +
+    (await sha256Hex(
+      new TextEncoder().encode(
+        canonicalJson({
+          rules: oldPayload.rules,
+          trusted_policy_issuers: [...packet.trusted_authorities].sort(),
+        })
+      )
+    ));
+  const expectedNewPolicyDigest =
+    "sha256:" +
+    (await sha256Hex(
+      new TextEncoder().encode(
+        canonicalJson({
+          rules: newPayload.rules,
+          trusted_policy_issuers: [...packet.trusted_authorities].sort(),
+        })
+      )
+    ));
+  const oldCapPayload = await verifyCapability(
+    packet.old_capability,
+    request,
+    trustedIssuers ?? trustedAuthoritiesSet
+  );
+  if (oldCapPayload.request_digest !== requestDigest) {
+    throw new Error("old capability does not authorize this request");
+  }
+  if (oldCapPayload.capability_id !== packet.old_capability_id) {
+    throw new Error("old capability id does not match the packet");
+  }
+  if (oldCapPayload.policy_digest !== expectedOldPolicyDigest) {
+    throw new Error("old capability is not bound to the old policy");
+  }
+  const oldRuleIds = new Set(oldPayload.rules.map((rule) => rule.policy_id));
+  if (
+    !Array.isArray(oldCapPayload.matched_policy_ids) ||
+    oldCapPayload.matched_policy_ids.length === 0 ||
+    oldCapPayload.matched_policy_ids.some((id) => !oldRuleIds.has(id))
+  ) {
+    throw new Error("old capability matched policies do not match the old bundle");
+  }
+  const newCapPayload = await verifyCapability(
+    packet.new_capability,
+    request,
+    trustedIssuers ?? trustedAuthoritiesSet
+  );
+  if (newCapPayload.request_digest !== requestDigest) {
+    throw new Error("new capability does not authorize this request");
+  }
+  if (newCapPayload.capability_id === packet.old_capability_id) {
+    throw new Error("new capability is the old capability");
+  }
+  if (newCapPayload.policy_digest !== expectedNewPolicyDigest) {
+    throw new Error("new capability is not bound to the new policy");
+  }
+  const newRuleIds = new Set(newPayload.rules.map((rule) => rule.policy_id));
+  if (
+    !Array.isArray(newCapPayload.matched_policy_ids) ||
+    newCapPayload.matched_policy_ids.length === 0 ||
+    newCapPayload.matched_policy_ids.some((id) => !newRuleIds.has(id))
+  ) {
+    throw new Error("new capability matched policies do not match the new bundle");
+  }
+
+  const migration = packet.migration;
+  if (
+    typeof migration !== "object" ||
+    migration === null ||
+    Array.isArray(migration) ||
+    Object.keys(migration).sort().join(",") !== "gate_log"
+  ) {
+    throw new Error("migration fields are invalid");
+  }
+  const gateLog = migration.gate_log;
+  if (
+    typeof gateLog !== "object" ||
+    gateLog === null ||
+    Array.isArray(gateLog) ||
+    Object.keys(gateLog).sort().join(",") !== MIGRATION_GATE_LOG_KEYS.join(",")
+  ) {
+    throw new Error("migration gate log fields are invalid");
+  }
+  const oldDenied = gateLog.old_denied;
+  const newAllowed = gateLog.new_allowed;
+  for (const entry of [oldDenied, newAllowed]) {
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      Array.isArray(entry) ||
+      Object.keys(entry).sort().join(",") !== MIGRATION_GATE_ENTRY_KEYS.join(",")
+    ) {
+      throw new Error("migration gate log entries are invalid");
+    }
+    if (typeof entry.checked_at !== "string" || Number.isNaN(Date.parse(entry.checked_at))) {
+      throw new Error("migration gate log entry checked_at is invalid");
+    }
+    if (typeof entry.reason !== "string" || entry.reason.length === 0) {
+      throw new Error("migration gate log entry reason is invalid");
+    }
+  }
+  if (
+    oldDenied.allowed !== false ||
+    oldDenied.capability_id !== packet.old_capability_id ||
+    oldDenied.policy_digest !== expectedOldPolicyDigest
+  ) {
+    throw new Error("migration gate log old denial does not match the old capability");
+  }
+  if (
+    newAllowed.allowed !== true ||
+    newAllowed.capability_id !== newCapPayload.capability_id ||
+    newAllowed.policy_digest !== expectedNewPolicyDigest
+  ) {
+    throw new Error("migration gate log new allow does not match the new capability");
+  }
+  if (Date.parse(newAllowed.checked_at) <= Date.parse(oldDenied.checked_at)) {
+    throw new Error("migration gate log new allow must follow the old denial");
+  }
+
+  const receipt = packet.receipt;
+  if (typeof receipt !== "object" || receipt === null || Array.isArray(receipt)) {
+    throw new Error("policy migration audit packet receipt must be an object");
+  }
+  await verifyReceiptChain([receipt], trustedExecutors);
+  const receiptPayload = await verifyEnvelope(receipt);
+  if (receiptPayload.type !== "kinegrant:PhysicalActionReceipt") {
+    throw new Error("receipt payload type is invalid");
+  }
+  if (receiptPayload.capability_id !== newCapPayload.capability_id) {
+    throw new Error("receipt does not bind the new capability");
+  }
+  if (receiptPayload.request_digest !== requestDigest) {
+    throw new Error("receipt request digest does not match the request");
+  }
+  if (
+    receiptPayload.agent !== request.agent ||
+    receiptPayload.action !== request.action ||
+    receiptPayload.purpose !== request.purpose ||
+    !globMatch(receiptPayload.target, request.target)
+  ) {
+    throw new Error("receipt execution details do not match the request");
+  }
+  if (
+    typeof receiptPayload.evidence_hash !== "string" ||
+    !SHA256_RE.test(receiptPayload.evidence_hash)
+  ) {
+    throw new Error("receipt evidence_hash is invalid");
+  }
+
+  const summary = packet.summary;
+  if (
+    typeof summary !== "object" ||
+    summary === null ||
+    Array.isArray(summary)
+  ) {
+    throw new Error("policy migration audit packet summary must be an object");
+  }
+  if (
+    Object.keys(summary).sort().join(",") !== MIGRATION_SUMMARY_KEYS.join(",")
+  ) {
+    throw new Error("policy migration audit packet summary fields are invalid");
+  }
+  const expectedSummary = {
+    artifacts_total: 10,
+    old_policy_verified: true,
+    new_policy_verified: true,
+    version_chain: true,
+    distribution_verified: true,
+    migration_verified: true,
+    gate_order_ok: true,
+    receipt_bound: true,
+    closure_complete: true,
+  };
+  for (const [key, value] of Object.entries(expectedSummary)) {
+    if (summary[key] !== value) {
+      throw new Error(`policy migration audit packet summary ${key} is inconsistent`);
+    }
+  }
+  return {
+    valid: true,
+    policy_id: oldPayload.policy_id,
+    old_version: oldPayload.version,
+    new_version: newPayload.version,
+    old_capability_id: packet.old_capability_id,
+    new_capability_id: newCapPayload.capability_id,
+    receipt_id: receiptPayload.receipt_id,
+  };
+}
+
 const ROBOT_OUTCOME_KEYS = [
   "action",
   "actuator_calls",
@@ -5138,6 +5453,7 @@ if (typeof globalThis !== "undefined") {
     verifyEndToEndAuditExport,
     verifyRevocationReissueClosure,
     verifyUnifiedAuditExport,
+    verifyPolicyMigrationAudit,
     verifyRobotDemoReport,
     verifyCameraConsentTrace,
     verifyFullLifecycleReport,
