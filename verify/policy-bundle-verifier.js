@@ -3758,6 +3758,55 @@ export function verifyRobotDemoReport(report) {
   };
 }
 
+const CAMERA_CONSENT_KEYS = [
+  "obligation_compliant",
+  "passed",
+  "record_allowed",
+  "record_consumed",
+  "scenario",
+  "train_policy_denied",
+  "train_sequence_denied",
+];
+
+export function verifyCameraConsentTrace(trace) {
+  if (typeof trace !== "object" || trace === null || Array.isArray(trace)) {
+    throw new Error("camera consent trace must be an object");
+  }
+  if (Object.keys(trace).sort().join(",") !== CAMERA_CONSENT_KEYS.join(",")) {
+    throw new Error("camera consent trace fields are invalid");
+  }
+  if (trace.scenario !== "camera-consent") {
+    throw new Error("camera consent trace scenario must be camera-consent");
+  }
+  for (const field of [
+    "record_allowed",
+    "record_consumed",
+    "train_policy_denied",
+    "train_sequence_denied",
+    "obligation_compliant",
+    "passed",
+  ]) {
+    if (typeof trace[field] !== "boolean") {
+      throw new Error(`camera consent trace ${field} must be a boolean`);
+    }
+  }
+  const expectedPassed =
+    trace.record_allowed &&
+    trace.record_consumed &&
+    trace.train_policy_denied &&
+    trace.train_sequence_denied &&
+    trace.obligation_compliant;
+  if (trace.passed !== expectedPassed) {
+    throw new Error("camera consent trace passed flag is inconsistent");
+  }
+  return {
+    valid: true,
+    passed: trace.passed,
+    record_allowed: trace.record_allowed,
+    train_sequence_denied: trace.train_sequence_denied,
+  };
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.KineGrantVerifier = {
     canonicalJson,
@@ -3795,5 +3844,6 @@ if (typeof globalThis !== "undefined") {
     verifyBridgeDemoReport,
     verifyHardwareTrustPacket,
     verifyRobotDemoReport,
+    verifyCameraConsentTrace,
   };
 }

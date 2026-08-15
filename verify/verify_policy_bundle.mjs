@@ -35,6 +35,7 @@ import {
   verifyBridgeDemoReport,
   verifyHardwareTrustPacket,
   verifyRobotDemoReport,
+  verifyCameraConsentTrace,
 } from "./policy-bundle-verifier.js";
 
 function load(path) {
@@ -337,6 +338,15 @@ try {
         `${result.summary.passed}/${result.summary.total} outcomes, ` +
         `${result.actuator_calls} stacks)`
     );
+  } else if (command === "camera-consent") {
+    const [tracePath] = args;
+    const trace = load(tracePath);
+    const result = verifyCameraConsentTrace(trace);
+    console.log(
+      `CAMERA CONSENT TRACE VALID (passed=${result.passed}, ` +
+        `record_allowed=${result.record_allowed}, ` +
+        `train_sequence_denied=${result.train_sequence_denied})`
+    );
   } else if (command === "sequence-eval") {
     const [policyPath, requestPath, journalPath] = args;
     const policy = load(policyPath);
@@ -381,7 +391,8 @@ try {
       "attestation <attestation.json> | " +
       "bridge <report.json> | " +
       "hardware-packet <packet.json> | " +
-      "robot-demo <report.json>"
+      "robot-demo <report.json> | " +
+      "camera-consent <trace.json>"
     );
   }
 } catch (error) {

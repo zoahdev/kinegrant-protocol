@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 2.35.0 - v2.35 first item (unreleased)
+
+- Browser verifier re-verifies camera-consent scenario traces
+  (`verifyCameraConsentTrace`: record/consume/policy/sequence/obligation
+  flags mutually consistent with the passed result; fail-closed on any
+  inconsistency); the HTML page and Node CLI (`camera-consent` command)
+  expose it, cross-tested against the Python camera-consent example.
+
 ## 2.34.0 бк 2026-08-15
 
 - Milestone release: reference implementation version 2.34.0 on the
