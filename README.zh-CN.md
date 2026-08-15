@@ -12,7 +12,7 @@
 
 > **KGP-001 实验性开放草案 0.1 · 稳定线格式 1.0**
 >
-> **参考实现 v2.29.0 · Apache-2.0**
+> **参考实现 v2.30.0 · Apache-2.0**
 >
 > 请勿将本实现作为真实机械设备的唯一安全控制。
 
@@ -33,7 +33,7 @@ ActionRequest → PolicyEngine → Capability → ActionGate → Actuator
                                            签名收据日志
 ```
 
-## 参考实现 v2.29.0 中已实现的安全属性
+## 参考实现 v2.30.0 中已实现的安全属性
 
 - 默认拒绝、deny-overrides 策略评估；
 - 明确的策略签发者信任边界：不可信来源只能拒绝、永远不能放行；
@@ -116,7 +116,7 @@ python -m unittest discover -s tests -v
 - 独立 JavaScript 验证器（`kinegrant-js`）：验证 JCS、Ed25519 信封、v0.1 能力与 Python 参考实现签发的收据链（参见 [implementations/README.md](implementations/README.md)）。
 - 独立 Go 验证器（`kinegrant-go`，仅标准库）在 CI 中与 Python 参考实现交叉测试，外加首份稳定线格式 RFC 草案（[docs/rfcs/0001-stable-wire-format.md](docs/rfcs/0001-stable-wire-format.md)）与[认证程序草案](CERTIFICATION.md)。
 - 可运行的部署示例：家庭机器人送货与摄像头同意场景，包含完整策略 → 能力 → 门禁 → 收据流程（参见 [docs/DEPLOYMENT-CASES.md](docs/DEPLOYMENT-CASES.md)）；[策略包生命周期示例](examples/policy-bundle/README.md) 一条轨迹走完“发布 → 生效 → ODRL → 车队分发 → 审计 → 撤销回滚”。另附[独立离线浏览器验证页](verify/policy-bundle-verifier.html)：零依赖、纯前端验证签名策略包（Ed25519 与后量子 ML-DSA-65）、当前版本选择、能力、衰减链、禁止组合、收据链、MPT 证据（v0.5）、撤销包、策略分发报告、收据证据包、审计 CSV、复现报告、撤销分发报告、策略分析报告、一致性报告、车队审计汇总、安全审计工具包、ESP32-C3 硬件证据、车队联合运维报告、基准报告、策略生命周期轨迹、传感器证据承诺、收据检查点，支持把验证过的策略包映射为 ODRL，并可校验 `kg.action.*` 动作词汇、义务词汇与身份语法，可部署到任何静态站点。
-- 稳定线格式：参考实现现在签发并验证 `1.0` 能力（冻结的作用域形状），`capability-1.0` Schema 已发布，KGP-RFC-0001 已 Accepted；JavaScript 与 Go 验证器接受 `0.2`/`1.0` 作用域能力。参考实现版本为 `2.29.0`。标准组织外联材料在 [docs/STANDARDS-OUTREACH.md](docs/STANDARDS-OUTREACH.md)。
+- 稳定线格式：参考实现现在签发并验证 `1.0` 能力（冻结的作用域形状），`capability-1.0` Schema 已发布，KGP-RFC-0001 已 Accepted；JavaScript 与 Go 验证器接受 `0.2`/`1.0` 作用域能力。参考实现版本为 `2.30.0`。标准组织外联材料在 [docs/STANDARDS-OUTREACH.md](docs/STANDARDS-OUTREACH.md)。
 - 发布包可以离线验证：`python scripts/verify_release.py <数据包目录>`（校验和、一致性报告与 MPT 证据），`python benchmarks/bench.py` 输出机器可读的策略、签发、门禁、收据与 JCS 吞吐基准。
 - 后量子签名：作为 Ed25519 的实验性并行方案，支持 FIPS 204 ML-DSA-65 信封（`alg: "ML-DSA-65"`）。
 - 禁止组合：`ActionJournal` + `SequencePolicy` 在危险动作集合全部出现后拒绝后续请求（例如先录像再训练数据），支持可选时间窗与触发模式。
