@@ -50,6 +50,7 @@ import {
   verifyPolicyDiffAudit,
   verifyPolicyImpactAudit,
   verifyCrossDomainAudit,
+  verifyAuditQuery,
   verifyRobotDemoReport,
   verifyCameraConsentTrace,
   verifyFullLifecycleReport,
@@ -486,6 +487,15 @@ try {
       `CROSS DOMAIN AUDIT VALID (${result.domains_total} domains, ` +
         `${result.references_total} references verified)`
     );
+  } else if (command === "audit-query") {
+    const [packetPath] = args;
+    const packet = load(packetPath);
+    const result = await verifyAuditQuery(packet);
+    console.log(
+      `AUDIT QUERY VALID (query=${result.query_id}, device=${result.device_id}, ` +
+        `${result.conditions_total} conditions, ${result.records_total} records, ` +
+        `${result.matches_total} matches)`
+    );
   } else if (command === "robot-demo") {
     const [reportPath] = args;
     const report = load(reportPath);
@@ -588,6 +598,7 @@ try {
       "policy-diff <packet.json> | " +
       "policy-impact <packet.json> | " +
       "cross-domain <packet.json> | " +
+      "audit-query <packet.json> | " +
       "robot-demo <report.json> | " +
       "camera-consent <trace.json> | " +
       "full-lifecycle <report.json> <policy-bundle.json> <revocation-bundle.json> <authorities.json> | " +
