@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.64.0 2026-08-16
+
+- Milestone release: reference implementation version 2.64.0, improving
+  PyPI package metadata.
+
+- Added PyPI classifiers, keywords, authors, and project URLs
+  (Homepage / Documentation / Source / Tracker) for discoverability
+  and trust.
+
 ## 2.63.0 2026-08-16
 
 - Milestone release: reference implementation version 2.63.0, making

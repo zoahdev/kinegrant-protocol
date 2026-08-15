@@ -878,6 +878,14 @@ demo from pip or Docker without cloning the repository.
 Exit criterion: `pip install kinegrant-protocol` followed by
 `kinegrant-conformance` reports PASS on a machine without Node.js/Go.
 
+## v2.64 - PyPI metadata polish
+
+- classifiers, keywords, authors, and project URLs;
+- RFC-0003 acceptance vote closing (community/steering action).
+
+Exit criterion: the PyPI project page carries accurate classifiers,
+keywords, and links.
+
 ## Success metrics
 
 KineGrant is not successful because its repository is popular. It succeeds when:
