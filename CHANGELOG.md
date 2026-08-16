@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.65.4 2026-08-16
+
+- Added a `GET /receipts` endpoint so the persisted audit trail can be queried
+  (most recent first, with a chain-validity flag), and exposed the receipt
+  count in `/health`.
+
 ## 2.65.3 2026-08-16
 
 - Added a `kinegrant-fuzz` CLI and a fail-closed core fuzz harness that
