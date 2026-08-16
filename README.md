@@ -6,6 +6,7 @@
 [![ESP32-C3 Firmware](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml/badge.svg)](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml)
 [![Release](https://img.shields.io/github/v/release/zoahdev/kinegrant-protocol)](https://github.com/zoahdev/kinegrant-protocol/releases)
 [![PyPI](https://img.shields.io/pypi/v/kinegrant-protocol)](https://pypi.org/project/kinegrant-protocol/)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14103/badge)](https://www.bestpractices.dev/projects/14103)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
