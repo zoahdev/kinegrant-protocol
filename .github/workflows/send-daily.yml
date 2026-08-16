@@ -1,0 +1,37 @@
+name: send-daily-outreach
+
+on:
+  schedule:
+    - cron: "30 2 * * *"   # daily 02:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Send daily batch
+        run: python .github/outreach/send_daily.py .github/outreach --limit 8
+        env:
+          MAIL163_HOST: smtp.163.com
+          MAIL163_PORT: "465"
+          MAIL163_USER: ${{ secrets.MAIL163_USER }}
+          MAIL163_AUTH: ${{ secrets.MAIL163_AUTH }}
+      - name: Persist sent log
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/outreach/sent.json
+          if git diff --cached --quiet; then
+            echo "no sent-log change"
+          else
+            git commit -m "chore(outreach): record sent batch"
+            git push
+          fi
