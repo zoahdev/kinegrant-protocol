@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.65.3 2026-08-16
+
+- Added a `kinegrant-fuzz` CLI and a fail-closed core fuzz harness that
+  mutates signed capability payloads and request bindings, asserting the
+  action gate never accepts a mutated input.
+
+- Added a CI fuzz job and OpenSSF Scorecard workflow, plus a threat model,
+  independent-review guide, and release checksums.
+
 ## 2.65.2 2026-08-16
 
 - Persist the gate service receipt log to disk so the audit chain survives a
