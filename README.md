@@ -98,7 +98,9 @@ python -m unittest discover -s tests -v
 
 The demo authorizes a delivery robot to open one specific door for delivery,
 issues a 60-second capability, consumes it once at the action gate, and emits a
-signed receipt. The same policy denies recording and training-data capture.
+signed receipt. The same policy denies recording and training-data capture. For a
+commented, step-by-step walk-through of the same flow, see the beginner example
+[`examples/hello-kinegrant.py`](examples/hello-kinegrant.py).
 
 ## Machine Permission Test
 
