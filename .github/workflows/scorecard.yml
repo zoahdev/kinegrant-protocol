@@ -31,7 +31,9 @@ jobs:
           # To publish the score to the public OpenSSF Scorecard API, set this
           # to true and add a repo-scoped PAT as a repository secret named
           # SCORECARD_TOKEN.
-          publish_results: false
+          publish_results: true
+        env:
+          SCORECARD_TOKEN: ${{ secrets.SCORECARD_TOKEN }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
