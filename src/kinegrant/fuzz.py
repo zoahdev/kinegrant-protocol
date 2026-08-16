@@ -157,3 +157,26 @@ class AdapterFuzzHarness:
             "summary": {"total": len(cases), "clean": passed, "failed": len(cases) - passed},
             "cases": cases,
         }
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the deterministic adapter fuzz harness and print a report."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Deterministic fail-closed fuzzing for the external adapters"
+    )
+    parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--iterations", type=int, default=30)
+    args = parser.parse_args(argv)
+
+    report = AdapterFuzzHarness(
+        seed=args.seed,
+        iterations=args.iterations,
+    ).run()
+    print(json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False))
+    return 0 if report["overall_result"] == "PASS" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
