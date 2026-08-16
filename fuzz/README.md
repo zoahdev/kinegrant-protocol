@@ -7,17 +7,28 @@ Google's OSS-Fuzz.
 
 - `fuzz_envelope.py` — fuzzes signed-envelope verification (`verify_envelope`).
 - `fuzz_gate.py` — fuzzes the fail-closed action gate (`ActionGate.authorize`).
-- `build.sh` / `Dockerfile` — OSS-Fuzz build plumbing.
-- `project.yaml.example` — the integration manifest (needs a contact email).
+- `build.sh` / `Dockerfile` — OSS-Fuzz build plumbing (same as upstream).
+- `project.yaml.example` — the integration manifest (reference copy).
+
+## Status
+
+OSS-Fuzz integration has been submitted upstream:
+
+- Upstream PR: <https://github.com/google/oss-fuzz/pull/16008>
+- Canonical project files live in `google/oss-fuzz` under `projects/kinegrant/`.
+- The upstream `build` check passes (both fuzz targets compile and run).
+
+Once the Google CLA is signed and the upstream PR is merged, every commit to
+`main` is fuzzed continuously and crashes are reported to
+`kinegrant-security@googlegroups.com`.
 
 ## Remaining step (human action)
 
-1. Create a public security contact (recommended: a Google Group such as
-   `kinegrant-security@googlegroups.com`).
-2. Copy `project.yaml.example` into the `google/oss-fuzz` repository as
-   `projects/kinegrant/project.yaml`, replace `PRIMARY_CONTACT`, and open a PR.
-3. OSS-Fuzz maintainers review the PR; once accepted, every commit is fuzzed
-   continuously and crashes are reported to the contact email.
+1. Sign the Google Contributor License Agreement (CLA) at
+   <https://cla.developers.google.com/> (Individual CLA, GitHub account
+   `zoahdev`), then trigger the "New Contributors" rescan on upstream
+   PR #16008.
+2. OSS-Fuzz maintainers review the PR.
 
 The local deterministic harness (`kinegrant-fuzz`) continues to run in CI
 regardless of OSS-Fuzz acceptance.
