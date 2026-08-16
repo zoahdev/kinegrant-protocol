@@ -1,0 +1,4 @@
+bfe75c9b02db49dcd645d559a2c9dbd1a9dd06b40b0c6db15c3e483799bd629b  kinegrant_protocol-2.65.3-py3-none-any.whl
+45330ed642a89c2b5e38cbb4b69ab15092bac154885dc10fb551a8d077025827  kinegrant_protocol-2.65.3.tar.gz
+3b831c3be683a22da077262d4c94342151b952dc39140265ba5f1944089df031  kinegrant-deploy.zip
+2e9bb17d8b08b8e3cd34bb202be49a058261da8f8cfa8e1cfd0c5a5a4e4169da  kinegrant-deploy-win.zip
