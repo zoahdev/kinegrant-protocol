@@ -931,6 +931,22 @@ test("browser verifier rejects tampering and wrong authority", async () => {
   );
 });
 
+test("browser verifier rejects a re-signed bundle whose rules do not match the policy digest", async () => {
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const bundle = buildBundle(privateKey, publicKey);
+  // Swap in a more permissive rule set but keep the original policy_digest,
+  // then re-sign the envelope. The Ed25519 signature checks out, so this
+  // exercises the digest-binding path rather than signature failure.
+  const replayed = signEnvelope(privateKey, {
+    ...bundle.payload,
+    rules: [{ ...bundle.payload.rules[0], actions: ["open", "record"] }],
+  });
+  await assert.rejects(
+    () => verifyPolicyBundle(replayed, new Set([replayed.kid])),
+    /policy rules do not match the signed digest/
+  );
+});
+
 test("browser verifier selects current version and honors revocation", async () => {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
   const v1 = buildBundle(privateKey, publicKey, { version: 1 });
