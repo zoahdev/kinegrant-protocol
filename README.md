@@ -5,6 +5,7 @@
 [![CI](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/ci.yml)
 [![ESP32-C3 Firmware](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml/badge.svg)](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml)
 [![Release](https://img.shields.io/github/v/release/zoahdev/kinegrant-protocol)](https://github.com/zoahdev/kinegrant-protocol/releases)
+[![PyPI](https://img.shields.io/pypi/v/kinegrant-protocol)](https://pypi.org/project/kinegrant-protocol/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
@@ -25,7 +26,7 @@ docker run --rm ghcr.io/zoahdev/kinegrant-protocol
 
 > **KGP-001 Experimental Open Draft 0.1 · stable wire format 1.0**
 >
-> **Reference implementation v2.65.2 · Apache-2.0**
+> **Reference implementation v2.65.4 · Apache-2.0**
 >
 > Do not use this implementation as the sole safety control for real machinery.
 
@@ -52,7 +53,7 @@ ActionRequest → PolicyEngine → Capability → ActionGate → Actuator
                                            Signed Receipt Log
 ```
 
-## Security properties implemented in reference implementation v2.65.2
+## Security properties implemented in reference implementation v2.65.4
 
 - default deny and deny-overrides policy evaluation;
 - explicit trust boundary for policy issuers: untrusted sources may deny but never allow;
@@ -313,7 +314,7 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Stable wire format: the reference implementation issues and verifies `1.0`
   capabilities (frozen scoped shape), with `capability-1.0` schema and
   KGP-RFC-0001 accepted, and the JavaScript and Go verifiers accept `0.2`/`1.0`
-  scoped capabilities. Reference implementation version is now `2.65.2`.
+  scoped capabilities. Reference implementation version is now `2.65.4`.
   Standards-outreach materials are in
   [docs/STANDARDS-OUTREACH.md](docs/STANDARDS-OUTREACH.md).
 - Release packets can be verified offline with
