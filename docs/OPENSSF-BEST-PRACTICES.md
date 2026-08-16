@@ -1,62 +1,99 @@
-# OpenSSF Best Practices badge — self-assessment notes
+# OpenSSF Best Practices badge — fill-in reference
 
-These are the reference answers for the
-[OpenSSF Best Practices (CII) badge](https://bestpractices.coreinfrastructure.org/)
-at the "passing" level. Fill the web form from these notes; this file is a
-working record, not the badge itself.
+Copy these answers into
+<https://bestpractices.coreinfrastructure.org/>. Values reflect the current
+state of `zoahdev/kinegrant-protocol` (Apache-2.0, v2.65.x). For any question
+not listed here, answer with the nearest supported statement and keep the
+justification to one sentence with a link.
 
-## Basics
+## Identification / basics
 
-| Criterion | Answer | Evidence |
+| Question | Answer | Evidence / note |
 |---|---|---|
-| Project name / description | KineGrant — authorization & accountability layer for physical AI | `README.md` |
-| Website | https://kinegrant.com | — |
+| Project name | KineGrant | `README.md` |
+| One-line description | Authorization and accountability layer for physical AI | `README.md` |
+| Project website | https://kinegrant.com | — |
 | Repository | https://github.com/zoahdev/kinegrant-protocol | — |
 | License | Apache-2.0 | `LICENSE.txt` |
-| FLOSS | Yes | Apache-2.0 |
+| Is it FLOSS? | Yes | Apache-2.0 is OSI-approved |
+
+Justification (English): "KineGrant is an Apache-2.0 licensed open-source
+protocol; the website is https://kinegrant.com and the canonical repository is
+https://github.com/zoahdev/kinegrant-protocol."
 
 ## Change control
 
-| Criterion | Answer | Evidence |
+| Question | Answer | Evidence |
 |---|---|---|
-| Public version-controlled repo | Yes (Git, GitHub) | — |
-| Issue tracker | Yes (GitHub Issues) | — |
-| Change review (PRs) | Yes; main is protected and requires status checks | `.github` + branch protection |
-| Version tagging | Yes (`v2.65.2`, …) | Releases |
+| Public version-controlled repository | Yes | GitHub |
+| Public issue tracker | Yes | GitHub Issues |
+| Reviewed changes (pull requests) | Yes | `main` is branch-protected; status checks required |
+| Public roadmap | Yes | `ROADMAP.md` |
 | Release notes | Yes | `CHANGELOG.md`, GitHub Releases |
-| Semantic versioning | Yes (`MAJOR.MINOR.PATCH`) | Releases |
+| Semantic versioning | Yes | `2.65.x` |
+| Explicit code of conduct | Yes | `CODE_OF_CONDUCT.md` |
+
+Justification: "Development is public on GitHub with issue tracking and
+pull-request review; main is protected and requires passing status checks.
+Releases use semantic versioning and publish notes (CHANGELOG.md and GitHub
+Releases)."
 
 ## Reporting
 
-| Criterion | Answer | Evidence |
+| Question | Answer | Evidence |
 |---|---|---|
-| Bug reporting process | GitHub Issues + `CONTRIBUTING.md` | — |
-| Vulnerability reporting | GitHub Security Advisories | `SECURITY.md` |
-| Public archive | PyPI + GitHub Releases + site | — |
+| Public bug reporting | Yes | GitHub Issues + `CONTRIBUTING.md` |
+| Private vulnerability reporting | Yes | GitHub Security Advisories + `SECURITY.md` |
+| Public archive of releases | Yes | PyPI + GitHub Releases |
+
+Justification: "Bugs are reported via GitHub Issues and vulnerabilities via
+GitHub Security Advisories (see SECURITY.md). Releases are archived on PyPI and
+GitHub Releases."
 
 ## Quality
 
-| Criterion | Answer | Evidence |
+| Question | Answer | Evidence |
 |---|---|---|
-| Automated test suite | Yes | `pytest` in CI (`ci.yml`) |
-| Test in CI on commits | Yes | `ci.yml` |
-| Static analysis | CodeQL (CI) | `codeql.yml` |
-| OpenSSF Scorecard | Yes (CI) | `scorecard.yml` |
-| Reproducible test surface | Yes | `REPRODUCING.md`, `reproduce.yml` |
+| Automated test suite | Yes | `unittest` (see `tests/`) |
+| Tests run in CI | Yes | `.github/workflows/ci.yml` |
+| Static analysis | Yes | CodeQL (`.github/workflows/codeql.yml`) |
+| Supply-chain scoring | Yes | OpenSSF Scorecard (`.github/workflows/scorecard.yml`) |
+| Fuzzing | Yes | deterministic fuzz in CI (`.github/workflows/fuzz.yml`) |
+| Conformance / evidence | Yes | `kinegrant-conformance`, MPT |
+
+Justification: "The repository runs unit and integration tests, CodeQL static
+analysis, OpenSSF Scorecard, and deterministic fuzzing on every push in GitHub
+Actions. A machine-readable conformance report covers levels L1-L4."
 
 ## Security
 
-| Criterion | Answer | Evidence |
+| Question | Answer | Evidence |
 |---|---|---|
-| Secure transport (site) | HTTPS | kinegrant.com |
-| Secrets not in repo | Yes | `.gitignore` |
+| HTTPS for the website | Yes | https://kinegrant.com |
+| Secrets kept out of the repo | Yes | `.gitignore` |
 | Threat model | Yes | `THREAT_MODEL.md` |
 | Security policy | Yes | `SECURITY.md` |
-| Fuzz testing | Harness present; not yet in OSS-Fuzz | `src/kinegrant/fuzz.py` |
+| Cryptography | Yes | Ed25519 (default) + experimental ML-DSA-65 |
+| Memory-safe language? | Partially | Python reference impl is memory-safe; adapters are JSON-only |
 
-## Gaps to close for a higher score
+Justification: "The website is served over HTTPS. The repository documents a
+threat model (THREAT_MODEL.md) and a vulnerability policy (SECURITY.md), uses
+Ed25519 signatures with an experimental post-quantum ML-DSA-65 option, and does
+not commit secrets."
 
-- Publish Scorecard results publicly (needs a `SCORECARD_TOKEN` repo secret).
-- Wire the fuzz harness into OSS-Fuzz or a CI fuzz job.
-- Add a hardening/Go or Rust independent verifier alongside the Python and
-  JavaScript implementations.
+## Analysis (gold-level items, optional)
+
+| Question | Answer | Evidence |
+|---|---|---|
+| Dynamic analysis | Partial | fuzz harness + sanitizer-ready OSS-Fuzz targets under `fuzz/` |
+| Memory-safety hardening | N/A | Python reference implementation |
+
+Justification: "Dynamic analysis is provided through a deterministic fuzz
+harness (kinegrant-fuzz) and prepared OSS-Fuzz targets; the reference
+implementation is Python and therefore memory-safe."
+
+## Honest limits (do not overclaim)
+
+- No independent third-party security audit has been performed yet.
+- Conformance is a self-assessment.
+- The protocol is an experimental draft, not a certified standard.
