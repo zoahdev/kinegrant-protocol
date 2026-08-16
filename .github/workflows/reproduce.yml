@@ -20,12 +20,12 @@ jobs:
   reproduce:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           # Bind the report and artifact to the reviewed branch commit instead
           # of GitHub's ephemeral pull-request merge commit.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: "3.12"
           cache: pip
@@ -34,7 +34,7 @@ jobs:
       - name: Generate and independently verify packet
         run: python challenge/reproduce.py --source-commit "$(git rev-parse HEAD)" --output-dir "$RUNNER_TEMP/kinegrant-reproduction" && python challenge/verify_reproduction.py "$RUNNER_TEMP/kinegrant-reproduction/reproduction-report.json"
       - name: Publish exact reproduction packet
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: kinegrant-external-reproduction-${{ github.event.pull_request.head.sha || github.sha }}
           path: ${{ runner.temp }}/kinegrant-reproduction/

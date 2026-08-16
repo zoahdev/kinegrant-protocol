@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     container: espressif/idf:v5.5.3
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - name: Build locked-by-default ESP32-C3 firmware
         working-directory: proof/esp32-c3/firmware
         shell: bash
@@ -28,7 +28,7 @@ jobs:
           idf.py set-target esp32c3
           idf.py build
       - name: Publish unsigned build artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: kinegrant-esp32c3-firmware-${{ github.sha }}
           path: |
