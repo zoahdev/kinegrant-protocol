@@ -1,6 +1,6 @@
 {
   "name": "kinegrant-js",
-  "version": "2.64.0",
+  "version": "2.65.4",
   "type": "module",
   "description": "Independent JavaScript verifier for KineGrant KGP-001 envelopes, capabilities, and receipts",
   "bin": {
