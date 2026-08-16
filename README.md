@@ -7,6 +7,8 @@
 [![Release](https://img.shields.io/github/v/release/zoahdev/kinegrant-protocol)](https://github.com/zoahdev/kinegrant-protocol/releases)
 [![PyPI](https://img.shields.io/pypi/v/kinegrant-protocol)](https://pypi.org/project/kinegrant-protocol/)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14103/badge)](https://www.bestpractices.dev/projects/14103)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zoahdev/kinegrant-protocol/badge)](https://securityscorecards.dev/viewer/?uri=github.com/zoahdev/kinegrant-protocol)
+[![npm](https://img.shields.io/npm/v/kinegrant-js)](https://www.npmjs.com/package/kinegrant-js)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
