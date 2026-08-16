@@ -10,7 +10,7 @@
 
 [官方网站](https://kinegrant.com) · [公开验证器](https://kinegrant.com/verify) · [技术白皮书](docs/whitepaper/KineGrant-KGP-001-Whitepaper-v0.1.pdf) · [KGP-001](spec/KGP-001.md) · [可复现指南](REPRODUCING.md) · [在 Codespaces 中打开](https://codespaces.new/zoahdev/kinegrant-protocol?ref=main&quickstart=1) · [威胁模型](spec/THREAT-MODEL.md) · [路线图](ROADMAP.md) · [English](README.md)
 
-**现在就试，不用安装：** 打开[离线浏览器验证器](https://zoahdev.github.io/verify/policy-bundle-verifier.html)——签名策略包、能力、衰减链、禁止组合、收据、MPT 证据、车队运维、硬件证据等全部在浏览器本地完成核验。如果 KineGrant 对你有用，**给仓库点一个 ⭐**，这能帮助独立审查者和机器人厂商找到这个项目。
+**现在就试，不用安装：** 打开[一键演示](https://kinegrant.com/playground.html)，或[离线浏览器验证器](https://zoahdev.github.io/verify/policy-bundle-verifier.html)——签名策略包、能力、衰减链、禁止组合、收据、MPT 证据、车队运维、硬件证据等全部在浏览器本地完成核验。如果 KineGrant 对你有用，**给仓库点一个 ⭐**，这能帮助独立审查者和机器人厂商找到这个项目。
 
 ## 快速开始（30 秒）
 
