@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>KineGrant 一键演示 · One-click demo</title>
+<style>
+  @font-face { font-family:"KineGrant Display"; src:url("/fonts/kinegrant-display-latin.woff2") format("woff2"); font-weight:400; }
+  @font-face { font-family:"Geist Sans"; src:url("/fonts/geist-sans-latin.woff2") format("woff2"); font-weight:400; }
+  :root { --bg:#0a0a0a; --panel:#121212; --line:#262626; --text:#f4f4f4; --muted:#9aa0aa; --ok:#35d07f; --okdim:#0f3b26; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.6 "Geist Sans",-apple-system,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; padding:44px 20px 90px; }
+  .wordmark { font-family:"KineGrant Display",-apple-system,"Segoe UI",Roboto,sans-serif; font-size:22px; letter-spacing:.08em; color:var(--text); text-decoration:none; }
+  .tagline { color:var(--muted); font-size:13px; margin:8px 0 0; }
+  .slogan { margin:26px 0 6px; font-size:17px; font-weight:600; line-height:1.35; }
+  .slogan b { color:#fff; }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  .safety { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 26px; }
+  .chip { border:1px solid var(--line); background:var(--panel); color:var(--muted); border-radius:999px; padding:7px 13px; font-size:13px; }
+  .chip b { color:var(--text); font-weight:600; }
+  .btn { display:inline-block; background:var(--text); color:#050505; border:0; padding:14px 28px; border-radius:10px; font-size:17px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn:hover { opacity:.92; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .ghost { background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:10px; padding:11px 18px; font-size:15px; cursor:pointer; font-family:inherit; }
+  .ghost:hover { color:var(--text); border-color:#3a3a3a; }
+  .form { margin-top:26px; border:1px solid var(--line); background:var(--panel); border-radius:12px; padding:16px; }
+  .form .t { font-weight:600; margin-bottom:12px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  label { color:var(--muted); font-size:13px; }
+  input, select { width:100%; margin-top:4px; background:#0d0d0d; border:1px solid var(--line); border-radius:8px; color:var(--text); padding:9px 10px; font:inherit; }
+  .row { margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
+  .steps { display:flex; flex-direction:column; gap:10px; margin-top:24px; }
+  .step { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; opacity:.55; }
+  .step.ok { opacity:1; }
+  .head { display:flex; align-items:center; gap:12px; font-weight:600; }
+  .dot { width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-size:14px; background:#1c1c1c; color:var(--muted); flex:none; }
+  .step.ok .dot { background:var(--ok); color:#07110a; }
+  .desc { color:var(--muted); font-size:13.5px; margin-top:6px; padding-left:36px; }
+  .done { display:none; margin-top:22px; border:1px solid var(--okdim); background:var(--okdim); border-radius:12px; padding:16px 18px; }
+  .done.show { display:block; }
+  .done .t { font-weight:700; font-size:17px; color:var(--ok); }
+  .done .d { color:#bdeed2; font-size:13.5px; margin-top:4px; word-break:break-all; }
+  .denied { display:none; margin-top:22px; border:1px solid #5a2525; background:#2a1212; border-radius:12px; padding:16px 18px; }
+  .denied .t { font-weight:700; font-size:17px; color:#ff8f8f; }
+  .denied .d { color:#e8bdbd; font-size:13.5px; margin-top:4px; }
+  details { margin-top:22px; }
+  summary { cursor:pointer; color:var(--muted); }
+  .json { background:#0d0d0d; border:1px solid var(--line); border-radius:10px; padding:14px; font:12px/1.55 ui-monospace,Consolas,monospace; white-space:pre-wrap; word-break:break-word; max-height:280px; overflow:auto; }
+  .copy { margin-top:10px; background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:8px; padding:8px 14px; font-size:13px; cursor:pointer; font-family:inherit; }
+  .copy:hover { color:var(--text); border-color:#3a3a3a; }
+  #err { color:#ff6b6b; margin-top:16px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="wordmark" href="https://kinegrant.com">KINEGRANT</a>
+  <p class="tagline">ONE-CLICK DEMO · 一键演示</p>
+  <p class="slogan">AI CAN THINK. AI CAN ACT.<br/><b>KINEGRANT DECIDES WHAT IT MAY DO.</b></p>
+  <p class="sub">不装任何东西、不注册、不联网上传——点一下，在浏览器里跑完一次真实的动作授权。</p>
+  <div class="safety">
+    <span class="chip"><b>100% 本地运行</b>，数据不出你的浏览器</span>
+    <span class="chip"><b>无账号</b> · 无安装 · 无追踪</span>
+    <span class="chip"><b>纯数字演示</b>，不控制任何设备</span>
+    <span class="chip"><b>Apache-2.0</b> 开源可审计</span>
+  </div>
+  <button id="run" class="btn">一键演示</button>
+  <div class="form">
+    <div class="t">试你自己的动作</div>
+    <div class="grid">
+      <label>机器/智能体<input id="f-agent" value="urn:robot:delivery-1"/></label>
+      <label>目标（门/设备）<input id="f-target" value="urn:space:demo:door-7"/></label>
+      <label>动作<select id="f-action"><option>open</option><option>close</option><option>move</option><option>record</option><option>grasp</option></select></label>
+      <label>目的<input id="f-purpose" value="delivery"/></label>
+    </div>
+    <div class="row">
+      <button id="run-custom" class="btn" style="font-size:15px;padding:11px 18px;">运行我的动作</button>
+      <button id="run-deny" class="ghost">看一个被拒绝的例子</button>
+    </div>
+  </div>
+  <div id="steps" class="steps"></div>
+  <div id="done" class="done"><div class="t">✓ 全部通过：6/6 步验证成功</div><div class="d" id="receiptId"></div></div>
+  <div id="denied" class="denied"><div class="t">✕ 已拒绝（默认拒绝）</div><div class="d" id="deniedId"></div></div>
+  <div id="err"></div>
+  <details>
+    <summary>查看签名 JSON（供审计）</summary>
+    <pre id="json" class="json">（演示后显示）</pre>
+    <button id="copy" class="copy">复制 JSON</button>
+  </details>
+</div>
+<script>
+const DOMAIN = new TextEncoder().encode("KINEGRANT-SIGNED-ENVELOPE-V1\u0000");
+const $ = (s) => document.querySelector(s);
+function b64url(bytes) { let s = ""; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function concat(...arrays) { const out = new Uint8Array(arrays.reduce((n, a) => n + a.length, 0)); let o = 0; for (const a of arrays) { out.set(a, o); o += a.length; } return out; }
+function canonicalJson(value) {
+  if (value === null) return "null";
+  if (value === true) return "true";
+  if (value === false) return "false";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number") return JSON.stringify(value);
+  if (Array.isArray(value)) return "[" + value.map(canonicalJson).join(",") + "]";
+  if (typeof value === "object") { const keys = Object.keys(value).sort(); return "{" + keys.map((k) => JSON.stringify(k) + ":" + canonicalJson(value[k])).join(",") + "}"; }
+  throw new Error("cannot canonicalize " + typeof value);
+}
+async function sha256(bytes) { return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)); }
+async function hex(bytes) { return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(""); }
+async function keyPair() {
+  const kp = await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]);
+  const spki = new Uint8Array(await crypto.subtle.exportKey("spki", kp.publicKey));
+  return { kp, kid: "kinegrant:key:ed25519:" + b64url(spki.slice(spki.length - 32)) };
+}
+async function signEnvelope(payload, kp, kid) {
+  const protectedData = { alg:"EdDSA", kid, payload };
+  const sig = new Uint8Array(await crypto.subtle.sign("Ed25519", kp.privateKey, concat(DOMAIN, new TextEncoder().encode(canonicalJson(protectedData)))));
+  return { alg:"EdDSA", kid, payload, signature:b64url(sig) };
+}
+function iso(ms) { return new Date(ms).toISOString(); }
+function addStep(id, title, desc) { const el = document.createElement("div"); el.className = "step"; el.innerHTML = '<div class="head"><span class="dot">' + id + '</span><span>' + title + '</span></div><div class="desc">' + desc + '</div>'; $("#steps").appendChild(el); return el; }
+function ok(el) { el.classList.add("ok"); el.querySelector(".dot").textContent = "✓"; }
+function deny(el) { el.classList.add("ok"); el.querySelector(".dot").textContent = "✕"; el.querySelector(".dot").style.background = "#ff6b6b"; el.querySelector(".dot").style.color = "#3a0a0a"; }
+function reset() { $("#err").textContent = ""; $("#steps").innerHTML = ""; $("#done").classList.remove("show"); $("#denied").style.display = "none"; $("#json").textContent = "（演示后显示）"; }
+async function runScenario(o) {
+  reset();
+  const btn = $("#run"); btn.disabled = true;
+  try {
+    const authority = await keyPair(); const executor = await keyPair(); const now = Date.now();
+    const request = { type:"kinegrant:ActionRequest", version:"0.1", request_id:"urn:kinegrant:demo:request:1", agent:o.agent, target:o.target, action:o.action, purpose:o.purpose, issued_at:iso(now), context:{} };
+    addStep("1", "动作请求", o.agent + " 请求 " + o.action + " " + o.target + "（目的：" + o.purpose + "）"); ok($("#steps").lastElementChild);
+    const allowedAction = o.allow ? o.action : (o.action === "open" ? "close" : "open");
+    const rule = { policy_id:"urn:policy:demo:delivery-door", issuer:authority.kid, target:o.target, effect:"allow", actions:[allowedAction], subjects:["*"], purposes:[o.purpose], constraints:{}, obligations:["emitActionReceipt"], priority:0, source:{} };
+    const policyPayload = { type:"kinegrant:PolicyBundle", schema_version:"0.1", policy_id:"urn:policy:demo:delivery-door", issuer:authority.kid, version:1, previous_version_digest:null, issued_at:iso(now), not_before:iso(now), not_after:iso(now+3600000), rules:[rule] };
+    policyPayload.policy_digest = "sha256:" + await hex(await sha256(new TextEncoder().encode(canonicalJson({ rules: policyPayload.rules }))));
+    policyPayload.bundle_id = "kinegrant:policy-bundle:" + await hex(await sha256(new TextEncoder().encode(canonicalJson(policyPayload))));
+    const policyBundle = await signEnvelope(policyPayload, authority.kp, authority.kid);
+    if (!o.allow) {
+      addStep("2", "策略判定", "默认拒绝：策略只允许 " + allowedAction + "，未允许 " + o.action + "，不予放行"); deny($("#steps").lastElementChild);
+      addStep("3", "结果", "不签发能力凭证，设备不执行任何动作"); deny($("#steps").lastElementChild);
+      $("#denied").style.display = "block";
+      $("#deniedId").textContent = o.action + " " + o.target + " 被拒绝——这就是默认拒绝、失败关闭。";
+      $("#json").textContent = JSON.stringify({ request, policyBundle }, null, 2);
+      btn.textContent = "再演示一次";
+      return;
+    }
+    addStep("2", "策略判定", "策略允许 " + o.action + "，并要求签发执行收据（没列出的动作一律默认拒绝）"); ok($("#steps").lastElementChild);
+    const requestDigest = "sha256:" + await hex(await sha256(new TextEncoder().encode(canonicalJson(request))));
+    const capabilityPayload = { type:"kinegrant:PhysicalActionCapability", version:"0.1", issuer:authority.kid, agent:request.agent, target:request.target, action:request.action, purpose:request.purpose, request_digest:requestDigest, policy_digest:policyPayload.policy_digest, matched_policy_ids:["urn:policy:demo:delivery-door"], obligations:["emitActionReceipt"], issued_at:iso(now), not_before:iso(now), expires_at:iso(now+30000), nonce:"demo-nonce-" + b64url(crypto.getRandomValues(new Uint8Array(8))) };
+    const unsignedCap = Object.assign({}, capabilityPayload);
+    capabilityPayload.capability_id = "kinegrant:cap:" + await hex(await sha256(new TextEncoder().encode(canonicalJson(unsignedCap))));
+    const capability = await signEnvelope(capabilityPayload, authority.kp, authority.kid);
+    addStep("3", "能力凭证", "签发一张 30 秒有效、只能使用一次、且绑定本次请求的签名凭证"); ok($("#steps").lastElementChild);
+    const gatePass = Date.now() < now + 30000 && capabilityPayload.action === request.action && capabilityPayload.target === request.target && capabilityPayload.request_digest === requestDigest;
+    addStep("4", "本地门禁", "设备本地校验：签名、范围、请求绑定、有效期、防重放 → " + (gatePass ? "放行" : "拒绝")); if (!gatePass) throw new Error("gate check failed"); ok($("#steps").lastElementChild);
+    addStep("5", "执行动作", "设备执行 " + o.action + "（本演示为纯数字，不驱动任何真实硬件）"); ok($("#steps").lastElementChild);
+    const receiptPayload = { type:"kinegrant:PhysicalActionReceipt", version:"0.1", executor:executor.kid, capability_id:capabilityPayload.capability_id, request_digest:requestDigest, agent:request.agent, target:request.target, action:request.action, purpose:request.purpose, result:"succeeded", started_at:iso(now+1000), finished_at:iso(now+2000), evidence_hash:"sha256:" + "0".repeat(64), previous_receipt_hash:null };
+    const unsignedReceipt = Object.assign({}, receiptPayload);
+    receiptPayload.receipt_id = "kinegrant:receipt:" + await hex(await sha256(new TextEncoder().encode(canonicalJson(unsignedReceipt))));
+    const receipt = await signEnvelope(receiptPayload, executor.kp, executor.kid);
+    addStep("6", "签名收据", "生成一条可独立验证的签名收据，作为审计证据"); ok($("#steps").lastElementChild);
+    $("#done").classList.add("show");
+    $("#receiptId").textContent = "本次收据：" + receiptPayload.receipt_id;
+    $("#json").textContent = JSON.stringify({ request, policyBundle, capability, receipt }, null, 2);
+    btn.textContent = "再演示一次";
+  } catch (e) {
+    $("#err").textContent = "演示出错：" + e.message;
+  } finally { btn.disabled = false; }
+}
+function run() { return runScenario({ agent:"urn:robot:delivery-1", target:"urn:space:demo:door-7", action:"open", purpose:"delivery", allow:true }); }
+function runCustom() { return runScenario({ agent:$("#f-agent").value || "urn:robot:delivery-1", target:$("#f-target").value || "urn:space:demo:door-7", action:$("#f-action").value, purpose:$("#f-purpose").value || "delivery", allow:true }); }
+function runDeny() { return runScenario({ agent:$("#f-agent").value || "urn:robot:delivery-1", target:$("#f-target").value || "urn:space:demo:door-7", action:$("#f-action").value, purpose:$("#f-purpose").value || "delivery", allow:false }); }
+$("#run").addEventListener("click", run);
+$("#run-custom").addEventListener("click", runCustom);
+$("#run-deny").addEventListener("click", runDeny);
+$("#copy").addEventListener("click", async () => { try { await navigator.clipboard.writeText($("#json").textContent); $("#copy").textContent = "已复制 ✓"; setTimeout(() => $("#copy").textContent = "复制 JSON", 1500); } catch (e) {} });
+if (location.hash === "#deny") { runDeny(); } else { run(); }
+</script>
+</body>
+</html>
