@@ -1,0 +1,7 @@
+[
+  {
+    "to": "bahuang081@gmail.com",
+    "subject": "KineGrant email self-test",
+    "body": "This is a test email sent from the KineGrant GitHub Actions workflow to confirm Gmail SMTP sending works end to end. If you see this, the channel is live."
+  }
+]
