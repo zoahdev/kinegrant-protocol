@@ -45,10 +45,19 @@ def is_noise(frm, user):
     own = user.lower()
     if own in low:
         return True
-    for kw in ("no-reply", "noreply", "mailer-daemon", "postmaster", "accounts.google", "notifications@"):
+    for kw in ("no-reply", "noreply", "accounts.google", "notifications@"):
         if kw in low:
             return True
     return False
+
+
+def classify(frm, subj):
+    low = (frm + " " + subj).lower()
+    for kw in ("mailer-daemon", "postmaster", "delivery status notification", "undelivered",
+               "delivery failure", "could not be delivered", "returned to sender"):
+        if kw in low:
+            return "bounce"
+    return "reply"
 
 
 def fetch_new(user, auth):
@@ -68,9 +77,10 @@ def fetch_new(user, auth):
         if is_noise(frm, user):
             continue
         subj = dec(msg.get("Subject", ""))
+        kind = classify(frm, subj)
         date = msg.get("Date", "")
         txt = body_text(msg)[:1200]
-        rows.append({"from": frm, "subject": subj, "date": date, "body": txt})
+        rows.append({"from": frm, "subject": subj, "date": date, "body": txt, "kind": kind})
     # mark them seen so we do not re-notify
     for i in ids[-20:]:
         try:
@@ -82,13 +92,17 @@ def fetch_new(user, auth):
 
 
 def notify(user, auth, to, rows):
+    bounces = [r for r in rows if r["kind"] == "bounce"]
+    replies = [r for r in rows if r["kind"] == "reply"]
     msg = EmailMessage()
-    msg["Subject"] = f"[KineGrant 回信提醒] {len(rows)} 封新回复"
+    msg["Subject"] = f"[KineGrant] {len(replies)} 回复 / {len(bounces)} 退信"
     msg["From"] = f"KineGrant <{user}>"
     msg["To"] = to
     parts = []
-    for r in rows:
-        parts.append(f"来自: {r['from']}\n主题: {r['subject']}\n时间: {r['date']}\n\n{r['body']}\n\n----------")
+    for r in replies:
+        parts.append(f"[回复] 来自: {r['from']}\n主题: {r['subject']}\n时间: {r['date']}\n\n{r['body']}\n\n----------")
+    for r in bounces:
+        parts.append(f"[退信/失败] 来自: {r['from']}\n主题: {r['subject']}\n\n{r['body']}\n\n----------")
     msg.set_content("\n\n".join(parts) if parts else "(no rows)")
     ctx = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx, timeout=40) as s:
@@ -101,9 +115,11 @@ def main():
     auth = os.environ["GMAIL_APP_PASSWORD"].replace(" ", "")
     notify_to = os.environ.get("NOTIFY_TO", "18377360711@163.com")
     rows = fetch_new(user, auth)
-    print(f"new_replies={len(rows)}")
+    replies = sum(1 for r in rows if r["kind"] == "reply")
+    bounces = sum(1 for r in rows if r["kind"] == "bounce")
+    print(f"new_replies={replies} new_bounces={bounces}")
     for r in rows:
-        print(f"- {r['from']} | {r['subject']}")
+        print(f"- [{r['kind']}] {r['from']} | {r['subject']}")
     if rows:
         try:
             notify(user, auth, notify_to, rows)
