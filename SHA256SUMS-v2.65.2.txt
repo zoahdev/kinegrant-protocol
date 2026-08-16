@@ -1,0 +1,5 @@
+53a4403259d7e073005211c3cdc04ecb7aff69e012a7167c67de7590255c07ed  kinegrant_protocol-2.65.2-py3-none-any.whl
+965290d00a64878d723acf7d2f7f0aa913148aea18b99889dc1a9d09cd38e0d3  kinegrant_protocol-2.65.2.tar.gz
+827281ea257f6daece364e85c058edc1ed6b0a466d3b2cbb66fa3b8f36f8485b  kinegrant-deploy.zip
+b5ef4ae48d0e59bd4631d294ed9320d0bcdcd71253da244d4f94eb7864f9499c  kinegrant-deploy-win.zip
+250c0cc4f65f5ca2dcbaa5f7c79350e258bf92a562f4bc9bdc220f9e959a7e94  conformance-report-v2.65.2.json

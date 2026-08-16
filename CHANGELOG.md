@@ -2,6 +2,47 @@
 
 ## Unreleased
 
+## 2.65.4 2026-08-16
+
+- Added a `GET /receipts` endpoint so the persisted audit trail can be queried
+  (most recent first, with a chain-validity flag), and exposed the receipt
+  count in `/health`.
+
+## 2.65.3 2026-08-16
+
+- Added a `kinegrant-fuzz` CLI and a fail-closed core fuzz harness that
+  mutates signed capability payloads and request bindings, asserting the
+  action gate never accepts a mutated input.
+
+- Added a CI fuzz job and OpenSSF Scorecard workflow, plus a threat model,
+  independent-review guide, and release checksums.
+
+## 2.65.2 2026-08-16
+
+- Persist the gate service receipt log to disk so the audit chain survives a
+  restart (`receipt-log.json` next to `gate-replay.sqlite3`).
+
+- Friendlier error handling for malformed requests: a non-object capability
+  and unsupported HTTP methods now return clean JSON errors instead of an
+  internal traceback or an HTML 501.
+
+## 2.65.1 2026-08-16
+
+- Improved the gate service error messages for a malformed `policy.json` or
+  `config.json`: it now reports a clear "format error, check JSON syntax"
+  message instead of a raw traceback, both at startup and during hot-reload.
+
+## 2.65.0 2026-08-16
+
+- Added a one-command HTTP gate service (`kinegrant-serve`) and a
+  deployment scaffolder (`kinegrant-init`) so a policy decision point,
+  capability issuer, fail-closed verifier, and audit receipt log can run
+  as plain HTTP/JSON with no web framework.
+
+- `kinegrant-serve` exposes `POST /authorize`, `POST /verify`,
+  `POST /receipt`, `POST /run`, and `GET /health`, and re-reads
+  `policy.json` on every request so policy edits apply without a restart.
+
 ## 2.64.0 2026-08-16
 
 - Milestone release: reference implementation version 2.64.0, improving
