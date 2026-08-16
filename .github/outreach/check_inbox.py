@@ -40,6 +40,17 @@ def body_text(msg):
     return ""
 
 
+def is_noise(frm, user):
+    low = frm.lower()
+    own = user.lower()
+    if own in low:
+        return True
+    for kw in ("no-reply", "noreply", "mailer-daemon", "postmaster", "accounts.google", "notifications@"):
+        if kw in low:
+            return True
+    return False
+
+
 def fetch_new(user, auth):
     M = imaplib.IMAP4_SSL("imap.gmail.com", 993, ssl_context=ssl.create_default_context())
     M.login(user, auth)
@@ -54,6 +65,8 @@ def fetch_new(user, auth):
         raw = d[0][1]
         msg = email.message_from_bytes(raw)
         frm = dec(msg.get("From", ""))
+        if is_noise(frm, user):
+            continue
         subj = dec(msg.get("Subject", ""))
         date = msg.get("Date", "")
         txt = body_text(msg)[:1200]
