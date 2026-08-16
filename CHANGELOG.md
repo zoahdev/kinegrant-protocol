@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.65.1 2026-08-16
+
+- Improved the gate service error messages for a malformed `policy.json` or
+  `config.json`: it now reports a clear "format error, check JSON syntax"
+  message instead of a raw traceback, both at startup and during hot-reload.
+
 ## 2.65.0 2026-08-16
 
 - Added a one-command HTTP gate service (`kinegrant-serve`) and a

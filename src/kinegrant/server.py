@@ -203,7 +203,13 @@ class GateService:
             except OSError:
                 signature = None
             if signature is not None and signature != self._policy_stat:
-                document = json.loads(self.policy_path.read_text(encoding="utf-8"))
+                try:
+                    document = json.loads(self.policy_path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError as exc:
+                    raise ValueError(
+                        "policy.json 格式错误（JSON 语法问题，请检查是否少了逗号或引号）: "
+                        f"{exc}"
+                    ) from exc
                 self._set_policy(document)
                 self._policy_stat = signature
         with self._lock:
@@ -427,7 +433,10 @@ def build_service_from_dir(directory: Path) -> GateService:
 
     config: dict[str, Any] = dict(DEFAULT_CONFIG)
     if config_path.exists():
-        loaded = json.loads(config_path.read_text(encoding="utf-8"))
+        try:
+            loaded = json.loads(config_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"config.json 格式错误（JSON 语法问题）: {exc}") from exc
         if not isinstance(loaded, dict):
             raise ValueError("config.json must be a JSON object")
         config.update(loaded)
@@ -439,8 +448,16 @@ def build_service_from_dir(directory: Path) -> GateService:
     )
     replay_db = (directory / config["replay_db"]).resolve()
 
+    try:
+        policy_doc = json.loads(policy_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            "policy.json 格式错误（JSON 语法问题，请检查是否少了逗号或引号）: "
+            f"{exc}"
+        ) from exc
+
     service = GateService(
-        policy=json.loads(policy_path.read_text(encoding="utf-8")),
+        policy=policy_doc,
         policy_path=policy_path,
         trusted_policy_issuers=config["trusted_policy_issuers"],
         issuer_key=issuer_key,
@@ -478,7 +495,11 @@ def main_serve(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.dir:
-        service = build_service_from_dir(args.dir)
+        try:
+            service = build_service_from_dir(args.dir)
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"启动失败: {exc}", file=sys.stderr)
+            return 1
         host = args.host or getattr(service, "_host", "127.0.0.1")
         port = args.port or getattr(service, "_port", 8770)
     else:
