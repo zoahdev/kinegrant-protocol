@@ -34,7 +34,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
 from typing import Any, Mapping
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -350,12 +350,27 @@ class GateService:
             "policy_digest": engine._policy_digest(),
             "issuer_kid": self.issuer_key.kid,
             "executor_kid": self.executor_key.kid,
+            "receipt_count": len(self.receipt_log.entries),
             "endpoints": {
                 "authorize": "POST /authorize",
                 "verify": "POST /verify",
                 "receipt": "POST /receipt",
+                "receipts": "GET /receipts",
                 "run": "POST /run",
             },
+        }
+
+    def list_receipts(self, limit: int = 100) -> dict[str, Any]:
+        """Return the persisted audit trail (most recent first) and chain state."""
+        entries = list(self.receipt_log.entries)
+        chain_valid = verify_receipt_chain(
+            entries,
+            trusted_executors={self.executor_key.kid},
+        )
+        return {
+            "count": len(entries),
+            "chain_valid": chain_valid,
+            "receipts": list(reversed(entries))[:limit],
         }
 
 
@@ -407,6 +422,16 @@ class _Handler(BaseHTTPRequestHandler):
             return
         if self.command == "GET" and path in ("/", "/health"):
             self._send_json(200, self.service.health())
+            return
+        if self.command == "GET" and path == "/receipts":
+            query = parse_qs(urlparse(self.path).query)
+            limit = 100
+            if "limit" in query:
+                try:
+                    limit = max(1, min(1000, int(query["limit"][0])))
+                except (ValueError, IndexError):
+                    limit = 100
+            self._send_json(200, self.service.list_receipts(limit))
             return
         if self.command == "POST" and path == "/run":
             self._send_json(200, self.service.run(self._read_json()))
