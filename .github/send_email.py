@@ -15,6 +15,7 @@ def send_one(user, app_password, to, subject, body):
     msg["Subject"] = subject
     msg["From"] = f"KineGrant <{user}>"
     msg["To"] = to
+    msg["Reply-To"] = user
     msg.set_content(body)
     ctx = ssl.create_default_context()
     with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ctx, timeout=40) as s:
@@ -23,8 +24,8 @@ def send_one(user, app_password, to, subject, body):
 
 
 def main():
-    user = os.environ["GMAIL_USER"]
-    app_password = os.environ["GMAIL_APP_PASSWORD"]
+    user = os.environ["GMAIL_USER"].strip()
+    app_password = os.environ["GMAIL_APP_PASSWORD"].replace(" ", "").replace("\n", "").replace("\r", "").strip()
     path = sys.argv[1] if len(sys.argv) > 1 else ".github/campaign.json"
     rows = json.load(open(path, encoding="utf-8"))
     ok = 0
