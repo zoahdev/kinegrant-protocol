@@ -1,6 +1,6 @@
 """KineGrant Protocol reference implementation."""
 
-__version__ = "2.65.1"
+__version__ = "2.65.2"
 
 from .capability import CapabilityIssuer
 from .attenuation import attenuate_capability, verify_attenuation

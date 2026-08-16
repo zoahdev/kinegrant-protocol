@@ -85,6 +85,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "trusted_policy_issuers": ["urn:person:space-owner"],
     "keys_dir": "keys",
     "replay_db": "gate-replay.sqlite3",
+    "receipt_log": "receipt-log.json",
 }
 
 _RESULT_VALUES = {"succeeded", "failed", "aborted"}
@@ -159,6 +160,7 @@ class GateService:
         executor_key: Ed25519KeyPair,
         capability_ttl_seconds: int = 30,
         replay_store_path: Path | None = None,
+        receipt_log_path: Path | None = None,
     ) -> None:
         self.policy_path = policy_path
         self.trusted_policy_issuers = set(trusted_policy_issuers or ())
@@ -166,6 +168,8 @@ class GateService:
         self.executor_key = executor_key
         self.capability_ttl_seconds = capability_ttl_seconds
         self._lock = Lock()
+        self._receipt_lock = Lock()
+        self._receipt_log_path = receipt_log_path
         self._policy_stat: tuple[int, int] | None = None
         self._engine: PolicyEngine | None = None
         self._policy_doc: Mapping[str, Any] | None = None
@@ -180,8 +184,26 @@ class GateService:
             ),
         )
         self.receipt_log = ReceiptLog(executor_key)
+        if receipt_log_path is not None and receipt_log_path.exists():
+            try:
+                loaded = json.loads(receipt_log_path.read_text(encoding="utf-8"))
+                if isinstance(loaded, list):
+                    self.receipt_log.restore(loaded)
+            except (json.JSONDecodeError, OSError):
+                pass
 
         self._set_policy(policy or dict(DEFAULT_POLICY))
+
+    def _persist_receipts(self) -> None:
+        if self._receipt_log_path is None:
+            return
+        self._receipt_log_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self._receipt_log_path.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(list(self.receipt_log.entries), ensure_ascii=False),
+            encoding="utf-8",
+        )
+        tmp.replace(self._receipt_log_path)
 
     # -- policy ------------------------------------------------------------- #
 
@@ -239,6 +261,8 @@ class GateService:
         request_value: Mapping[str, Any],
         capability: Mapping[str, Any],
     ) -> dict[str, Any]:
+        if not isinstance(capability, Mapping):
+            raise ValueError("capability must be a JSON object")
         request = _request_from_mapping(request_value)
         claims = self.gate.authorize(capability, request)
         return {"allowed": True, "claims": dict(claims)}
@@ -250,6 +274,8 @@ class GateService:
         result: str,
         evidence_hash: str | None,
     ) -> dict[str, Any]:
+        if not isinstance(capability, Mapping):
+            raise ValueError("capability must be a JSON object")
         if result not in _RESULT_VALUES:
             raise ValueError("result must be one of succeeded, failed, aborted")
         request = _request_from_mapping(request_value)
@@ -261,11 +287,13 @@ class GateService:
             replay_store=InMemoryReplayStore(),
         )
         claims = probe.authorize(capability, request)
-        envelope = self.receipt_log.append(
-            claims,
-            result=result,
-            evidence_hash=evidence_hash,
-        )
+        with self._receipt_lock:
+            envelope = self.receipt_log.append(
+                claims,
+                result=result,
+                evidence_hash=evidence_hash,
+            )
+            self._persist_receipts()
         return {
             "receipt": envelope,
             "receipt_chain_valid": verify_receipt_chain(
@@ -293,11 +321,13 @@ class GateService:
             ttl_seconds=self.capability_ttl_seconds,
         )
         claims = self.gate.authorize(capability, request)
-        receipt = self.receipt_log.append(
-            claims,
-            result=request_value.get("result") or "succeeded",
-            evidence_hash=request_value.get("evidence_hash"),
-        )
+        with self._receipt_lock:
+            receipt = self.receipt_log.append(
+                claims,
+                result=request_value.get("result") or "succeeded",
+                evidence_hash=request_value.get("evidence_hash"),
+            )
+            self._persist_receipts()
         output.update(
             {
                 "capability": capability,
@@ -415,6 +445,9 @@ class _Handler(BaseHTTPRequestHandler):
     do_GET = _handle
     do_POST = _handle
     do_OPTIONS = _handle
+    do_PUT = _handle
+    do_DELETE = _handle
+    do_PATCH = _handle
 
 
 # --------------------------------------------------------------------------- #
@@ -447,6 +480,7 @@ def build_service_from_dir(directory: Path) -> GateService:
         _load_or_create_private_key(keys_dir / "executor_key.pem")
     )
     replay_db = (directory / config["replay_db"]).resolve()
+    receipt_log = (directory / config.get("receipt_log", "receipt-log.json")).resolve()
 
     try:
         policy_doc = json.loads(policy_path.read_text(encoding="utf-8"))
@@ -464,6 +498,7 @@ def build_service_from_dir(directory: Path) -> GateService:
         executor_key=executor_key,
         capability_ttl_seconds=int(config["capability_ttl_seconds"]),
         replay_store_path=replay_db,
+        receipt_log_path=receipt_log,
     )
     service._host = str(config["host"])
     service._port = int(config["port"])

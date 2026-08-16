@@ -24,6 +24,10 @@ class ReceiptLog:
     def entries(self) -> tuple[dict[str, Any], ...]:
         return tuple(self._entries)
 
+    def restore(self, entries: Iterable[Mapping[str, Any]]) -> None:
+        """Load a previously persisted receipt chain (e.g. after a restart)."""
+        self._entries = list(entries)
+
     def append(
         self,
         capability_payload: VerifiedCapability,
