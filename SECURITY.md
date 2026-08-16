@@ -4,6 +4,20 @@ KineGrant is an experimental protocol and reference implementation. It has not
 received an independent security audit and must not be the sole safety control
 for real machinery.
 
+The working threat model is documented in [THREAT_MODEL.md](THREAT_MODEL.md).
+
+## Security properties
+
+The reference implementation aims to provide, and reviewers are invited to
+challenge:
+
+- **Fail-closed / default-deny.** Anything not explicitly allowed is denied.
+- **Request-bound, short-lived capabilities.** A capability authorizes one
+  specific request and expires (maximum lifetime 300 seconds).
+- **Replay protection.** A capability is consumed exactly once.
+- **Tamper-evident audit.** Receipts form a signed hash chain.
+- **Deny-overrides policy.** A deny rule outranks an allow rule.
+
 ## Reporting a vulnerability
 
 Please do not publish an exploitable vulnerability before maintainers have had
@@ -27,9 +41,9 @@ the highest priority.
 Security fixes land on the default branch first and are backported to the
 current stable release when the change is small and safe to backport.
 
-- The latest stable `1.x` release is the supported stable line (currently
-  **v1.0.0**).
 - The default branch is always supported.
-- `0.x` releases are experimental drafts and are **not** supported. They may
+- The latest `2.x` release is the current stable line (see the
+  [releases](https://github.com/zoahdev/kinegrant-protocol/releases) page).
+- Earlier releases are experimental drafts and are **not** supported. They may
   change or break without notice and must not be used as the sole safety
   control for real machinery.

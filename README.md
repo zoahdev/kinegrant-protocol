@@ -5,12 +5,16 @@
 [![CI](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/ci.yml)
 [![ESP32-C3 Firmware](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml/badge.svg)](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml)
 [![Release](https://img.shields.io/github/v/release/zoahdev/kinegrant-protocol)](https://github.com/zoahdev/kinegrant-protocol/releases)
+[![PyPI](https://img.shields.io/pypi/v/kinegrant-protocol)](https://pypi.org/project/kinegrant-protocol/)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14103/badge)](https://www.bestpractices.dev/projects/14103)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zoahdev/kinegrant-protocol/badge)](https://securityscorecards.dev/viewer/?uri=github.com/zoahdev/kinegrant-protocol)
+[![npm](https://img.shields.io/npm/v/kinegrant-js)](https://www.npmjs.com/package/kinegrant-js)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
 [Website](https://kinegrant.com) · [Public verifier](https://kinegrant.com/verify) · [Technical whitepaper](docs/whitepaper/KineGrant-KGP-001-Whitepaper-v0.1.pdf) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Open in Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=main&quickstart=1) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md) · [中文说明](README.zh-CN.md) · [हिन्दी](README.hi.md)
 
-**Try it now, no install:** open the [offline browser verifier](https://zoahdev.github.io/verify/policy-bundle-verifier.html) — signed bundles, capabilities, delegation chains, forbidden combinations, receipts, MPT evidence, fleet operations, hardware evidence and more are all verified locally in your browser. If KineGrant is useful to you or your team, **give this repo a ⭐** — it helps independent reviewers and robot vendors find the project.
+**Try it now, no install:** run the [one-click demo](https://kinegrant.com/playground.html), or open the [offline browser verifier](https://zoahdev.github.io/verify/policy-bundle-verifier.html) — signed bundles, capabilities, delegation chains, forbidden combinations, receipts, MPT evidence, fleet operations, hardware evidence and more are all verified locally in your browser. If KineGrant is useful to you or your team, **give this repo a ⭐** — it helps independent reviewers and robot vendors find the project.
 
 ## Quick start (30 seconds)
 
@@ -25,7 +29,7 @@ docker run --rm ghcr.io/zoahdev/kinegrant-protocol
 
 > **KGP-001 Experimental Open Draft 0.1 · stable wire format 1.0**
 >
-> **Reference implementation v2.64.0 · Apache-2.0**
+> **Reference implementation v2.65.4 · Apache-2.0**
 >
 > Do not use this implementation as the sole safety control for real machinery.
 
@@ -52,7 +56,7 @@ ActionRequest → PolicyEngine → Capability → ActionGate → Actuator
                                            Signed Receipt Log
 ```
 
-## Security properties implemented in reference implementation v2.64.0
+## Security properties implemented in reference implementation v2.65.4
 
 - default deny and deny-overrides policy evaluation;
 - explicit trust boundary for policy issuers: untrusted sources may deny but never allow;
@@ -66,6 +70,10 @@ ActionRequest → PolicyEngine → Capability → ActionGate → Actuator
 - strict JSON Schemas for every core object;
 - tests for policy provenance, denial, tampering, expiration, concurrent/persistent
   replay, receipt trust, schemas, and adapters.
+
+See [THREAT_MODEL.md](THREAT_MODEL.md) for the threat model,
+[SECURITY.md](SECURITY.md) for the vulnerability reporting policy, and
+[docs/SECURITY-AUDIT.md](docs/SECURITY-AUDIT.md) for the independent-review guide.
 
 The default replay cache is in-memory and therefore for demonstration only. The
 included `SQLiteReplayStore` persists consumption across process restarts, but
@@ -309,7 +317,7 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Stable wire format: the reference implementation issues and verifies `1.0`
   capabilities (frozen scoped shape), with `capability-1.0` schema and
   KGP-RFC-0001 accepted, and the JavaScript and Go verifiers accept `0.2`/`1.0`
-  scoped capabilities. Reference implementation version is now `2.64.0`.
+  scoped capabilities. Reference implementation version is now `2.65.4`.
   Standards-outreach materials are in
   [docs/STANDARDS-OUTREACH.md](docs/STANDARDS-OUTREACH.md).
 - Release packets can be verified offline with
