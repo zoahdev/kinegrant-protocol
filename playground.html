@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charSet="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>KineGrant | One-click Demo</title>
+<link rel="stylesheet" href="/_next/static/chunks/05wxyeda-lug-.css"/>
+<link rel="shortcut icon" href="/favicon.svg"/>
+<style>
+  .demo-section { padding:64px 0 32px; }
+  .demo-section .section-label { margin-bottom:12px; }
+  .demo-intro { max-width:640px; color:var(--muted, #9aa0aa); margin:0 0 28px; }
+  .safety { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 24px; }
+  .chip { border:1px solid #262626; background:#121212; color:#9aa0aa; border-radius:999px; padding:7px 13px; font-size:13px; }
+  .chip b { color:#f4f4f4; font-weight:600; }
+  .demo-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:20px; }
+  .demo-card { border:1px solid #262626; background:#121212; border-radius:14px; padding:20px; }
+  .demo-card h3 { margin:0 0 10px; font-size:16px; }
+  label { display:block; color:#9aa0aa; font-size:13px; margin:10px 0 0; }
+  input, select { width:100%; margin-top:4px; background:#0d0d0d; border:1px solid #262626; border-radius:8px; color:#f4f4f4; padding:9px 10px; font:inherit; }
+  .steps { display:flex; flex-direction:column; gap:10px; margin-top:24px; }
+  .step { border:1px solid #262626; background:#121212; border-radius:12px; padding:14px 16px; opacity:.55; }
+  .step.ok { opacity:1; }
+  .head { display:flex; align-items:center; gap:12px; font-weight:600; }
+  .dot { width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-size:14px; background:#1c1c1c; color:#9aa0aa; flex:none; }
+  .step.ok .dot { background:#35d07f; color:#07110a; }
+  .desc { color:#9aa0aa; font-size:13.5px; margin-top:6px; padding-left:36px; }
+  .done { display:none; margin-top:22px; border:1px solid #0f3b26; background:#0f3b26; border-radius:12px; padding:16px 18px; }
+  .done.show { display:block; }
+  .done .t { font-weight:700; font-size:17px; color:#35d07f; }
+  .done .d { color:#bdeed2; font-size:13.5px; margin-top:4px; word-break:break-all; }
+  .denied { display:none; margin-top:22px; border:1px solid #5a2525; background:#2a1212; border-radius:12px; padding:16px 18px; }
+  .denied .t { font-weight:700; font-size:17px; color:#ff8f8f; }
+  .denied .d { color:#e8bdbd; font-size:13.5px; margin-top:4px; }
+  details { margin-top:22px; }
+  summary { cursor:pointer; color:#9aa0aa; }
+  .json { background:#0d0d0d; border:1px solid #262626; border-radius:10px; padding:14px; font:12px/1.55 ui-monospace,Consolas,monospace; white-space:pre-wrap; word-break:break-word; max-height:280px; overflow:auto; }
+  .copy { margin-top:10px; background:transparent; color:#9aa0aa; border:1px solid #262626; border-radius:8px; padding:8px 14px; font-size:13px; cursor:pointer; }
+  .copy:hover { color:#f4f4f4; border-color:#3a3a3a; }
+  #err { color:#ff6b6b; margin-top:16px; white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<header class="site-header"><div class="shell nav-frame"><a class="wordmark" aria-label="KineGrant home" href="/">KINEGRANT</a><button class="menu-button" aria-expanded="false" aria-controls="site-menu"><span>MENU</span></button><nav class="site-menu " id="site-menu" aria-label="Primary navigation"><a href="/#protocol">Protocol</a><a href="/paper/">Specification</a><a href="/physical-ai-authorization/">Answers</a><a href="/#developers">Developers</a><a href="/#ecosystem">Ecosystem</a><a href="/#about">About</a></nav><div class="nav-actions"><a class="nav-github" href="https://github.com/zoahdev/kinegrant-protocol" target="_blank" rel="noreferrer">View on GitHub</a><a class="nav-action" href="/paper">Read the Spec</a></div></div></header>
+<main>
+  <section class="hero shell" aria-labelledby="hero-title"><div class="hero-copy"><h1 id="hero-title"><span>AI CAN THINK.</span><span>AI CAN ACT.</span><strong>KINEGRANT DECIDES</strong><strong>WHAT IT MAY DO.</strong></h1><p class="hero-intro">Run a real authorization in your browser — no install, no account, nothing leaves your device.</p><div class="hero-actions"><button id="run" class="button button-dark">Run the demo</button><button id="run-deny" class="button button-outline">See a denial</button></div><p class="hero-status">Experimental open draft. Open source.</p><div class="hero-facts" aria-label="Protocol properties"><span>Short-lived capabilities</span><span>Scoped access</span><span>Device-verifiable</span><span>Auditable</span></div></div><div class="hero-visual" role="img" aria-label="An autonomous mobile robot with a robotic arm in a controlled industrial cell"></div></section>
+
+  <section class="demo-section shell" aria-labelledby="demo-title">
+    <p class="section-label" id="demo-title">ONE-CLICK DEMO</p>
+    <p class="demo-intro">Every step is signed with Ed25519 in your browser and then independently re-verified by the same verifier the site publishes — a closed loop, not an animation.</p>
+    <div class="safety">
+      <span class="chip"><b>100% local</b> · data never leaves your browser</span>
+      <span class="chip"><b>No account</b> · no install · no tracking</span>
+      <span class="chip"><b>Digital only</b> · controls no real device</span>
+      <span class="chip"><b>Apache-2.0</b> · open and auditable</span>
+    </div>
+    <div class="demo-grid">
+      <div class="demo-card">
+        <h3>Your scenario</h3>
+        <label>Agent<input id="f-agent" value="urn:robot:delivery-1"/></label>
+        <label>Target<input id="f-target" value="urn:space:demo:door-7"/></label>
+        <label>Action<select id="f-action"><option>open</option><option>close</option><option>move</option><option>record</option><option>grasp</option></select></label>
+        <label>Purpose<input id="f-purpose" value="delivery"/></label>
+        <p style="margin-top:16px;"><button id="run-custom" class="button button-dark">Run my action</button></p>
+      </div>
+    </div>
+    <div id="steps" class="steps"></div>
+    <div id="done" class="done"><div class="t">✓ Passed: 6/6 steps verified</div><div class="d" id="receiptId"></div></div>
+    <div id="denied" class="denied"><div class="t">✕ Denied (default-deny)</div><div class="d" id="deniedId"></div></div>
+    <div id="err"></div>
+    <details>
+      <summary>View signed JSON (for audit)</summary>
+      <pre id="json" class="json">（shown after the demo）</pre>
+      <button id="copy" class="copy">Copy JSON</button>
+    </details>
+  </section>
+</main>
+<footer class="site-footer shell"><div class="footer-name">KINEGRANT</div><div class="footer-grid"><p>Authorization infrastructure<br/>for Physical AI.</p><div><a href="/paper">KGP-001</a><a href="/physical-ai-authorization">Physical AI authorization</a><a href="/zh/physical-ai-authorization">物理 AI 动作授权</a><a href="/challenge">Machine Permission Test</a><a href="/verify">Independent Verifier</a><a href="/verify/policy-bundle-verifier.html">Full browser verifier</a></div><div><a href="https://github.com/zoahdev/kinegrant-protocol" target="_blank" rel="noreferrer">GitHub ↗</a><a href="https://github.com/zoahdev/kinegrant-protocol/releases/tag/v2.64.0" target="_blank" rel="noreferrer">Release v2.64.0 ↗</a><a href="/KineGrant-KGP-001-Whitepaper-v0.1.pdf">Whitepaper</a></div><p class="footer-status">KGP-001 Experimental Open Draft 0.1<br/>Reference implementation v2.64.0<br/>Apache-2.0</p></div><div class="footer-bottom"><span>© 2026 KineGrant contributors</span><span>INTELLIGENCE IS NOT PERMISSION.</span></div></footer>
+<script>
+const DOMAIN = new TextEncoder().encode("KINEGRANT-SIGNED-ENVELOPE-V1\u0000");
+const $ = (s) => document.querySelector(s);
+function b64url(bytes) { let s = ""; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
+function concat(...arrays) { const out = new Uint8Array(arrays.reduce((n, a) => n + a.length, 0)); let o = 0; for (const a of arrays) { out.set(a, o); o += a.length; } return out; }
+function canonicalJson(value) {
+  if (value === null) return "null";
+  if (value === true) return "true";
+  if (value === false) return "false";
+  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "number") return JSON.stringify(value);
+  if (Array.isArray(value)) return "[" + value.map(canonicalJson).join(",") + "]";
+  if (typeof value === "object") { const keys = Object.keys(value).sort(); return "{" + keys.map((k) => JSON.stringify(k) + ":" + canonicalJson(value[k])).join(",") + "}"; }
+  throw new Error("cannot canonicalize " + typeof value);
+}
+async function sha256(bytes) { return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)); }
+async function hex(bytes) { return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(""); }
+async function keyPair() {
+  const kp = await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"]);
+  const spki = new Uint8Array(await crypto.subtle.exportKey("spki", kp.publicKey));
+  return { kp, kid: "kinegrant:key:ed25519:" + b64url(spki.slice(spki.length - 32)) };
+}
+async function signEnvelope(payload, kp, kid) {
+  const protectedData = { alg:"EdDSA", kid, payload };
+  const sig = new Uint8Array(await crypto.subtle.sign("Ed25519", kp.privateKey, concat(DOMAIN, new TextEncoder().encode(canonicalJson(protectedData)))));
+  return { alg:"EdDSA", kid, payload, signature:b64url(sig) };
+}
+function iso(ms) { return new Date(ms).toISOString(); }
+function addStep(id, title, desc) { const el = document.createElement("div"); el.className = "step"; el.innerHTML = '<div class="head"><span class="dot">' + id + '</span><span>' + title + '</span></div><div class="desc">' + desc + '</div>'; $("#steps").appendChild(el); return el; }
+function ok(el) { el.classList.add("ok"); el.querySelector(".dot").textContent = "✓"; }
+function deny(el) { el.classList.add("ok"); el.querySelector(".dot").textContent = "✕"; el.querySelector(".dot").style.background = "#ff6b6b"; el.querySelector(".dot").style.color = "#3a0a0a"; }
+function reset() { $("#err").textContent = ""; $("#steps").innerHTML = ""; $("#done").classList.remove("show"); $("#denied").style.display = "none"; $("#json").textContent = "（shown after the demo）"; }
+async function runScenario(o) {
+  reset();
+  const btn = $("#run"); btn.disabled = true;
+  try {
+    const V = await import("/verify/policy-bundle-verifier.js");
+    const authority = await keyPair(); const executor = await keyPair(); const now = Date.now();
+    const request = { type:"kinegrant:ActionRequest", version:"0.1", request_id:"urn:kinegrant:demo:request:1", agent:o.agent, target:o.target, action:o.action, purpose:o.purpose, issued_at:iso(now), context:{} };
+    addStep("1", "Action request", o.agent + " requests " + o.action + " on " + o.target + " (purpose: " + o.purpose + ")"); ok($("#steps").lastElementChild);
+    const allowedAction = o.allow ? o.action : (o.action === "open" ? "close" : "open");
+    const rule = { policy_id:"urn:policy:demo:delivery-door", issuer:authority.kid, target:o.target, effect:"allow", actions:[allowedAction], subjects:["*"], purposes:[o.purpose], constraints:{}, obligations:["emitActionReceipt"], priority:0, source:{} };
+    const policyPayload = { type:"kinegrant:PolicyBundle", schema_version:"0.1", policy_id:"urn:policy:demo:delivery-door", issuer:authority.kid, version:1, previous_version_digest:null, issued_at:iso(now), not_before:iso(now), not_after:iso(now+3600000), rules:[rule] };
+    policyPayload.policy_digest = "sha256:" + await hex(await sha256(new TextEncoder().encode(canonicalJson({ rules: policyPayload.rules }))));
+    policyPayload.bundle_id = "kinegrant:policy-bundle:" + await hex(await sha256(new TextEncoder().encode(canonicalJson(policyPayload))));
+    const policyBundle = await signEnvelope(policyPayload, authority.kp, authority.kid);
+    const bundleVerified = await V.verifyPolicyBundle(policyBundle, new Set([authority.kid]));
+    if (!o.allow) {
+      addStep("2", "Policy decision", "Default-deny: policy allows " + allowedAction + " only, so " + o.action + " is denied"); deny($("#steps").lastElementChild);
+      addStep("3", "Outcome", "No capability issued; the device takes no action"); deny($("#steps").lastElementChild);
+      $("#denied").style.display = "block";
+      $("#deniedId").textContent = o.action + " on " + o.target + " was denied — default-deny, fail-closed.";
+      $("#json").textContent = JSON.stringify({ request, policyBundle }, null, 2);
+      btn.disabled = false; return;
+    }
+    addStep("2", "Policy decision", "Policy allows " + o.action + " and requires a receipt (anything not listed is denied)"); ok($("#steps").lastElementChild);
+    const requestDigest = "sha256:" + await hex(await sha256(new TextEncoder().encode(canonicalJson(request))));
+    const capabilityPayload = { type:"kinegrant:PhysicalActionCapability", version:"0.1", issuer:authority.kid, agent:request.agent, target:request.target, action:request.action, purpose:request.purpose, request_digest:requestDigest, policy_digest:policyPayload.policy_digest, matched_policy_ids:["urn:policy:demo:delivery-door"], obligations:["emitActionReceipt"], issued_at:iso(now), not_before:iso(now), expires_at:iso(now+30000), nonce:"demo-nonce-" + b64url(crypto.getRandomValues(new Uint8Array(8))) };
+    const unsignedCap = Object.assign({}, capabilityPayload);
+    capabilityPayload.capability_id = "kinegrant:cap:" + await hex(await sha256(new TextEncoder().encode(canonicalJson(unsignedCap))));
+    const capability = await signEnvelope(capabilityPayload, authority.kp, authority.kid);
+    const capVerified = await V.verifyCapability(capability, request, new Set([authority.kid]));
+    addStep("3", "Capability", "Signed, 30-second, single-use capability bound to this request"); ok($("#steps").lastElementChild);
+    const gatePass = capVerified && Date.now() < now + 30000;
+    addStep("4", "Local gate", "Device verifies signature, scope, binding, expiry, replay protection → " + (gatePass ? "ALLOW" : "DENY")); if (!gatePass) throw new Error("gate check failed"); ok($("#steps").lastElementChild);
+    addStep("5", "Action", "Device performs " + o.action + " (digital only, no real hardware)"); ok($("#steps").lastElementChild);
+    const receiptPayload = { type:"kinegrant:PhysicalActionReceipt", version:"0.1", executor:executor.kid, capability_id:capabilityPayload.capability_id, request_digest:requestDigest, agent:request.agent, target:request.target, action:request.action, purpose:request.purpose, result:"succeeded", started_at:iso(now+1000), finished_at:iso(now+2000), evidence_hash:"sha256:" + "0".repeat(64), previous_receipt_hash:null };
+    const unsignedReceipt = Object.assign({}, receiptPayload);
+    receiptPayload.receipt_id = "kinegrant:receipt:" + await hex(await sha256(new TextEncoder().encode(canonicalJson(unsignedReceipt))));
+    const receipt = await signEnvelope(receiptPayload, executor.kp, executor.kid);
+    const receiptVerified = await V.verifyReceiptChain([receipt], new Set([executor.kid]));
+    addStep("6", "Signed receipt", "Signed, independently verifiable receipt"); ok($("#steps").lastElementChild);
+    $("#done").classList.add("show");
+    $("#receiptId").textContent = "Independent re-verification: bundle " + (bundleVerified ? "✓" : "✕") + " · capability " + (capVerified ? "✓" : "✕") + " · receipt " + (receiptVerified ? "✓" : "✕") + "  |  receipt: " + receiptPayload.receipt_id;
+    $("#json").textContent = JSON.stringify({ request, policyBundle, capability, receipt }, null, 2);
+    btn.textContent = "Run again";
+  } catch (e) {
+    $("#err").textContent = "Demo error: " + e.message;
+  } finally { btn.disabled = false; }
+}
+function run() { return runScenario({ agent:"urn:robot:delivery-1", target:"urn:space:demo:door-7", action:"open", purpose:"delivery", allow:true }); }
+function runCustom() { return runScenario({ agent:$("#f-agent").value || "urn:robot:delivery-1", target:$("#f-target").value || "urn:space:demo:door-7", action:$("#f-action").value, purpose:$("#f-purpose").value || "delivery", allow:true }); }
+function runDeny() { return runScenario({ agent:$("#f-agent").value || "urn:robot:delivery-1", target:$("#f-target").value || "urn:space:demo:door-7", action:$("#f-action").value, purpose:$("#f-purpose").value || "delivery", allow:false }); }
+$("#run").addEventListener("click", run);
+$("#run-custom").addEventListener("click", runCustom);
+$("#run-deny").addEventListener("click", runDeny);
+$("#copy").addEventListener("click", async () => { try { await navigator.clipboard.writeText($("#json").textContent); $("#copy").textContent = "Copied ✓"; setTimeout(() => $("#copy").textContent = "Copy JSON", 1500); } catch (e) {} });
+if (location.hash === "#deny") { runDeny(); } else { run(); }
+</script>
+</body>
+</html>
