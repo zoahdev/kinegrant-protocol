@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 2.65.2 2026-08-16
+
+- Persist the gate service receipt log to disk so the audit chain survives a
+  restart (`receipt-log.json` next to `gate-replay.sqlite3`).
+
+- Friendlier error handling for malformed requests: a non-object capability
+  and unsupported HTTP methods now return clean JSON errors instead of an
+  internal traceback or an HTML 501.
+
 ## 2.65.1 2026-08-16
 
 - Improved the gate service error messages for a malformed `policy.json` or
