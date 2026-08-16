@@ -1,5 +1,10 @@
 # OpenSSF Best Practices badge — fill-in reference
 
+> **Status: PASSING badge achieved (2026-08-16).**
+> Project 14103: <https://www.bestpractices.dev/projects/14103>
+>
+> Silver is not yet achieved. Blocking Silver criteria: us_factor (needs two unassociated maintainers), signed_releases / ersion_tags_signed (signed git tags), and dco (Developer Certificate of Origin).
+
 Copy these answers into
 <https://bestpractices.coreinfrastructure.org/>. Values reflect the current
 state of `zoahdev/kinegrant-protocol` (Apache-2.0, v2.65.x). For any question
