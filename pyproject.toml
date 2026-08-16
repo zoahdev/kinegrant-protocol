@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kinegrant-protocol"
-version = "2.64.0"
+version = "2.65.0"
 description = "Reference implementation of KineGrant, an authorization and accountability layer for physical AI"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -47,6 +47,8 @@ hardware = ["pyserial>=3.5"]
 
 [project.scripts]
 kinegrant-demo = "kinegrant.cli:main"
+kinegrant-serve = "kinegrant.server:main_serve"
+kinegrant-init = "kinegrant.server:main_init"
 kinegrant-mpt = "kinegrant.mpt:main"
 kinegrant-robot-demo = "kinegrant.experimental.robot_demo:main"
 kinegrant-bridge-demo = "kinegrant.experimental.bridge_demo:main"

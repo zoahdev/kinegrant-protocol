@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 2.65.0 2026-08-16
+
+- Added a one-command HTTP gate service (`kinegrant-serve`) and a
+  deployment scaffolder (`kinegrant-init`) so a policy decision point,
+  capability issuer, fail-closed verifier, and audit receipt log can run
+  as plain HTTP/JSON with no web framework.
+
+- `kinegrant-serve` exposes `POST /authorize`, `POST /verify`,
+  `POST /receipt`, `POST /run`, and `GET /health`, and re-reads
+  `policy.json` on every request so policy edits apply without a restart.
+
 ## 2.64.0 2026-08-16
 
 - Milestone release: reference implementation version 2.64.0, improving
