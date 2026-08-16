@@ -10,11 +10,17 @@ from __future__ import annotations
 
 import json
 import random
+from dataclasses import replace
 from typing import Any, Callable, Mapping
 
 from .adapters.ieee7012 import myterms_to_rules
 from .adapters.odrl import odrl_forbidden_combinations, odrl_to_rules
 from .adapters.wot import describe_wot_actions
+from .capability import CapabilityIssuer
+from .crypto import Ed25519KeyPair
+from .gate import ActionGate
+from .models import ActionRequest, PolicyRule
+from .policy import PolicyEngine
 
 
 def _seed_documents() -> dict[str, dict[str, Any]]:
@@ -159,6 +165,95 @@ class AdapterFuzzHarness:
         }
 
 
+_CLEAN_REJECTIONS = (PermissionError, ValueError, TypeError, KeyError, AttributeError)
+
+
+def _core_fixture() -> tuple[ActionRequest, dict[str, Any], ActionGate]:
+    request = ActionRequest(
+        "urn:kinegrant:fuzz:request:1",
+        "urn:kinegrant:fuzz:agent:1",
+        "urn:kinegrant:fuzz:target:1",
+        "open",
+        "delivery",
+    )
+    rule = PolicyRule(
+        "urn:kinegrant:fuzz:policy:1",
+        "urn:kinegrant:fuzz:authority:1",
+        request.target,
+        "allow",
+        (request.action,),
+        subjects=(request.agent,),
+        purposes=(request.purpose,),
+        obligations=("emitActionReceipt",),
+    )
+    decision = PolicyEngine(
+        [rule],
+        trusted_policy_issuers={rule.issuer},
+    ).evaluate(request)
+    authority = Ed25519KeyPair.generate()
+    capability = CapabilityIssuer(authority).issue(request, decision, ttl_seconds=30)
+    gate = ActionGate(trusted_issuers={authority.kid})
+    return request, capability, gate
+
+
+class CoreFuzzHarness:
+    """Fuzz the fail-closed core: a mutated capability or request must never be accepted."""
+
+    def __init__(self, *, seed: int = 1, iterations: int = 50) -> None:
+        if iterations < 1:
+            raise ValueError("iterations must be a positive integer")
+        self.seed = seed
+        self.iterations = iterations
+
+    def run(self) -> dict[str, Any]:
+        rng = random.Random(self.seed)
+        cases = []
+        for index in range(self.iterations):
+            request, capability, gate = _core_fixture()
+            mode = rng.choice(("payload", "request"))
+            if mode == "payload":
+                target = {**capability, "payload": _mutate(rng, capability["payload"])}
+                req = request
+                detail = "mutated signed payload"
+            else:
+                field = rng.choice(("agent", "target", "action", "purpose"))
+                req = replace(request, **{field: f"urn:kinegrant:fuzz:mutated:{index}"})
+                target = capability
+                detail = f"mutated request.{field}"
+
+            try:
+                gate.authorize(target, req)
+                outcome = "ACCEPTED"
+                clean = False  # fail-open: a mutated input was accepted
+            except _CLEAN_REJECTIONS as exc:
+                outcome = f"rejected:{type(exc).__name__}"
+                clean = True
+            except Exception as exc:  # pragma: no cover - unexpected crash is a failure
+                outcome = f"crash:{type(exc).__name__}:{exc}"
+                clean = False
+
+            cases.append(
+                {
+                    "iteration": index,
+                    "mode": mode,
+                    "detail": detail,
+                    "outcome": outcome,
+                    "clean": clean,
+                }
+            )
+
+        passed = sum(case["clean"] for case in cases)
+        return {
+            "type": "kinegrant:CoreFuzzReport",
+            "schema_version": "0.1",
+            "seed": self.seed,
+            "iterations": self.iterations,
+            "overall_result": "PASS" if passed == len(cases) else "FAIL",
+            "summary": {"total": len(cases), "clean": passed, "failed": len(cases) - passed},
+            "cases": cases,
+        }
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the deterministic adapter fuzz harness and print a report."""
     import argparse
@@ -170,12 +265,29 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--iterations", type=int, default=30)
     args = parser.parse_args(argv)
 
-    report = AdapterFuzzHarness(
+    adapter_report = AdapterFuzzHarness(
         seed=args.seed,
         iterations=args.iterations,
     ).run()
-    print(json.dumps(report, indent=2, sort_keys=True, ensure_ascii=False))
-    return 0 if report["overall_result"] == "PASS" else 1
+    core_report = CoreFuzzHarness(
+        seed=args.seed,
+        iterations=args.iterations,
+    ).run()
+    combined = {
+        "type": "kinegrant:FuzzReport",
+        "schema_version": "0.1",
+        "seed": args.seed,
+        "overall_result": (
+            "PASS"
+            if adapter_report["overall_result"] == "PASS"
+            and core_report["overall_result"] == "PASS"
+            else "FAIL"
+        ),
+        "adapter": adapter_report,
+        "core": core_report,
+    }
+    print(json.dumps(combined, indent=2, sort_keys=True, ensure_ascii=False))
+    return 0 if combined["overall_result"] == "PASS" else 1
 
 
 if __name__ == "__main__":
