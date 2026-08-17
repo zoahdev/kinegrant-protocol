@@ -1,10 +1,12 @@
 name: send-email
 
 on:
+  schedule:
+    - cron: "30 1 * * *"   # 01:30 UTC daily, after Gmail's daily send limit resets
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   send:
@@ -15,8 +17,19 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # pinned
         with:
           python-version: "3.12"
-      - name: Send campaign
-        run: python .github/send_email.py .github/campaign.json
+      - name: Send pending campaign
+        run: python .github/send_email.py .github/campaign.json .github/sent_email.json
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      - name: Persist sent log
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/sent_email.json
+          if git diff --cached --quiet; then
+            echo "no sent-log change"
+          else
+            git commit -m "chore(outreach): record sent emails"
+            git push
+          fi
