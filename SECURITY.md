@@ -36,6 +36,18 @@ about bypassing the action gate, signature validation, request binding, replay
 protection, revocation, adapter fail-open behavior, or receipt integrity receive
 the highest priority.
 
+## Signed commits and tags
+
+Commits and tags authored by the maintainer are SSH-signed (`ssh-ed25519`).
+You can verify a tag with:
+
+```bash
+git verify-tag v2.65.4
+```
+
+If verification fails, do not trust the artifact: it may have been tampered
+with or repackaged by a third party.
+
 ## Supported versions
 
 Security fixes land on the default branch first and are backported to the
