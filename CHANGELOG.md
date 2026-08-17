@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 2.65.5 2026-08-17
+
+- Releases now ship SLSA provenance (`multiple.intoto.jsonl`) alongside the
+  sdist and wheel, produced by a new tag-triggered release workflow.
+- Commits and tags authored by the maintainer are SSH-signed.
+- Documented commit/tag verification in `SECURITY.md`.
+
 ## 2.65.4 2026-08-16
 
 - Added a `GET /receipts` endpoint so the persisted audit trail can be queried
