@@ -1,0 +1,22 @@
+name: dump-bounces
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # pinned
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # pinned
+        with:
+          python-version: "3.12"
+      - name: Dump bounced recipients
+        run: python .github/outreach/dump_bounces.py
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
