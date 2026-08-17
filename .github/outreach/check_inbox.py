@@ -67,6 +67,7 @@ def fetch_new(user, auth):
     typ, data = M.search(None, "(UNSEEN)")
     ids = data[0].split() if data and data[0] else []
     rows = []
+    items = []
     for i in ids[-20:]:  # at most the 20 newest unread
         typ, d = M.fetch(i, "(RFC822)")
         if typ != "OK" or not d or not d[0]:
@@ -81,14 +82,24 @@ def fetch_new(user, auth):
         date = msg.get("Date", "")
         txt = body_text(msg)[:1200]
         rows.append({"from": frm, "subject": subj, "date": date, "body": txt, "kind": kind})
-    # mark them seen so we do not re-notify
-    for i in ids[-20:]:
+        items.append((i, frm, subj))
+    M.logout()
+    return rows, items
+
+
+def mark_seen(user, auth, items):
+    """Mark fetched messages seen so they are not re-notified."""
+    if not items:
+        return
+    M = imaplib.IMAP4_SSL("imap.gmail.com", 993, ssl_context=ssl.create_default_context())
+    M.login(user, auth)
+    M.select("INBOX")
+    for i, _frm, _subj in items:
         try:
             M.store(i, "+FLAGS", "\\Seen")
         except Exception:
             pass
     M.logout()
-    return rows
 
 
 def notify(user, auth, to, rows):
@@ -114,7 +125,7 @@ def main():
     user = os.environ["GMAIL_USER"]
     auth = os.environ["GMAIL_APP_PASSWORD"].replace(" ", "")
     notify_to = os.environ.get("NOTIFY_TO", "18377360711@163.com")
-    rows = fetch_new(user, auth)
+    rows, items = fetch_new(user, auth)
     replies = sum(1 for r in rows if r["kind"] == "reply")
     bounces = sum(1 for r in rows if r["kind"] == "bounce")
     print(f"new_replies={replies} new_bounces={bounces}")
@@ -124,6 +135,7 @@ def main():
         try:
             notify(user, auth, notify_to, rows)
             print("notified", notify_to)
+            mark_seen(user, auth, items)
         except Exception as e:
             print("notify_failed", type(e).__name__, str(e)[:160])
 
