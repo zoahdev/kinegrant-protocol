@@ -2,6 +2,29 @@
 
 **Permission infrastructure for physical AI.**
 
+## What this is, in 30 seconds
+
+Robots and AI agents are starting to touch the real world — opening doors,
+moving arms, recording video. Most authorization today is all-or-nothing and
+hard to audit after the fact. KineGrant adds a narrow, auditable permission
+layer for physical AI:
+
+- **Before a machine acts**, it needs a short-lived, one-time *capability*
+  bound to exactly who, what, why, and for how long.
+- **If it isn't allowed, it doesn't act** — default-deny, and the actuator
+  does not move.
+- **After it acts**, there's a signed, tamper-evident receipt proving what was
+  authorized and what happened.
+
+One line: **"tickets before motion, receipts after motion."**
+
+KineGrant is not a token, blockchain, robot middleware, or functional-safety
+system. It complements W3C ODRL, W3C Web of Things, IEEE 7012, ROS 2/SROS2,
+OPC UA, and Matter.
+
+*Everything below — threat model, conformance levels, post-quantum signatures,
+reproducible evidence — is the technical body that backs this up.*
+
 [![CI](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/ci.yml)
 [![ESP32-C3 Firmware](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml/badge.svg)](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml)
 [![Release](https://img.shields.io/github/v/release/zoahdev/kinegrant-protocol)](https://github.com/zoahdev/kinegrant-protocol/releases)
