@@ -1,59 +1,5 @@
 [
   {
-    "to": "press@nuro.ai",
-    "company": "Nuro",
-    "subject": "KineGrant: open action-authorization layer for physical AI (no-fee pilot)",
-    "body": "Hi Nuro team,\n\nI maintain KineGrant, an open-source action-level authorization and accountability protocol for robots and physical AI. Before an actuator moves, it requires a short-lived, one-time capability bound to the exact agent, target, action and purpose; after execution it produces a signed, hash-chained receipt.\n\nI'm reaching out because Nuro operates autonomous delivery vehicles.\n\nApache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
-  },
-  {
-    "to": "press@zoox.com",
-    "company": "Zoox",
-    "subject": "KineGrant: open action-authorization layer for physical AI (no-fee pilot)",
-    "body": "Hi Zoox team,\n\nI maintain KineGrant, an open-source action-level authorization and accountability protocol for robots and physical AI. Before an actuator moves, it requires a short-lived, one-time capability bound to the exact agent, target, action and purpose; after execution it produces a signed, hash-chained receipt.\n\nI'm reaching out because Zoox builds autonomous robotaxis.\n\nApache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
-  },
-  {
-    "to": "media@pony.ai",
-    "company": "Pony.ai",
-    "subject": "KineGrant: open action-authorization layer for physical AI (no-fee pilot)",
-    "body": "Hi Pony.ai team,\n\nI maintain KineGrant, an open-source action-level authorization and accountability protocol for robots and physical AI. Before an actuator moves, it requires a short-lived, one-time capability bound to the exact agent, target, action and purpose; after execution it produces a signed, hash-chained receipt.\n\nI'm reaching out because Pony.ai develops autonomous driving.\n\nApache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
-  },
-  {
-    "to": "media@weride.ai",
-    "company": "WeRide",
-    "subject": "KineGrant: open action-authorization layer for physical AI (no-fee pilot)",
-    "body": "Hi WeRide team,\n\nI maintain KineGrant, an open-source action-level authorization and accountability protocol for robots and physical AI. Before an actuator moves, it requires a short-lived, one-time capability bound to the exact agent, target, action and purpose; after execution it produces a signed, hash-chained receipt.\n\nI'm reaching out because WeRide builds autonomous driving systems.\n\nApache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
-  },
-  {
-    "to": "press@wayve.ai",
-    "company": "Wayve",
-    "subject": "KineGrant: open action-authorization layer for physical AI (no-fee pilot)",
-    "body": "Hi Wayve team,\n\nI maintain KineGrant, an open-source action-level authorization and accountability protocol for robots and physical AI. Before an actuator moves, it requires a short-lived, one-time capability bound to the exact agent, target, action and purpose; after execution it produces a signed, hash-chained receipt.\n\nI'm reaching out because Wayve builds embodied AI for autonomous driving.\n\nApache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
-  },
-  {
-    "to": "info@gatik.ai",
-    "company": "Gatik",
-    "subject": "KineGrant: open action-authorization layer for physical AI (no-fee pilot)",
-    "body": "Hi Gatik team,\n\nI maintain KineGrant, an open-source action-level authorization and accountability protocol for robots and physical AI. Before an actuator moves, it requires a short-lived, one-time capability bound to the exact agent, target, action and purpose; after execution it produces a signed, hash-chained receipt.\n\nI'm reaching out because Gatik runs autonomous middle-mile trucking.\n\nApache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
-  },
-  {
-    "to": "press@einride.tech",
-    "company": "Einride",
-    "subject": "KineGrant: open action-authorization layer for physical AI (no-fee pilot)",
-    "body": "Hi Einride team,\n\nI maintain KineGrant, an open-source action-level authorization and accountability protocol for robots and physical AI. Before an actuator moves, it requires a short-lived, one-time capability bound to the exact agent, target, action and purpose; after execution it produces a signed, hash-chained receipt.\n\nI'm reaching out because Einride builds autonomous electric freight.\n\nApache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
-  },
-  {
-    "to": "info@kodiak.ai",
-    "company": "Kodiak Robotics",
-    "subject": "KineGrant: open action-authorization layer for physical AI (no-fee pilot)",
-    "body": "Hi Kodiak Robotics team,\n\nI maintain KineGrant, an open-source action-level authorization and accountability protocol for robots and physical AI. Before an actuator moves, it requires a short-lived, one-time capability bound to the exact agent, target, action and purpose; after execution it produces a signed, hash-chained receipt.\n\nI'm reaching out because Kodiak builds autonomous trucking.\n\nApache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
-  },
-  {
-    "to": "info@oxa.tech",
-    "company": "Oxa",
-    "subject": "KineGrant: open action-authorization layer for physical AI (no-fee pilot)",
-    "body": "Hi Oxa team,\n\nI maintain KineGrant, an open-source action-level authorization and accountability protocol for robots and physical AI. Before an actuator moves, it requires a short-lived, one-time capability bound to the exact agent, target, action and purpose; after execution it produces a signed, hash-chained receipt.\n\nI'm reaching out because Oxa builds autonomous vehicle software.\n\nApache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
-  },
-  {
     "to": "press@motional.com",
     "company": "Motional",
     "subject": "KineGrant: open action-authorization layer for physical AI (no-fee pilot)",
