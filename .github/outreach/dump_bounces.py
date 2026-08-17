@@ -33,7 +33,9 @@ def body_text(msg):
 
 
 def extract_failed(body):
-    # "The following address failed: <x@y>", "Final-Recipient: rfc822;x@y"
+    m = re.search(r"wasn'?t delivered to\s*<?([^\s>,;]+)", body, re.I)
+    if m:
+        return m.group(1).strip("<>")
     m = re.search(r"The following address[^<]*<([^>]+)>", body)
     if m:
         return m.group(1)
@@ -46,27 +48,42 @@ def extract_failed(body):
     return None
 
 
+def failed_from_headers(msg):
+    for h in ("X-Failed-Recipients", "Original-Recipient"):
+        v = msg.get(h)
+        if v:
+            return v.strip().strip("<>")
+    return None
+
+
+def is_bounce(msg):
+    frm = dec(msg.get("From", "")).lower()
+    subj = dec(msg.get("Subject", "")).lower()
+    return ("mailer-daemon" in frm or "postmaster" in frm
+            or "delivery status notification" in subj or "undelivered" in subj
+            or "returned" in subj)
+
+
 def main():
     user = os.environ["GMAIL_USER"]
     auth = os.environ["GMAIL_APP_PASSWORD"].replace(" ", "")
     M = imaplib.IMAP4_SSL("imap.gmail.com", 993, ssl_context=ssl.create_default_context())
     M.login(user, auth)
     M.select("INBOX")
-    typ, data = M.search(None, '(FROM "mailer-daemon")')
+    typ, data = M.search(None, "ALL")
     ids = data[0].split() if data and data[0] else []
     found = {}
-    for i in ids[-40:]:
+    for i in ids[-80:]:
         typ, d = M.fetch(i, "(RFC822)")
         if typ != "OK" or not d or not d[0]:
             continue
         msg = email.message_from_bytes(d[0][1])
-        subj = dec(msg.get("Subject", ""))
-        if "delivery status" not in subj.lower() and "undelivered" not in subj.lower() and "returned" not in subj.lower():
+        if not is_bounce(msg):
             continue
-        body = body_text(msg)
-        failed = extract_failed(body)
+        subj = dec(msg.get("Subject", ""))
+        failed = failed_from_headers(msg) or extract_failed(body_text(msg))
         if failed:
-            found[failed] = subj
+            found[failed.lower()] = subj
     print(f"bounced_recipients={len(found)}")
     for addr, subj in sorted(found.items()):
         print(f"- {addr} | {subj[:80]}")
