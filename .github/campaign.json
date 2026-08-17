@@ -130,5 +130,11 @@
     "company": "Robust.AI",
     "subject": "KineGrant: open action-gate layer for Robust.AI",
     "body": "Hi Henrik,\n\nI maintain KineGrant, an open-source, action-level authorization and accountability protocol for physical AI: deny-by-default, single-use capabilities, replay protection, and signed hash-chained receipts. Apache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nI'm reaching out because Robust.AI is building industrial-grade cognitive robots where a neutral action-authorization and audit layer is a natural complement.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
+  },
+  {
+    "to": "abhinavg@cs.cmu.edu",
+    "company": "Skild AI",
+    "subject": "KineGrant: open action-gate layer for Skild AI",
+    "body": "Hi Abhinav,\n\nI maintain KineGrant, an open-source, action-level authorization and accountability protocol for physical AI: deny-by-default, single-use capabilities, replay protection, and signed hash-chained receipts. Apache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nI'm reaching out because Skild AI is building general-purpose robot foundation models, and a neutral action-authorization and audit layer is a natural safety complement for real-world deployment.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
   }
 ]
