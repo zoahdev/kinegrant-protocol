@@ -1,0 +1,8 @@
+[
+  {
+    "to": "chance@chancefoundation.org.cn",
+    "company": "ChanceMaker Foundation",
+    "subject": "开源项目咨询：KineGrant 申请具身智能开源专项基金 / AI开源激励计划",
+    "body": "尊敬的基金会老师：\n\n您好！我是开源项目 KineGrant 的维护者。\n\nKineGrant 是一套面向物理 AI（具身智能/机器人）的开放授权与审计协议：机器人执行动作前必须先获得短期、一次性、绑定具体动作的能力凭证，执行后自动生成防篡改的签名审计收据；默认拒绝、防重放、后量子签名（ML-DSA-65），提供 ROS 2 / Matter / OPC UA / MCP 适配器与零依赖的离线浏览器验证器。项目以 Apache-2.0 协议完全开源：https://github.com/zoahdev/kinegrant-protocol （官网 https://kinegrant.com）。\n\n从公开报道了解到，贵基金会联合华中科技大学发布 AI 开源激励计划，并与松应科技设立国内首个具身智能开源专项基金，聚焦物理 AI 与工业应用领域，与 KineGrant 方向高度契合。想向贵基金会咨询以下问题：\n\n1. 具身智能开源专项基金目前是否接受申报？申报材料、评审流程与截止时间是什么？\n2. AI 开源激励计划（100 万元）是否面向个人开发者/开源项目？如何申报？\n3. OPC 能力挑战赛（武汉站）的报名入口在哪里？\n4. 个人开发者（尚未注册公司）是否可以参与上述申报？\n\n项目已具备：500+ 自动化测试全量通过、OpenSSF Best Practices passing、Scorecard 7.7/10、SLSA 来源证明、已提交 Google OSS-Fuzz、可复现的硬件验收清单。如需更多材料，随时可以提供。\n\n盼复，万分感谢！\n\n此致\n敬礼\n\nKineGrant 项目维护者\n"
+  }
+]
