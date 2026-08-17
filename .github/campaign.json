@@ -36,18 +36,6 @@
     "body": "Hi Addverb team,\n\nI maintain KineGrant, an open-source action-level authorization and accountability protocol for robots and physical AI. Before an actuator moves, it requires a short-lived, one-time capability bound to the exact agent, target, action and purpose; after execution it produces a signed, hash-chained receipt for audit.\n\nI'm reaching out because Addverb builds warehouse automation robots.\n\nIt's Apache-2.0, one-command install, with ROS 2 / Matter / OPC UA adapters and a zero-dependency offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, Google OSS-Fuzz submitted.\n\nWould you be open to a no-fee technical validation? A remote demo is enough to start.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
   },
   {
-    "to": "info@aubo-cobot.com",
-    "company": "遨博 AUBO",
-    "subject": "关于机器人动作授权与审计的开源方案（不收费试点）",
-    "body": "遨博 AUBO您好：\n\n我们在做一个开源协议 KineGrant：机器人在执行动作前必须拿到短期、一次性、绑定动作的能力凭证，执行后自动生成签名收据。默认拒绝、防重放、可审计、后量子签名（ML-DSA-65），支持 ROS 2 / Matter / OPC UA。\n\n之所以联系贵司，是因为贵司协作机器人需要可审计的动作授权。\n\n想邀请贵司做一个不收费的技术验证试点，远程接入 demo 即可。\n\n演示：https://kinegrant.com/playground.html\n源码：https://github.com/zoahdev/kinegrant-protocol\n\n谢谢！\nKineGrant 维护者"
-  },
-  {
-    "to": "support@jaka.com",
-    "company": "节卡 JAKA",
-    "subject": "关于机器人动作授权与审计的开源方案（不收费试点）",
-    "body": "节卡 JAKA您好：\n\n我们在做一个开源协议 KineGrant：机器人在执行动作前必须拿到短期、一次性、绑定动作的能力凭证，执行后自动生成签名收据。默认拒绝、防重放、可审计、后量子签名（ML-DSA-65），支持 ROS 2 / Matter / OPC UA。\n\n之所以联系贵司，是因为贵司协作机器人需要动作授权与审计。\n\n想邀请贵司做一个不收费的技术验证试点，远程接入 demo 即可。\n\n演示：https://kinegrant.com/playground.html\n源码：https://github.com/zoahdev/kinegrant-protocol\n\n谢谢！\nKineGrant 维护者"
-  },
-  {
     "to": "support@tm-robot.com",
     "company": "Techman Robot",
     "subject": "KineGrant: open action-authorization layer for physical AI (no-fee pilot)",
