@@ -2,7 +2,7 @@ name: send-email
 
 on:
   schedule:
-    - cron: "30 1 * * *"   # 01:30 UTC daily, after Gmail's daily send limit resets
+    - cron: "30 9 * * *"   # 09:30 UTC daily, after Gmail's daily send limit resets (midnight PT = 07:00 UTC)
   workflow_dispatch:
 
 permissions:
