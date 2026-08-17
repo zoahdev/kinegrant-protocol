@@ -124,5 +124,11 @@
     "company": "Ambi Robotics",
     "subject": "KineGrant: open action-gate layer for Ambi Robotics",
     "body": "Hi Ken,\n\nI maintain KineGrant, an open-source, action-level authorization and accountability protocol for physical AI. Before an actuator moves it requires a short-lived, single-use capability bound to the exact agent/action/purpose, and after execution it emits a signed, hash-chained receipt. Default is deny.\n\nI'm reaching out because Ambi Robotics runs production pick-and-sort systems where a signed receipt per action adds a strong accountability layer. KineGrant is Apache-2.0, one-command install, with ROS 2 / Matter / OPC UA adapters and a zero-dependency offline verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nWould you be open to a no-fee technical validation? A remote demo is enough; I can also tailor a reference integration to your stack.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
+  },
+  {
+    "to": "hichristensen@ucsd.edu",
+    "company": "Robust.AI",
+    "subject": "KineGrant: open action-gate layer for Robust.AI",
+    "body": "Hi Henrik,\n\nI maintain KineGrant, an open-source, action-level authorization and accountability protocol for physical AI: deny-by-default, single-use capabilities, replay protection, and signed hash-chained receipts. Apache-2.0, one-command install, ROS 2 / Matter / OPC UA adapters, offline browser verifier. OpenSSF Best Practices passing, Scorecard 7.7/10, OSS-Fuzz submitted.\n\nI'm reaching out because Robust.AI is building industrial-grade cognitive robots where a neutral action-authorization and audit layer is a natural complement.\n\nWould you be open to a no-fee technical validation? A remote demo is enough.\n\nDemo: https://kinegrant.com/playground.html\nSource: https://github.com/zoahdev/kinegrant-protocol\n\nThanks,\nKineGrant maintainer"
   }
 ]
