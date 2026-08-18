@@ -63,12 +63,7 @@ def _denied_request() -> ActionRequest:
     )
 
 
-def _engine_from_registry(
-    registry: PolicyRegistry, policy_id: str, authority: PolicyAuthority
-) -> PolicyEngine:
-    bundle = registry.current(policy_id)
-    if bundle is None:
-        raise RuntimeError("policy not activated at this gate")
+def _engine_from_bundle(bundle: dict[str, Any], authority: PolicyAuthority) -> PolicyEngine:
     return PolicyEngine(
         rules_from_bundle(bundle, trusted_authorities={authority.kid}),
         trusted_policy_issuers={authority.kid},
@@ -101,8 +96,8 @@ def run() -> dict[str, Any]:
         bundle,
         trusted_authorities={authority.kid},
     )
-    gate_a_engine = _engine_from_registry(gate_a_registry, policy_id, authority)
-    gate_b_engine = _engine_from_registry(gate_b_registry, policy_id, authority)
+    gate_a_engine = _engine_from_bundle(bundle, authority)
+    gate_b_engine = _engine_from_bundle(bundle, authority)
     allowed_a = gate_a_engine.evaluate(_allowed_request()).allowed
     allowed_b = gate_b_engine.evaluate(_allowed_request()).allowed
     denied_a = not gate_a_engine.evaluate(_denied_request()).allowed
