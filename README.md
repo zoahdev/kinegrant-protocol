@@ -28,15 +28,12 @@ reproducible evidence — is the technical body that backs this up.*
 [![CI](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/ci.yml/badge.svg)](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/ci.yml)
 [![ESP32-C3 Firmware](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml/badge.svg)](https://github.com/zoahdev/kinegrant-protocol/actions/workflows/firmware.yml)
 [![Release](https://img.shields.io/github/v/release/zoahdev/kinegrant-protocol)](https://github.com/zoahdev/kinegrant-protocol/releases)
-[![OpenSSF Best Practices](https://bestpractices.coreinfrastructure.org/projects/14103/badge)](https://www.bestpractices.dev/projects/14103)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14103/badge)](https://www.bestpractices.dev/projects/14103)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zoahdev/kinegrant-protocol/badge)](https://securityscorecards.dev/viewer/?uri=github.com/zoahdev/kinegrant-protocol)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 [![PyPI](https://img.shields.io/pypi/v/kinegrant-protocol)](https://pypi.org/project/kinegrant-protocol/)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14103/badge)](https://www.bestpractices.dev/projects/14103)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/zoahdev/kinegrant-protocol/badge)](https://securityscorecards.dev/viewer/?uri=github.com/zoahdev/kinegrant-protocol)
 [![npm](https://img.shields.io/npm/v/kinegrant-js)](https://www.npmjs.com/package/kinegrant-js)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
-[![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
 [Website](https://kinegrant.com) · [Community](https://kinegrant.com/community) · [Governance](COMMUNITY.md) · [Public verifier](https://kinegrant.com/verify) · [Technical whitepaper](docs/whitepaper/KineGrant-KGP-001-Whitepaper-v0.1.pdf) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Open in Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=main&quickstart=1) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md) · [中文说明](README.zh-CN.md) · [हिन्दी](README.hi.md)
 
