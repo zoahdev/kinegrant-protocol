@@ -46,6 +46,16 @@ an auditor can reproduce the decision, and receipts reveal less than raw logs.
 - Domain names, trademarks, and registries are community assets governed by
   this charter.
 
+## Compliance boundaries
+
+- The community itself is not a funding vehicle: it does not raise funds, charge membership fees, issue tokens or NFTs, or promise returns.
+- Funding for project development is pursued only through legal channels by a properly established legal entity or by maintainers as individuals — for example official grant programs, competitions, incubators, or registered-company investment — never through the community, tokens, public solicitation, or unsolicited outreach.
+- No automated, bulk, or cold-email outreach of any kind.
+- No legal entity, association, or registered organization is formed by this community itself.
+- Contribution credentials have no economic value and are non-transferable.
+
+The community charter and compliance details are in `docs/community/`.
+
 ## Stability and compatibility
 
 - Wire formats, schemas, and experimental surfaces follow

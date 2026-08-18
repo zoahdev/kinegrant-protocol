@@ -38,9 +38,15 @@ reproducible evidence — is the technical body that backs this up.*
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/github/license/zoahdev/kinegrant-protocol)](LICENSE.txt)
 
-[Website](https://kinegrant.com) · [Public verifier](https://kinegrant.com/verify) · [Technical whitepaper](docs/whitepaper/KineGrant-KGP-001-Whitepaper-v0.1.pdf) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Open in Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=main&quickstart=1) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md) · [中文说明](README.zh-CN.md) · [हिन्दी](README.hi.md)
+[Website](https://kinegrant.com) · [Community](https://kinegrant.com/community) · [Governance](COMMUNITY.md) · [Public verifier](https://kinegrant.com/verify) · [Technical whitepaper](docs/whitepaper/KineGrant-KGP-001-Whitepaper-v0.1.pdf) · [KGP-001](spec/KGP-001.md) · [Reproduce](REPRODUCING.md) · [Open in Codespaces](https://codespaces.new/zoahdev/kinegrant-protocol?ref=main&quickstart=1) · [Threat model](spec/THREAT-MODEL.md) · [Roadmap](ROADMAP.md) · [中文说明](README.zh-CN.md) · [हिन्दी](README.hi.md)
 
 **Try it now, no install:** run the [one-click demo](https://kinegrant.com/playground.html), or open the [offline browser verifier](https://zoahdev.github.io/verify/policy-bundle-verifier.html) — signed bundles, capabilities, delegation chains, forbidden combinations, receipts, MPT evidence, fleet operations, hardware evidence and more are all verified locally in your browser. If KineGrant is useful to you or your team, **give this repo a ⭐** — it helps independent reviewers and robot vendors find the project.
+
+## Community and governance
+
+KineGrant is community-governed under a no-token DAO-style model: transparent RFC decisions, contribution-based roles, public records, and **no financial mechanism** — no tokens, no fundraising, no legal entity, and no unsolicited outreach. See [COMMUNITY.md](COMMUNITY.md) and [docs/community/](docs/community/).
+
+Community hub: https://kinegrant.com/community · 中文社区：https://kinegrant.com/zh/community
 
 ## Quick start (30 seconds)
 
