@@ -104,10 +104,10 @@ def run() -> dict[str, Any]:
     denied_b = not gate_b_engine.evaluate(_denied_request()).allowed
 
     # 4. Revoke the policy; the allowed action must now be denied.
-    gate_a.revoke(policy_id, 1, reason="fleet rollback")
-    gate_b.revoke(policy_id, 1, reason="fleet rollback")
-    revoked_a = gate_a.current(policy_id) is None
-    revoked_b = gate_b.current(policy_id) is None
+    gate_a_registry.revoke(policy_id, 1, reason="fleet rollback")
+    gate_b_registry.revoke(policy_id, 1, reason="fleet rollback")
+    revoked_a = gate_a_registry.current(policy_id) is None
+    revoked_b = gate_b_registry.current(policy_id) is None
     empty_engine = PolicyEngine((), trusted_policy_issuers={authority.kid})
     allowed_after_revoke = empty_engine.evaluate(_allowed_request()).allowed
 
