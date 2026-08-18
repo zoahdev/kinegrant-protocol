@@ -34,3 +34,13 @@ python -m unittest tests.test_javascript_interop -v
 go test ./implementations/kinegrant-go/...
 python -m unittest tests.test_go_interop -v
 ```
+
+## Recognized independent implementations
+
+Apply for recognition under [KGP-RFC-0004](RECOGNITION.md). The list below is
+maintained by the steering committee; entries require reproducible
+cross-verification evidence.
+
+| Implementation | Language | Author | Evidence | Recognized |
+| --- | --- | --- | --- | --- |
+| _open for applications_ | | | | |
