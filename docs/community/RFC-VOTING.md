@@ -35,3 +35,9 @@
 - Interested parties do not cast the deciding vote on their own proposal.
 - All votes are public; outcomes are recorded in
   docs/community/DECISION-LOG.md.
+## After the window closes — tally and record
+
+1. The interim chair closes the comment window on the issue and posts a tally comment: committee votes (approve/reject/abstain), advisory comments (count + summary), and any disclosed conflicts of interest.
+2. Decision: a supermajority of the steering committee accepts, rejects, or supersedes. With only the interim chair seated, the chair's vote stands as the committee record; the first external seats (Discussion #246) will widen future committees.
+3. The outcome is recorded in docs/community/DECISION-LOG.md with: RFC number, window dates, vote record link, result, and any minority positions.
+4. Accepted RFCs are merged/tracked in ROADMAP; the RFC header is updated from draft to accepted.
