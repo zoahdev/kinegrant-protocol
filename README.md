@@ -63,7 +63,7 @@ docker run --rm ghcr.io/zoahdev/kinegrant-protocol
 
 > **KGP-001 Experimental Open Draft 0.1 · stable wire format 1.0**
 >
-> **Reference implementation v2.65.4 · Apache-2.0**
+> **Reference implementation v2.65.5 · Apache-2.0**
 >
 > Do not use this implementation as the sole safety control for real machinery.
 
@@ -103,7 +103,7 @@ docker run --rm ghcr.io/zoahdev/kinegrant-protocol
 
 > **KGP-001 实验性开放草案 0.1 · 稳定线格式 1.0**
 >
-> **参考实现 v2.65.4 · Apache-2.0**
+> **参考实现 v2.65.5 · Apache-2.0**
 >
 > 请勿将该实现作为真实机械设备的唯一安全控制手段。
 
@@ -123,7 +123,7 @@ ActionRequest → PolicyEngine → Capability → ActionGate → Actuator
                                                     ▼
                                            签名回执日志
 ```
-## Security properties implemented in reference implementation v2.65.4
+## Security properties implemented in reference implementation v2.65.5
 
 - default deny and deny-overrides policy evaluation;
 - explicit trust boundary for policy issuers: untrusted sources may deny but never allow;
@@ -386,7 +386,7 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 - Stable wire format: the reference implementation issues and verifies `1.0`
   capabilities (frozen scoped shape), with `capability-1.0` schema and
   KGP-RFC-0001 accepted, and the JavaScript and Go verifiers accept `0.2`/`1.0`
-  scoped capabilities. Reference implementation version is now `2.65.4`.
+  scoped capabilities. Reference implementation version is now `2.65.5`.
   Standards-outreach materials are in
   [docs/STANDARDS-OUTREACH.md](docs/STANDARDS-OUTREACH.md).
 - Release packets can be verified offline with
