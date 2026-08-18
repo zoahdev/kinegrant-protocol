@@ -38,6 +38,13 @@ class DeploymentExampleTests(unittest.TestCase):
         self.assertEqual(trace["phases"]["fleet"]["initial_applied"], 2)
         self.assertEqual(trace["phases"]["revocation"]["rolled_back_to"], 1)
 
+    def test_fleet_policy_example(self) -> None:
+        module = self._load("examples/fleet-policy/fleet_policy.py")
+        trace = module.run()
+        self.assertTrue(trace["passed"])
+        self.assertEqual(trace["phases"]["distribution"]["applied_total"], 2)
+        self.assertFalse(trace["phases"]["revocation"]["allowed_after_revoke"])
+
 
 if __name__ == "__main__":
     unittest.main()
