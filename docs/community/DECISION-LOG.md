@@ -17,6 +17,14 @@ them.
 - RFC status board adopted: KGP-RFC-0001 accepted; 0002 and 0003 in draft.
 - No financial decisions were made or recorded.
 
+## 2026-08-19 — Governance operations and engineering maintenance
+
+- RFC-0003 acceptance vote progressed: half-way status posted on issue #127 (window closes 2026-08-29); vote status surfaced on the README homepage.
+- Fixed CI: a YAML syntax error in the lint step name (introduced in PR #252) caused every workflow run to fail during initialization; fixed in PR #272.
+- Published governance and participation documentation (bilingual): RFC-0004 Chinese edition, pilot framework Chinese edition, participation guide, RFC voting guide, seat nomination template, technical overview, local verification and release reproducibility records.
+- Engineering: deterministic release builds (SOURCE_DATE_EPOCH, PR #288), weekly dependency audit workflow (PR #291), and the five email outreach workflows were disabled.
+- No financial decisions were made or recorded.
+
 ## Template
 
 ```markdown
