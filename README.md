@@ -419,6 +419,7 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 | `spec/schemas/` | Strict Draft 2020-12 schemas for all core objects |
 | `challenge/` | Reproducible Machine Permission Test instructions |
 | `REPRODUCING.md` | External reproduction and evidence-submission guide |
+| `docs/LOCAL-VERIFICATION.md` | Offline reproducible verification record |
 | `examples/` | Public, schema-valid signed sample objects |
 | `proof/esp32-c3/` | Non-normative low-risk device-boundary experiment |
 | `src/kinegrant/` | Python reference implementation |
