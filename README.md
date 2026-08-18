@@ -47,6 +47,8 @@ KineGrant is community-governed under a no-token DAO-style model: transparent RF
 
 Community hub: https://kinegrant.com/community · 中文社区：https://kinegrant.com/zh/community
 
+> **Governance now:** RFC-0003 acceptance vote is open until 2026-08-29 ([issue #127](https://github.com/zoahdev/kinegrant-protocol/issues/127)); external advisory votes are welcome. See [RFC-VOTING.md](docs/community/RFC-VOTING.md).
+
 ## Quick start (30 seconds)
 
 ```bash
