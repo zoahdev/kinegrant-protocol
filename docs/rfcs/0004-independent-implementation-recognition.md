@@ -3,73 +3,101 @@
 > Status: draft (2026-08-18)
 > Editor: zoahdev
 > Related: KGP-RFC-0001, CONFORMANCE.md, implementations/README.md, docs/community/CONTRIBUTION-CREDENTIALS.md
+> 摘要：本 RFC 定义“独立实现”的承认机制、申请流程、Founding Implementer 贡献凭证（无经济价值）与公开记录形式。任何经济奖励、代币、NFT、股权或可交易凭证，以及安全性认证或“生产就绪”声明，均不在本 RFC 范围内。
 
 ## Motivation
 
-KineGrant 的价值在于“多个互不信任的实现能就同一授权语义达成一致”。目前 Python
-参考实现、JavaScript 与 Go 验证器在 CI 中交叉验证，但没有一套正式机制承认第三方的
-独立实现。没有承认机制，生态就无法回答一个关键问题：“除了参考实现，还有谁实现了
-这个协议，并证明自己与稳定线格式兼容？”
+KineGrant's value comes from unrelated implementations agreeing on the same
+authorization semantics. The Python reference implementation and the
+JavaScript and Go verifiers are cross-verified in CI, but there is no formal
+mechanism that recognizes third-party independent implementations. Without
+recognition, the ecosystem cannot answer a key question: "Besides the
+reference implementation, who has implemented this protocol and proven
+compatibility with the stable wire format?"
 
 ## Scope
 
-本 RFC 定义：
+This RFC defines:
 
-1. 什么构成“独立实现”（independent implementation）；
-2. 独立实现如何获得社区承认（recognition）；
-3. “Founding Implementer” 贡献凭证的授予条件；
-4. 承认后的公开记录形式。
+1. what qualifies as an independent implementation;
+2. how an independent implementation is recognized by the community;
+3. the conditions for awarding the "Founding Implementer" contribution credential;
+4. the public record format after recognition.
 
-本 RFC 不涉及：任何经济奖励、代币、NFT、股权或可交易凭证；任何对实现的安全性
-认证；任何对“生产就绪”的声明。
+This RFC does **not** cover: any economic reward, token, NFT, equity, or
+tradable credential; any safety certification of an implementation; or any
+production-readiness claim.
 
 ## Proposal
 
-### 1. 独立实现的定义
+### 1. Definition of independent implementation
 
-满足以下全部条件的实现视为独立：
+An implementation is independent when **all** of the following hold:
 
-- 不是参考实现（Python `kinegrant-protocol`）的拷贝或分叉；
-- 由不同作者/组织独立编写，核心逻辑不与参考实现共享同一代码库；
-- 至少实现稳定线格式 1.0 的核心对象：ActionRequest、Capability、Receipt；
-- 通过 Machine Permission Test 证据校验（schema 0.5）或等价的一致性用例。
+- it is not a copy or fork of the reference implementation (Python
+  `kinegrant-protocol`);
+- it is independently written by a different author or organization and does
+  not share the reference implementation's core codebase;
+- it implements at least the stable wire format 1.0 core objects:
+  `ActionRequest`, `Capability`, `Receipt`;
+- it passes Machine Permission Test evidence validation (schema 0.5) or an
+  equivalent conformance case set.
 
-### 2. 承认流程
+### 2. Recognition workflow
 
-1. 实现方提交 PR：在 `implementations/<name>/` 下添加实现清单与互操作证据；
-2. 证据要求：能独立生成或验证 Capability/Receipt，并提供与参考实现交叉验证的运行
-   记录（可复现命令 + 输出摘要）；
-3. 维护者评审后，指导委员会按公开记录确认；
-4. 承认结果写入 `implementations/README.md` 的官方清单，并记录在社区决策日志。
+1. The implementer opens a pull request adding an implementation manifest and
+   interoperability evidence under `implementations/<name>/`.
+2. Evidence requirements: the implementation must independently generate or
+   verify a Capability and a Receipt, with a reproducible run record
+   (commands plus output summary) cross-checked against the reference
+   implementation.
+3. A maintainer reviews; the steering committee confirms based on the public
+   record.
+4. The result is recorded in the official list in
+   `implementations/README.md` and in the community decision log.
 
-### 3. Founding Implementer 凭证
+### 3. Founding Implementer credential
 
-- 授予条件：在承认流程中成为首批（前 12 个）被正式承认的独立实现作者；
-- 属性：仅声誉记录，无经济价值，不可转让、不可买卖、不可质押；
-- 记录格式遵循 `docs/community/CONTRIBUTION-CREDENTIALS.md`。
+- Award condition: the author becomes one of the first (up to 12) formally
+  recognized independent implementations through this workflow.
+- Properties: a reputation record only; no economic value; non-transferable;
+  cannot be bought, sold, staked, or used as an investment instrument.
+- Record format follows `docs/community/CONTRIBUTION-CREDENTIALS.md`.
 
-### 4. 公开记录
+### 4. Public record
 
-- 每个被承认实现列出：名称、作者/组织、语言/平台、证据链接、承认日期；
-- 记录公开在仓库 `implementations/README.md`，任何变更走普通 PR + 维护者评审。
+- Each recognized implementation lists: name, author/organization,
+  language/platform, evidence link, and recognition date.
+- The record lives in `implementations/README.md`; any change goes through a
+  normal pull request plus maintainer review.
 
 ## Security properties
 
-- 承认不等于安全性背书；被承认实现仍须在各自文档中声明未经过独立安全审计（如适用）。
-- 证据必须是可复现的（提供命令与固定版本），防止“截图式”虚假承认。
-- 交叉验证失败或证据撤回时，承认可被撤销（普通 PR + 委员会确认）。
+- Recognition is not a security endorsement; recognized implementations must
+  state in their own documentation when they have not had an independent
+  security audit.
+- Evidence must be reproducible (commands and pinned versions), preventing
+  screenshot-style claims.
+- On cross-verification failure or withdrawn evidence, recognition may be
+  revoked (normal PR plus steering committee confirmation).
 
 ## Compatibility
 
-- 本 RFC 不改变任何线格式、Schema 或协议语义；
-- 只新增过程性文档与公开记录，向后兼容。
+- This RFC changes no wire format, schema, or protocol semantics.
+- It only adds process documentation and public records; fully backward
+  compatible.
 
 ## Open questions
 
-- 是否要求被承认实现提供独立安全审计（现草案：不要求，但必须明示无审计）？
-- 前 12 个名额是否按承认顺序锁定（现草案：是，只认流程时间，不认购买/预留）？
+- Should recognized implementations be required to provide an independent
+  security audit? (Current draft: not required, but must explicitly state the
+  absence of an audit.)
+- Are the first 12 slots locked by recognition order? (Current draft: yes,
+  by process time only; slots cannot be bought or reserved.)
 
 ## Test plan
 
-- 新增一个 CI 检查：`implementations/` 下每个被承认条目必须有对应证据链接且可访问；
-- 提供一个示例互操作运行记录模板，要求新实现按模板提交。
+- Add a CI check: every recognized entry under `implementations/` must have a
+  reachable evidence link.
+- Provide an interoperability run-record template that new implementations
+  follow (see `implementations/RECOGNITION.md`).
