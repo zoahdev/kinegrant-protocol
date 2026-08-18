@@ -63,6 +63,18 @@ def _denied_request() -> ActionRequest:
     )
 
 
+def _engine_from_registry(
+    registry: PolicyRegistry, policy_id: str, authority: PolicyAuthority
+) -> PolicyEngine:
+    bundle = registry.current(policy_id)
+    if bundle is None:
+        raise RuntimeError("policy not activated at this gate")
+    return PolicyEngine(
+        rules_from_bundle(bundle, trusted_authorities={authority.kid}),
+        trusted_policy_issuers={authority.kid},
+    )
+
+
 def run() -> dict[str, Any]:
     authority = PolicyAuthority(Ed25519KeyPair.generate())
     policy_id = "urn:kinegrant:demo:policy:fleet-door"
