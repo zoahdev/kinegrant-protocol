@@ -42,6 +42,8 @@ reproducible evidence — is the technical body that backs this up.*
 
 **Try it now, no install:** run the [one-click demo](https://kinegrant.com/playground.html), or open the [offline browser verifier](https://zoahdev.github.io/verify/policy-bundle-verifier.html) — signed bundles, capabilities, delegation chains, forbidden combinations, receipts, MPT evidence, fleet operations, hardware evidence and more are all verified locally in your browser. If KineGrant is useful to you or your team, **give this repo a ⭐** — it helps independent reviewers and robot vendors find the project.
 
+**Contributing:** read [CONTRIBUTING.md](CONTRIBUTING.md) and pick a [good first issue](https://github.com/zoahdev/kinegrant-protocol/labels/good%20first%20issue) — translations, linter setup, documentation, adapters, and independent implementations are all welcome. New here? Ask anything in [Discussions](https://github.com/zoahdev/kinegrant-protocol/discussions).
+
 ## Community and governance
 
 KineGrant is community-governed under a no-token DAO-style model: transparent RFC decisions, contribution-based roles, public records, and **no financial mechanism** — no tokens, no fundraising, no legal entity, and no unsolicited outreach. See [COMMUNITY.md](COMMUNITY.md) and [docs/community/](docs/community/).
