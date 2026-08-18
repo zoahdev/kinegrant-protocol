@@ -1,6 +1,6 @@
 # KGP-RFC-0003: Policy Bundle Schema Stability
 
-> Status: draft (2026-08-15)
+> Status: draft (2026-08-15) — acceptance vote open until 2026-08-29 (issue #127); interim chair voted APPROVE.
 
 ## Summary
 
