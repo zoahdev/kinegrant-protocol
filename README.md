@@ -46,7 +46,7 @@ reproducible evidence — is the technical body that backs this up.*
 
 ## Community and governance
 
-KineGrant is community-governed under a no-token DAO-style model: transparent RFC decisions, contribution-based roles, public records, and **no financial mechanism** — no tokens, no fundraising, no legal entity, and no unsolicited outreach. See [COMMUNITY.md](COMMUNITY.md) and [docs/community/](docs/community/).
+KineGrant is community-governed under a no-token DAO-style model: transparent RFC decisions, contribution-based roles, public records, and **no financial mechanism** — no tokens, no fundraising, no legal entity, and no unsolicited outreach. See [COMMUNITY.md](COMMUNITY.md), [docs/community/](docs/community/), the [steering-committee seat guide](docs/community/STEERING-COMMITTEE.md), and the [pilot partnership framework](docs/PILOT-PARTNERSHIP.md).
 
 Community hub: https://kinegrant.com/community · 中文社区：https://kinegrant.com/zh/community
 
