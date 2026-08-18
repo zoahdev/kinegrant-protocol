@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Governance and community: no-token DAO charter and decision records (bilingual), steering-committee seat guide and nomination template, RFC voting guide with tally process, participation guide, pilot partnership framework, independent-implementation recognition (RFC-0004) with registry CI check.
+- Docs: technical overview, local reproducible verification record, release reproducibility record, dependency audit result; README community section links all participation paths.
+- Engineering: deterministic release builds (SOURCE_DATE_EPOCH), weekly dependency vulnerability audit workflow, CI YAML fix (lint step name quoting).
+- Outreach automation retired: the five email workflows are disabled; the project sends no automated mail.
+
 ## 2.65.5 2026-08-17
 
 - Releases now ship SLSA provenance (`multiple.intoto.jsonl`) alongside the
