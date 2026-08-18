@@ -40,4 +40,4 @@ long-term integration surface.
 
 - Reference implementation: validate frozen schema in `verify_policy_bundle`.
 - Independent verifiers: JS/Go keep the frozen checks.
-- Release process: conformance 23/23 and MPT 20/20 remain the gates.
+- Release process: conformance 23/23 and MPT 22/22 remain the gates.
