@@ -88,6 +88,39 @@ ActionRequest → PolicyEngine → Capability → ActionGate → Actuator
                                            Signed Receipt Log
 ```
 
+### 快速开始（中文 · 30 秒）
+
+```bash
+# pip（需要 Python 3.11+）
+pip install kinegrant-protocol
+kinegrant-demo
+
+# 或使用 Docker
+docker run --rm ghcr.io/zoahdev/kinegrant-protocol
+```
+
+> **KGP-001 实验性开放草案 0.1 · 稳定线格式 1.0**
+>
+> **参考实现 v2.65.4 · Apache-2.0**
+>
+> 请勿将该实现作为真实机械设备的唯一安全控制手段。
+
+KineGrant 是为机器人和其它物理 AI 系统提供的窄边界授权与问责层。在执行器执行某个动作之前，KineGrant 会验证一个短期、一次性、且与具体智能体、目标、动作、目的和策略决定绑定的能力凭证（capability）。执行之后，执行方可以产出一份签名、且最小化隐私泄露的回执（receipt）。
+
+KineGrant 不是代币、区块链、机器人中间件、运动规划器或功能安全系统。它补充而非取代 W3C ODRL、W3C Web of Things、IEEE 7012、ROS 2/SROS2、OPC UA、Matter 以及各平台原生的安全逻辑。
+
+```text
+外部策略/设备描述
+            │
+            ▼
+   KineGrant 边界适配器
+            │
+            ▼
+ActionRequest → PolicyEngine → Capability → ActionGate → Actuator
+                                                    │
+                                                    ▼
+                                           签名回执日志
+```
 ## Security properties implemented in reference implementation v2.65.4
 
 - default deny and deny-overrides policy evaluation;
