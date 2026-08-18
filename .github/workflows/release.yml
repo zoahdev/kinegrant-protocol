@@ -17,7 +17,12 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      - name: Get source date epoch
+        id: epoch
+        run: echo "epoch=" >> "$GITHUB_OUTPUT"
       - name: Build distributions
+        env:
+          SOURCE_DATE_EPOCH: ${{ steps.epoch.outputs.epoch }}
         run: |
           python -m pip install --upgrade pip build
           python -m build
