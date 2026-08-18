@@ -42,7 +42,7 @@ Commits and tags authored by the maintainer are SSH-signed (`ssh-ed25519`).
 You can verify a tag with:
 
 ```bash
-git verify-tag v2.65.4
+git verify-tag v2.65.5
 ```
 
 If verification fails, do not trust the artifact: it may have been tampered

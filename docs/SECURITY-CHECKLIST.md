@@ -12,7 +12,7 @@ claim.
   `REPRODUCING.md`).
 - [x] Machine-readable conformance report (L1–L4, self-assessment).
 - [x] Machine Permission Test (physical-boundary cases).
-- [x] Release checksums (`SHA256SUMS-v2.65.2.txt`).
+- [x] Release checksums (`SHA256SUMS-v2.65.5.txt`).
 - [x] CodeQL analysis in CI.
 
 ## Next (recommended order)
