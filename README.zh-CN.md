@@ -12,6 +12,8 @@
 
 **现在就试，不用安装：** 打开[一键演示](https://kinegrant.com/playground.html)，或[离线浏览器验证器](https://zoahdev.github.io/verify/policy-bundle-verifier.html)——签名策略包、能力、衰减链、禁止组合、收据、MPT 证据、车队运维、硬件证据等全部在浏览器本地完成核验。如果 KineGrant 对你有用，**给仓库点一个 ⭐**，这能帮助独立审查者和机器人厂商找到这个项目。
 
+**参与贡献：** 阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 并认领 [good first issue](https://github.com/zoahdev/kinegrant-protocol/labels/good%20first%20issue)——翻译、linter、文档、适配器与独立实现都欢迎。新人可以在 [Discussions](https://github.com/zoahdev/kinegrant-protocol/discussions) 提问。
+
 ## 快速开始（30 秒）
 
 ```bash
@@ -45,6 +47,15 @@ ActionRequest → PolicyEngine → Capability → ActionGate → Actuator
                                                     ▼
                                            签名收据日志
 ```
+
+## 社区与治理
+
+KineGrant 以无币 DAO 式模式由社区治理：透明的 RFC 决策、按贡献记录划分的角色、公开留档，以及**无任何金融机制**——无代币、无募资、无法律实体、无主动外联。详见 [COMMUNITY.md](COMMUNITY.md)、[docs/community/](docs/community/)。
+
+- 社区主页：https://kinegrant.com/community
+- 委员会席位征选：[docs/community/STEERING-COMMITTEE.md](docs/community/STEERING-COMMITTEE.md)
+- 试点合作：[docs/PILOT-PARTNERSHIP.md](docs/PILOT-PARTNERSHIP.md)
+- 独立实现承认：[implementations/RECOGNITION.md](implementations/RECOGNITION.md)
 
 ## 参考实现 v2.65.5 中已实现的安全属性
 
