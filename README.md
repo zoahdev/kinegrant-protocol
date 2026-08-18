@@ -418,6 +418,7 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 | `challenge/` | Reproducible Machine Permission Test instructions |
 | `REPRODUCING.md` | External reproduction and evidence-submission guide |
 | `docs/LOCAL-VERIFICATION.md` | Offline reproducible verification record |
+| `docs/RELEASE-REPRODUCIBILITY.md` | Release build reproducibility record |
 | `examples/` | Public, schema-valid signed sample objects |
 | `proof/esp32-c3/` | Non-normative low-risk device-boundary experiment |
 | `src/kinegrant/` | Python reference implementation |
