@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from typing import Any, Callable
 
-from .adapters.odrl import KGP_ODRL_PROFILE, odrl_to_rules
+from .adapters.odrl import odrl_to_rules
 from .capability import CapabilityIssuer
 from .compliance import ObligationCompliance
 from .crypto import Ed25519KeyPair
@@ -21,7 +21,6 @@ from .models import ActionRequest, PolicyRule, parse_time
 from .policy import PolicyEngine
 from .revocation import RevocationList
 from .sequence import ActionJournal, ForbiddenCombination, SequencePolicy
-
 
 RED_TEAM_CASES: tuple[dict[str, str], ...] = (
     {"id": "RT-001", "category": "replay", "name": "Consumed capability cannot be replayed"},

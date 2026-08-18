@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from typing import Any, Iterable
 
-from .models import ActionRequest, Decision, PolicyRule
+from .models import ActionRequest, PolicyRule
 from .policy import PolicyEngine, _constraints_hold, _matches
 
 

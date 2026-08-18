@@ -4,11 +4,11 @@ import secrets
 from datetime import timedelta
 from typing import Any
 
+from .attenuation import attenuate_capability
 from .canonical import content_id
 from .crypto import Ed25519KeyPair
 from .models import ActionRequest, Decision, isoformat, utc_now
 from .obligations import KNOWN_OBLIGATIONS
-from .attenuation import attenuate_capability
 
 
 def _capability_content_id(body: dict[str, Any]) -> str:

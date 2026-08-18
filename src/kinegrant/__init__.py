@@ -2,9 +2,9 @@
 
 __version__ = "2.65.5"
 
-from .capability import CapabilityIssuer
 from .attenuation import attenuate_capability, verify_attenuation
 from .attestation import build_device_attestation, verify_device_attestation
+from .capability import CapabilityIssuer
 from .checkpoint import build_receipt_checkpoint, verify_receipt_checkpoint
 from .conformance import ConformanceMark, ConformanceRunner
 from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
@@ -51,18 +51,18 @@ from .revocation import (
     sign_revocation_bundle,
     verify_revocation_bundle,
 )
-from .sequence import (
-    ActionJournal,
-    ForbiddenCombination,
-    SequencePolicy,
-    SequenceVerdict,
-)
 from .semantics import PolicyInvariants, RuleInvariant, explain_decision
 from .sensor_evidence import (
     SensorReading,
     build_sensor_commitment,
     evidence_hash_for_commitment,
     verify_sensor_commitment,
+)
+from .sequence import (
+    ActionJournal,
+    ForbiddenCombination,
+    SequencePolicy,
+    SequenceVerdict,
 )
 from .trust import TrustedClock, TrustedClockError
 from .vocabulary import (
@@ -133,6 +133,7 @@ __all__ = [
     "evidence_hash_for_commitment",
     "explain_decision",
     "is_agent_id",
+    "key_id_from_backend",
     "is_kinegrant_identifier",
     "is_policy_id",
     "is_target_id",

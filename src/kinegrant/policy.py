@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from fnmatch import fnmatchcase
 from datetime import datetime, timedelta
-from typing import Any, Iterable
+from fnmatch import fnmatchcase
+from typing import Iterable
 
 from .canonical import digest
 from .models import ActionRequest, Decision, PolicyRule, parse_time, utc_now

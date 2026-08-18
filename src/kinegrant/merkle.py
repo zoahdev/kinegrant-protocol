@@ -46,7 +46,6 @@ def merkle_proofs(document: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
     leaves = [_leaf(field, document[field]) for field in fields]
     root, layers = _build_tree(leaves)
     proofs: dict[str, dict[str, Any]] = {}
-    size = len(layers[0])
     for index, field in enumerate(fields):
         path = []
         position = index

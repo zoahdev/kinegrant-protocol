@@ -5,7 +5,6 @@ from typing import Any, Mapping
 
 from ..canonical import canonical_json
 
-
 MAX_FRAME_BYTES = 8192
 
 

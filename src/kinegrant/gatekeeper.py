@@ -21,13 +21,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
-from .compliance import ObligationCompliance, ObligationComplianceVerdict
+from .compliance import ObligationCompliance
 from .crypto import verify_envelope
 from .gate import ActionGate, VerifiedCapability
 from .models import ActionRequest, utc_now
 from .receipt import ReceiptLog
 from .revocation import RevocationList
-from .sequence import ActionJournal, JournalEntry, SequencePolicy
+from .sequence import ActionJournal, SequencePolicy
 
 
 @dataclass(frozen=True)

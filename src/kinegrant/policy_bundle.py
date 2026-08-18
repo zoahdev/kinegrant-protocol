@@ -28,7 +28,7 @@ import json
 import re
 import sys
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any, Iterable, Mapping

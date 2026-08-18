@@ -174,7 +174,11 @@ def verify_distribution_report(
 
 def _self_test() -> int:
     from .crypto import Ed25519KeyPair
-    from .revocation import RevocationList, build_revocation_bundle, sign_revocation_bundle
+    from .revocation import (
+        RevocationList,
+        build_revocation_bundle,
+        sign_revocation_bundle,
+    )
 
     authority = Ed25519KeyPair.generate()
     rl = RevocationList()
