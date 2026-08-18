@@ -1,0 +1,2 @@
+e543e6b4d64aa8781583195e1bfdbc1d83c3c4f238a476ab4404f7f38f4c95d1  kinegrant_protocol-2.65.5-py3-none-any.whl
+d7d57e2785b176b33684160552bd16b0ce5ce461d1b8dd3f8c6a96051c3e079d  kinegrant_protocol-2.65.5.tar.gz

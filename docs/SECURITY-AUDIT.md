@@ -39,7 +39,7 @@ python -m build
 
 The build produces `kinegrant_protocol-<version>.tar.gz` and a wheel under
 `dist/`. Published artifacts and their SHA-256 sums are listed in
-`SHA256SUMS-v2.65.2.txt`.
+`SHA256SUMS-v2.65.5.txt`.
 
 ## 3. Test surface
 
@@ -88,4 +88,4 @@ The reviewer should try to break, at minimum:
 - GitHub releases: https://github.com/zoahdev/kinegrant-protocol/releases
 - Deploy bundles: https://kinegrant.com/kinegrant-deploy.zip (Python) and
   https://kinegrant.com/kinegrant-deploy-win.zip (Windows, no Python required)
-- Conformance report: https://kinegrant.com/conformance-report-v2.65.2.json
+- Conformance report (self-assessment): https://github.com/zoahdev/kinegrant-protocol/blob/main/CONFORMANCE.md
