@@ -35,3 +35,7 @@ python -c "import json,sys; json.load(open(sys.argv[1], encoding='utf-8'))" spec
 ## Note
 
 The 15 non-collectable modules fail only on `ModuleNotFoundError: No module named 'jsonschema'`; the CI matrix (Python 3.11–3.13 with the test extra) runs all 501 tests green.
+## Dependency audit
+
+- pip-audit (2026-08-19): no known vulnerabilities in core dependencies (cryptography>=42, jsonschema[format]>=4.23).
+- CI runs the audit on every push/PR and weekly (workflow: dependency-audit).
