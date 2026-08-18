@@ -9,7 +9,7 @@ non-normative references, not certifications.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterable, Mapping
+from typing import Any, Mapping
 from xml.sax.saxutils import escape
 
 from ..gate import ActionGate, VerifiedCapability

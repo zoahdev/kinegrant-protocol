@@ -1,22 +1,21 @@
 from __future__ import annotations
 
+import re
+import secrets
+import sqlite3
+import time
 from collections.abc import Mapping
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
-import re
-import secrets
-import sqlite3
 from pathlib import Path
 from threading import Lock
-import time
 from typing import Any, Callable, Protocol
 
 from ..canonical import content_id
 from ..crypto import Ed25519KeyPair, verify_envelope
 from ..gate import InMemoryReplayStore, ReplayStore, VerifiedCapability
 from ..models import ActionRequest, parse_time, utc_now
-
 
 PROFILE = "kgp-esp32c3-paper-barrier/0.1"
 CHALLENGE_TYPE = "kinegrant:ExperimentalDeviceChallenge"

@@ -139,7 +139,6 @@ def _independent_policy_commands() -> list[tuple[str, list[str] | None]]:
         / "node.exe"
     )
     node_available = Path(node).is_file() and js_cli.exists()
-    go_dir = root / "implementations" / "kinegrant-go"
     go_available = shutil.which("go") is not None
     return [
         ("kinegrant-js", [node, str(js_cli)] if node_available else None),

@@ -17,7 +17,7 @@ proof.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from .capability import CapabilityIssuer
 from .crypto import Ed25519KeyPair

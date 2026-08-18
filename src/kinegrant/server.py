@@ -29,7 +29,6 @@ import json
 import os
 import secrets
 import sys
-from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
@@ -47,7 +46,6 @@ from .gate import ActionGate, InMemoryReplayStore, SQLiteReplayStore
 from .models import ActionRequest, parse_time, utc_now
 from .policy import PolicyEngine
 from .receipt import ReceiptLog, verify_receipt_chain
-
 
 # --------------------------------------------------------------------------- #
 # Defaults
@@ -535,9 +533,9 @@ def _run_loop(service: GateService, host: str, port: int) -> None:
     httpd = ThreadingHTTPServer((host, port), handler)
     httpd.daemon_threads = True
     print(f"KineGrant gate listening on http://{host}:{port}", file=sys.stderr)
-    print(f"  health:   GET  /health", file=sys.stderr)
-    print(f"  demo:     POST /run", file=sys.stderr)
-    print(f"  edit:     policy.json is re-read on every request (no restart)", file=sys.stderr)
+    print("  health:   GET  /health", file=sys.stderr)
+    print("  demo:     POST /run", file=sys.stderr)
+    print("  edit:     policy.json is re-read on every request (no restart)", file=sys.stderr)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -676,8 +674,8 @@ def main_init(argv: list[str] | None = None) -> int:
 
     print(f"Created deployment in {directory}")
     print(f"  1) cd {directory}")
-    print(f"  2) kinegrant-serve --dir .")
-    print(f"  3) curl http://127.0.0.1:8770/health")
+    print("  2) kinegrant-serve --dir .")
+    print("  3) curl http://127.0.0.1:8770/health")
     return 0
 
 

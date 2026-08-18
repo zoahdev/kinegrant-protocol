@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping as MappingABC
+import re
+import sqlite3
+from collections.abc import Iterator
+from collections.abc import Mapping as MappingABC
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from fnmatch import fnmatchcase
 from pathlib import Path
-import sqlite3
-import re
 from threading import Lock
 from typing import Any, Mapping, Protocol
 

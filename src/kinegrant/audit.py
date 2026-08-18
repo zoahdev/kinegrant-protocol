@@ -20,8 +20,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from .capability import CapabilityIssuer
 from .canonical import canonical_json
+from .capability import CapabilityIssuer
 from .compliance import ObligationCompliance, ObligationComplianceVerdict
 from .crypto import Ed25519KeyPair, verify_envelope
 from .distribution import verify_distribution_report

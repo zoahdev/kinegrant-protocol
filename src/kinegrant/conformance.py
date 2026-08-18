@@ -36,8 +36,8 @@ from .checkpoint import build_receipt_checkpoint, verify_receipt_checkpoint
 from .crypto import Ed25519KeyPair, MLDSA65KeyPair, verify_envelope
 from .distribution import RevocationDistributor
 from .gate import ActionGate, InMemoryReplayStore
-from .gatekeeper_modelcheck import check_gatekeeper_boundary
 from .gatekeeper import Gatekeeper
+from .gatekeeper_modelcheck import check_gatekeeper_boundary
 from .models import ActionRequest, PolicyRule
 from .policy import PolicyEngine
 from .policy_bundle import (
