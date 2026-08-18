@@ -2,7 +2,7 @@
 
 | Implementation | Language | Status | Coverage |
 | --- | --- | --- | --- |
-| Reference implementation (`src/kinegrant`) | Python | reference | full protocol surface, 281+ tests |
+| Reference implementation (`src/kinegrant`) | Python | reference | full protocol surface, 501+ tests |
 | `kinegrant-js` (`implementations/kinegrant-js`) | JavaScript (ESM, Node >= 20) | independent verifier | RFC 8785 JCS subset, Ed25519 envelopes, v0.1 and 0.2/1.0 capability verification, receipt chains |
 | `kinegrant-go` (`implementations/kinegrant-go`) | Go (stdlib only) | independent verifier | JCS subset, Ed25519 envelopes, v0.1 and 0.2/1.0 capability verification, receipt chains |
 
