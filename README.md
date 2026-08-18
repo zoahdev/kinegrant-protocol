@@ -411,6 +411,7 @@ acceptance run are tracked in [issue #7](https://github.com/zoahdev/kinegrant-pr
 | Path | Purpose |
 | --- | --- |
 | `spec/KGP-001.md` | Normative core protocol draft |
+| `docs/TECHNICAL-OVERVIEW.md` | Plain-language technical overview |
 | `spec/THREAT-MODEL.md` | Assumptions, adversaries, and unsolved risks |
 | `spec/STANDARD-MAPPING.md` | Boundaries with existing standards |
 | `spec/schemas/` | Strict Draft 2020-12 schemas for all core objects |
