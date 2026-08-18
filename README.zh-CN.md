@@ -53,8 +53,12 @@ ActionRequest → PolicyEngine → Capability → ActionGate → Actuator
 KineGrant 以无币 DAO 式模式由社区治理：透明的 RFC 决策、按贡献记录划分的角色、公开留档，以及**无任何金融机制**——无代币、无募资、无法律实体、无主动外联。详见 [COMMUNITY.md](COMMUNITY.md)、[docs/community/](docs/community/)。
 
 - 社区主页：https://kinegrant.com/community
-- 委员会席位征选：[docs/community/STEERING-COMMITTEE.md](docs/community/STEERING-COMMITTEE.md)
-- 试点合作：[docs/PILOT-PARTNERSHIP.md](docs/PILOT-PARTNERSHIP.md)
+- 社区章程：[docs/community/CHARTER.md](docs/community/CHARTER.md) · [中文](docs/community/CHARTER.zh-CN.md)
+- 委员会席位征选：[docs/community/STEERING-COMMITTEE.md](docs/community/STEERING-COMMITTEE.md) · [中文](docs/community/STEERING-COMMITTEE.zh-CN.md)
+- 合规边界：[docs/community/COMPLIANCE.md](docs/community/COMPLIANCE.md) · [中文](docs/community/COMPLIANCE.zh-CN.md)
+- 贡献凭证：[docs/community/CONTRIBUTION-CREDENTIALS.md](docs/community/CONTRIBUTION-CREDENTIALS.md) · [中文](docs/community/CONTRIBUTION-CREDENTIALS.zh-CN.md)
+- 决策日志：[docs/community/DECISION-LOG.md](docs/community/DECISION-LOG.md) · [中文](docs/community/DECISION-LOG.zh-CN.md)
+- 试点合作：[docs/PILOT-PARTNERSHIP.md](docs/PILOT-PARTNERSHIP.md) · [中文](docs/PILOT-PARTNERSHIP.zh-CN.md)
 - 独立实现承认：[implementations/RECOGNITION.md](implementations/RECOGNITION.md)
 
 ## 参考实现 v2.65.5 中已实现的安全属性
