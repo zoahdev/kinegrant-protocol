@@ -13,9 +13,10 @@
   mtime (after fixing file times), content, and order across builds. The only
   remaining byte difference is the top-level directory mtime, which
   setuptools recreates at build time.
-- **Authoritative hashes**: produced by the CI release workflow
-  (`SHA256SUMS-v2.65.5.txt` and the SLSA provenance attestation). Use these
-  for release verification.
+- **Authoritative hashes**: the release workflow derives the build timestamp
+  from the tagged commit, rejects tags that disagree with both package version
+  declarations, and publishes `SHA256SUMS-v<version>.txt` alongside the SLSA
+  provenance attestation. Use these for release verification.
 
 ## Not byte-reproducible (known limit)
 

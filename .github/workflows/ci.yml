@@ -31,7 +31,7 @@ jobs:
       - name: Unit, schema, and security regression tests
         run: python -m unittest discover -s tests -v
       - name: Demo smoke test
-        run: kinegrant-demo > /tmp/kinegrant-demo.json && python -m json.tool /tmp/kinegrant-demo.json >/dev/null
+        run: kinegrant-demo > /tmp/kinegrant-demo.json && python -c 'import json; assert json.load(open("/tmp/kinegrant-demo.json"))["overall_result"] == "PASS"'
       - name: Machine Permission Test
         run: kinegrant-mpt --source-commit "$GITHUB_SHA" --output /tmp/kinegrant-mpt.json >/dev/null && python challenge/verify_evidence.py /tmp/kinegrant-mpt.json
       - name: External reproduction packet

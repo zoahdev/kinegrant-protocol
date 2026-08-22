@@ -25,6 +25,8 @@ kinegrant-demo
 docker run --rm ghcr.io/zoahdev/kinegrant-protocol
 ```
 
+命令只有在四项边界检查全部通过时才会输出 `"overall_result": "PASS"`：精确动作被允许、录像被拒绝、重放被拒绝，并且签名收据链通过调用方提供的执行方信任锚验证。
+
 > **KGP-001 实验性开放草案 0.1 · 稳定线格式 1.0**
 >
 > **参考实现 v2.65.5 · Apache-2.0**
