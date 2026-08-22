@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import copy
+import json
 import unittest
+from contextlib import redirect_stdout
 from datetime import timedelta
+from io import StringIO
 
 from kinegrant.adapters import (
     matter_command_request,
@@ -18,6 +21,29 @@ from kinegrant.gate import ActionGate
 from kinegrant.models import ActionRequest, PolicyRule, utc_now
 from kinegrant.policy import PolicyEngine
 from kinegrant.receipt import ReceiptLog, verify_receipt_chain
+from kinegrant.cli import main as demo_main, run_demo
+
+
+class DemoTests(unittest.TestCase):
+    def test_demo_is_a_self_verifying_permission_boundary(self) -> None:
+        report = run_demo()
+        self.assertEqual(report["overall_result"], "PASS")
+        self.assertEqual(
+            report["checks"],
+            {
+                "exact_action_allowed": True,
+                "recording_denied": True,
+                "replay_denied": True,
+                "receipt_chain_valid": True,
+            },
+        )
+
+    def test_demo_cli_emits_machine_readable_json(self) -> None:
+        output = StringIO()
+        with redirect_stdout(output):
+            demo_main()
+        report = json.loads(output.getvalue())
+        self.assertEqual(report["overall_result"], "PASS")
 
 
 class PolicyTests(unittest.TestCase):

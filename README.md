@@ -100,6 +100,10 @@ kinegrant-demo
 docker run --rm ghcr.io/zoahdev/kinegrant-protocol
 ```
 
+The command ends with `"overall_result": "PASS"` only when all four boundary
+checks pass: the exact action is allowed, recording is denied, replay is denied,
+and the signed receipt chain verifies against the caller's executor trust anchor.
+
 > **KGP-001 实验性开放草案 0.1 · 稳定线格式 1.0**
 >
 > **参考实现 v2.65.5 · Apache-2.0**

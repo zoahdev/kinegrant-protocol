@@ -53,18 +53,44 @@ def run_demo() -> dict[str, object]:
     gate = ActionGate(trusted_issuers={authority.kid})
     claims = gate.authorize(capability, request)
 
+    replay_denied = False
+    try:
+        gate.authorize(capability, request)
+    except PermissionError:
+        replay_denied = True
+
+    recording_request = ActionRequest(
+        request_id="demo-request-002",
+        agent=request.agent,
+        target=request.target,
+        action="record",
+        purpose="training",
+        context=request.context,
+    )
+    recording_decision = engine.evaluate(recording_request)
+
     executor = Ed25519KeyPair.generate()
     log = ReceiptLog(executor)
     receipt = log.append(claims, result="succeeded", evidence_hash="sha256:" + "00" * 32)
+    receipt_chain_valid = verify_receipt_chain(
+        log.entries,
+        trusted_executors={executor.kid},
+        expected_capability_ids={claims["capability_id"]},
+    )
+    checks = {
+        "exact_action_allowed": decision.allowed,
+        "recording_denied": not recording_decision.allowed,
+        "replay_denied": replay_denied,
+        "receipt_chain_valid": receipt_chain_valid,
+    }
     return {
+        "overall_result": "PASS" if all(checks.values()) else "FAIL",
+        "checks": checks,
         "decision": decision.to_dict(),
+        "recording_decision": recording_decision.to_dict(),
         "capability": capability,
         "receipt": receipt,
-        "receipt_chain_valid": verify_receipt_chain(
-            log.entries,
-            trusted_executors={executor.kid},
-            expected_capability_ids={claims["capability_id"]},
-        ),
+        "receipt_chain_valid": receipt_chain_valid,
     }
 
 
